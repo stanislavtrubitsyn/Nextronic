@@ -1,0 +1,22 @@
+# Залежності 
+**/node_modules/
+
+# Сборка та тимчасові файли
+**/dist/
+**/.next/
+**/build/
+**/out/
+
+# Секрети (паролі, ключи API)
+**/.env
+**/.env.local
+
+# Логи и кеш
+**.log
+**/.eslintcache
+**/.base
+
+# Файли
+**generateTree.js
+**generateCode.js
+**project_code.txt
