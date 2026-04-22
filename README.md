@@ -1,0 +1,2 @@
+# Nextronic
+This project was developed specifically for a thesis on the topic: “Development of a web-based e-commerce information system for the sale of electronic goods using an intelligent recommendation system based on the analysis of user behavioral data.”
