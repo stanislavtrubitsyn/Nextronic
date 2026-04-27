@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogsModule } from './catalogs/catalogs.module';
-
+import { CategoriesModule } from './categories/categories.module'
 @Module({
   imports: [
     // Підключаємо ConfigModule для роботи з .env файлом
@@ -20,7 +20,7 @@ import { CatalogsModule } from './catalogs/catalogs.module';
 
         // Перевірка: якщо пароль не зчитався з .env, виводимо попередження
         if (!password) {
-          console.error('❌ ПОМИЛКА: Пароль БД не знайдено у файлі .env');
+          console.error('ПОМИЛКА: Пароль БД не знайдено у файлі .env');
         }
 
         return {
@@ -38,6 +38,7 @@ import { CatalogsModule } from './catalogs/catalogs.module';
 
     // Підключаємо наші функціональні модулі
     CatalogsModule,
+    CategoriesModule
     // ProductsModule, // Розкоментуй, коли створиш файл products.module.ts
   ],
 })
