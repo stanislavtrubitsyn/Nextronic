@@ -1,13 +1,13 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CatalogEntity } from './catalogs.entity';
+import { CatalogsEntity } from './catalogs.entity';
 
 @Controller('catalogs')
 export class CatalogsController {
   constructor(
-    @InjectRepository(CatalogEntity)
-    private readonly catalogRepo: Repository<CatalogEntity>,
+    @InjectRepository(CatalogsEntity)
+    private readonly catalogRepo: Repository<CatalogsEntity>,
   ) {}
 
   // 1. Створення (Create)
@@ -31,7 +31,7 @@ export class CatalogsController {
 
   // 4. Оновлення (Update)
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() body: Partial<CatalogEntity>) {
+  async update(@Param('id') id: string, @Body() body: Partial<CatalogsEntity>) {
     await this.catalogRepo.update(id, body);
     return this.catalogRepo.findOneBy({ id });
   }
