@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProductEntity } from './products/products.entity';
+import { CatalogsModule } from './catalogs/catalogs.module';
 
 @Module({
   imports: [
@@ -20,7 +20,7 @@ import { ProductEntity } from './products/products.entity';
 
         // Перевірка: якщо пароль не зчитався з .env, виводимо попередження
         if (!password) {
-          console.error('ПОМИЛКА: Пароль БД не знайдено у файлі .env');
+          console.error('❌ ПОМИЛКА: Пароль БД не знайдено у файлі .env');
         }
 
         return {
@@ -30,14 +30,15 @@ import { ProductEntity } from './products/products.entity';
           username: configService.get<string>('DB_USERNAME'),
           password: String(password), // Перетворюємо на рядок, щоб уникнути помилки SASL
           database: configService.get<string>('DB_NAME'),
-          autoLoadEntities: true, // Автоматичне завантаження сутностей
-          synchronize: true, // Автоматичне створення таблиць (тільки для розробки!)
+          autoLoadEntities: true, // Автоматичне завантаження сутностей (entities)
+          synchronize: true,      // Автоматичне створення таблиць (тільки для розробки!)
         };
       },
     }),
 
-    // Реєструємо сутність ProductEntity для використання в додатку
-    TypeOrmModule.forFeature([ProductEntity]),
+    // Підключаємо наші функціональні модулі
+    CatalogsModule,
+    // ProductsModule, // Розкоментуй, коли створиш файл products.module.ts
   ],
 })
 export class AppModule {}
