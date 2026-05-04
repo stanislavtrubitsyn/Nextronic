@@ -1,4 +1,11 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { CatalogsEntity } from '../catalogs/catalogs.entity';
 
 @Entity('categories')
@@ -6,8 +13,8 @@ export class CategoriesEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ unique: true, nullable: false })
-  name!: string;
+  @Column({ type: 'jsonb', nullable: false })
+  name!: { ua: string; en: string };
 
   @Column({ unique: true, nullable: false })
   slug!: string;
@@ -15,10 +22,12 @@ export class CategoriesEntity {
   @Column({ nullable: true })
   icon?: string;
 
-  // Зв'язок: Багато категорій належать до одного каталогу
-  @ManyToOne(() => CatalogsEntity, (catalog) => catalog.id, {
+  @Column({ type: 'jsonb', nullable: true })
+  description?: { ua: string; en: string };
+
+  @ManyToOne(() => CatalogsEntity, (catalog) => catalog.categories, {
     onDelete: 'CASCADE',
-    nullable: false
+    nullable: false,
   })
   catalog!: CatalogsEntity;
 

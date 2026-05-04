@@ -1,37 +1,48 @@
-import { IsNotEmpty, IsString, IsUUID, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsUUID,
+  IsOptional,
+  IsObject,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/mapped-types';
+
+class LocalizationDto {
+  @IsString()
+  @IsNotEmpty()
+  ua!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  en!: string;
+}
 
 export class CreateCategoriesDto {
-  @IsNotEmpty({ message: 'Name is required and cannot be empty' })
-  @IsString({ message: 'Name must be a string' })
-  name!: string;
+  @IsObject()
+  @ValidateNested()
+  @Type(() => LocalizationDto)
+  @IsNotEmpty({ message: 'Name object (ua/en) is required' })
+  name!: LocalizationDto;
 
-  @IsNotEmpty({ message: 'Slug is required for SEO-friendly URLs' })
-  @IsString({ message: 'Slug must be a string' })
+  @IsNotEmpty({ message: 'Slug is required' })
+  @IsString()
   slug!: string;
 
-  @IsNotEmpty({ message: 'Catalog ID is mandatory to link the category' })
+  @IsNotEmpty()
   @IsUUID('4', { message: 'Catalog ID must be a valid UUID' })
   catalogId!: string;
 
   @IsOptional()
-  @IsString({ message: 'Icon must be a string (URL or name)' })
-  icon?: string;
-}
-
-export class UpdateCategoriesDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  slug?: string;
-
-  @IsOptional()
-  @IsUUID('4')
-  catalogId?: string;
-
-  @IsOptional()
   @IsString()
   icon?: string;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => LocalizationDto)
+  description?: LocalizationDto;
 }
+
+export class UpdateCategoriesDto extends PartialType(CreateCategoriesDto) {}
