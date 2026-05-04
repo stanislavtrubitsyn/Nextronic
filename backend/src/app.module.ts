@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogsModule } from './catalogs/catalogs.module';
-import { CategoriesModule } from './categories/categories.module'
+import { CategoriesModule } from './categories/categories.module';
+import { ProductsModule } from './products/products.module';
 @Module({
   imports: [
     // Підключаємо ConfigModule для роботи з .env файлом
@@ -31,14 +32,15 @@ import { CategoriesModule } from './categories/categories.module'
           password: String(password), // Перетворюємо на рядок, щоб уникнути помилки SASL
           database: configService.get<string>('DB_NAME'),
           autoLoadEntities: true, // Автоматичне завантаження сутностей (entities)
-          synchronize: true,      // Автоматичне створення таблиць (тільки для розробки!)
+          synchronize: true, // Автоматичне створення таблиць (тільки для розробки!)
         };
       },
     }),
 
     // Підключаємо наші функціональні модулі
     CatalogsModule,
-    CategoriesModule
+    CategoriesModule,
+    ProductsModule,
     // ProductsModule, // Розкоментуй, коли створиш файл products.module.ts
   ],
 })
