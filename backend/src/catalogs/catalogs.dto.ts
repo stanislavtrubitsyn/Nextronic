@@ -1,29 +1,33 @@
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsObject, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/mapped-types';
+
+class LocalizationDto {
+  @IsString()
+  @IsNotEmpty()
+  ua!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  en!: string;
+}
 
 export class CreateCatalogDto {
-  @IsNotEmpty({ message: 'Catalog name is required' })
-  @IsString({ message: 'Catalog name must be a string' })
-  name!: string;
+  @IsObject()
+  @ValidateNested()
+  @Type(() => LocalizationDto)
+  @IsNotEmpty({ message: 'Catalog name object is required' })
+  name!: LocalizationDto;
 
   @IsNotEmpty({ message: 'Slug is required for catalog URLs' })
   @IsString({ message: 'Slug must be a string' })
   slug!: string;
 
   @IsOptional()
-  @IsString({ message: 'Description must be a string' })
-  description?: string;
+  @IsObject()
+  @ValidateNested()
+  @Type(() => LocalizationDto)
+  description?: LocalizationDto;
 }
 
-export class UpdateCatalogDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  slug?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-}
+export class UpdateCatalogDto extends PartialType(CreateCatalogDto) {}
