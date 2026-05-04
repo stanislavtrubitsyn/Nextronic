@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common'; 
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -8,9 +8,9 @@ async function bootstrap() {
   // ПІДКЛЮЧАЄМО ВАЛІДАЦІЮ ГЛОБАЛЬНО
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,         // Видаляє поля, яких немає в DTO
+      whitelist: true, // Видаляє поля, яких немає в DTO
       forbidNonWhitelisted: true, // Викидає помилку, якщо є зайві поля
-      transform: true,         // Перетворює типи
+      transform: true, // Перетворює типи
     }),
   );
 
@@ -19,4 +19,4 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();
