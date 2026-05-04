@@ -51,7 +51,7 @@ export class CreateProductDto {
   @IsString({ each: true })
   images!: string[];
 
-  @IsUUID()
+  @IsOptional()
   @IsNotEmpty()
   catalogId!: string;
 

@@ -3,15 +3,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
 import { ProductsEntity } from './products.entity';
 import { CreateProductDto, UpdateProductDto } from './products.dto';
+import { CategoriesEntity } from '../categories/categories.entity';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(ProductsEntity)
     private readonly productRepo: Repository<ProductsEntity>,
+    @InjectRepository(CategoriesEntity) // Впроваджуємо репозиторій категорій
+    private readonly categoryRepo: Repository<CategoriesEntity>,
   ) {}
 
-  // Функція для генерації SKU (наприклад: NX-123456)
   private generateSKU(): string {
     const randomDigits = Math.floor(100000 + Math.random() * 900000);
     return `NX-${randomDigits}`;
@@ -22,11 +24,23 @@ export class ProductsService {
     const existingSlug = await this.productRepo.findOne({ where: { slug: dto.slug } });
     if (existingSlug) throw new BadRequestException('Product slug already exists');
 
-    // 2. Генерація унікального SKU
+    // 2. АВТОМАТИЧНЕ ОТРИМАННЯ catalogId
+    // Шукаємо категорію, щоб взяти її catalogId
+    const category = await this.categoryRepo.findOne({
+      where: { id: dto.categoryId },
+      relations: ['catalog'], // Переконуємось, що зв'язок завантажений
+    });
+
+    if (!category) throw new NotFoundException('Category not found');
+
+    // Якщо catalogId не передано явно, беремо його з категорії
+    const finalCatalogId = dto.catalogId || (category.catalog ? category.catalog.id : null);
+
+    if (!finalCatalogId) throw new BadRequestException('Catalog ID could not be determined');
+
+    // 3. Генерація унікального SKU
     let sku = this.generateSKU();
     let isSkuUnique = false;
-
-    // Перевіряємо унікальність SKU (на випадок рідкісного збігу рандому)
     while (!isSkuUnique) {
       const existingSku = await this.productRepo.findOne({ where: { sku } });
       if (!existingSku) {
@@ -38,8 +52,8 @@ export class ProductsService {
 
     const product = this.productRepo.create({
       ...dto,
-      sku, // Додаємо згенерований SKU
-      catalog: { id: dto.catalogId },
+      sku,
+      catalog: { id: finalCatalogId },
       category: { id: dto.categoryId },
     });
 
@@ -70,9 +84,19 @@ export class ProductsService {
       if (conflict) throw new BadRequestException('Slug already in use');
     }
 
+    // Якщо при оновленні змінили категорію, але не дали каталог - підтягуємо каталог за новою категорією
+    let finalCatalogId = dto.catalogId;
+    if (dto.categoryId && !dto.catalogId) {
+      const category = await this.categoryRepo.findOne({
+        where: { id: dto.categoryId },
+        relations: ['catalog'],
+      });
+      if (category) finalCatalogId = category.catalog.id;
+    }
+
     const updated = this.productRepo.merge(product, {
       ...dto,
-      catalog: dto.catalogId ? { id: dto.catalogId } : product.catalog,
+      catalog: finalCatalogId ? { id: finalCatalogId } : product.catalog,
       category: dto.categoryId ? { id: dto.categoryId } : product.category,
     });
 
