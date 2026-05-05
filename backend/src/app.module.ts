@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogsModule } from './catalogs/catalogs.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 @Module({
   imports: [
     // Підключаємо ConfigModule для роботи з .env файлом
@@ -41,7 +43,8 @@ import { ProductsModule } from './products/products.module';
     CatalogsModule,
     CategoriesModule,
     ProductsModule,
-    // ProductsModule, // Розкоментуй, коли створиш файл products.module.ts
+    UsersModule,
+    AuthModule,
   ],
 })
 export class AppModule {}
