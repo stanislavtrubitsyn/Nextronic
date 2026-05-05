@@ -4,12 +4,14 @@ import {
   PrimaryGeneratedColumn,
   OneToOne,
   CreateDateColumn,
+  UpdateDateColumn,
   JoinColumn,
 } from 'typeorm';
 import { ProfilesEntity } from './profiles.entity';
 
 export enum UserRole {
   USER = 'user',
+  MODERATOR = 'moderator',
   ADMIN = 'admin',
 }
 
@@ -21,10 +23,13 @@ export class UsersEntity {
   @Column({ unique: true })
   email!: string;
 
-  @Column({ select: false, nullable: true }) // nullable для Google Auth
+  @Column({ unique: true, nullable: true })
+  phone?: string;
+
+  @Column({ select: false, nullable: true })
   password?: string;
 
-  @Column({ unique: true, nullable: true, select: false }) // Для входу через Google
+  @Column({ unique: true, nullable: true, select: false })
   googleId?: string;
 
   @Column({
@@ -40,4 +45,7 @@ export class UsersEntity {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

@@ -15,16 +15,16 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  async login(email: string, pass: string) {
-    const user = await this.usersService.findByEmail(email);
+  async login(identifier: string, pass: string) {
+    const user = await this.usersService.findByIdentifier(identifier);
 
     if (!user || !user.password) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Невірні дані для входу');
     }
 
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Невірні дані для входу');
     }
 
     return this.generateToken(user);

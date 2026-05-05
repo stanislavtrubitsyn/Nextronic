@@ -13,10 +13,13 @@ export class ProfilesEntity {
   lastName?: string;
 
   @Column({ nullable: true })
-  phone?: string;
+  middleName?: string;
 
-  @Column({ type: 'text', nullable: true })
-  address?: string;
+  @Column({ nullable: true })
+  email?: string;
+
+  @Column({ nullable: true })
+  phone?: string;
 
   @OneToOne(() => UsersEntity, (user) => user.profile)
   user!: UsersEntity;

@@ -14,7 +14,6 @@ import { AuthModule } from './auth/auth.module';
       envFilePath: '.env',
     }),
 
-    // Налаштовуємо підключення до бази даних PostgreSQL через TypeORM
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
