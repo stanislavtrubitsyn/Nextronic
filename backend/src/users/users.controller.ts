@@ -51,6 +51,12 @@ export class UsersController {
     return { success: true };
   }
 
+  @Delete('profile/me')
+  async deleteMyAccount(@Req() req: { user: { userId: string } }) {
+    await this.usersService.remove(req.user.userId);
+    return { success: true, message: 'Account deleted' };
+  }
+
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async getProfile(@Param('id', ParseUUIDPipe) id: string) {
