@@ -14,30 +14,36 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from './users.entity';
+import { UserRole, UsersEntity } from './users.entity';
 import { ProfilesEntity } from './profiles.entity';
+
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // 1. Отримати свій профіль
   @Get('profile/me')
   async getMyProfile(@Req() req: { user: { userId: string } }) {
-    // Явно вказуємо структуру
-    return this.usersService.findOne(req.user.userId);
+    return await this.usersService.findOne(req.user.userId);
   }
 
-  // 2. Оновити свій профіль (доступно будь-якому авторизованому юзеру)
   @Patch('profile/me')
   async updateMyProfile(
-    @Req() req: { user: { userId: string } }, // Явно вказуємо структуру
+    @Req() req: { user: { userId: string } },
     @Body() updateData: Partial<ProfilesEntity>,
   ) {
-    return this.usersService.update(req.user.userId, updateData);
+    return await this.usersService.update(req.user.userId, updateData);
   }
 
-  // 3. Адмінські методи (те, що було + видалення)
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  async adminUpdateUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateData: { role?: UserRole; profile?: Partial<ProfilesEntity> },
+  ): Promise<UsersEntity> {
+    return await this.usersService.adminUpdate(id, updateData);
+  }
+
   @Get()
   @Roles(UserRole.ADMIN)
   async getAllUsers() {
