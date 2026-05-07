@@ -53,8 +53,8 @@ export class CatalogsService {
 
   // Видалення каталогу
   async remove(id: string): Promise<{ success: boolean }> {
-    const result = await this.catalogRepo.delete(id);
-    if (result.affected === 0) throw new NotFoundException(`Catalog not found`);
+    const catalog = await this.findOne(id);
+    await this.catalogRepo.remove(catalog);
     return { success: true };
   }
 }

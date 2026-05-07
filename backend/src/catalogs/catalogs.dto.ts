@@ -24,6 +24,10 @@ export class CreateCatalogDto {
   slug!: string;
 
   @IsOptional()
+  @IsString()
+  icon?: string;
+
+  @IsOptional()
   @IsObject()
   @ValidateNested()
   @Type(() => LocalizationDto)
