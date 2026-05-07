@@ -48,10 +48,13 @@ export class CategoriesService {
       if (conflict) throw new BadRequestException('Slug already in use');
     }
 
-    // Якщо прийшов новий catalogId, TypeORM merge правильно його обробить
+    // Створюємо копію даних для оновлення
+    const { catalogId, ...rest } = dto;
+
     const updated = this.categoryRepo.merge(category, {
-      ...dto,
-      catalog: dto.catalogId ? { id: dto.catalogId } : category.catalog,
+      ...rest,
+      // Якщо catalogId прийшов, оновлюємо зв'язок, якщо ні - лишаємо старий
+      catalog: catalogId ? { id: catalogId } : category.catalog,
     });
 
     return await this.categoryRepo.save(updated);
