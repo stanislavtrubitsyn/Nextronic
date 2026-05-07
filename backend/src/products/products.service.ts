@@ -20,11 +20,11 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto): Promise<ProductsEntity> {
-    // 1. Перевірка slug
+    // Перевірка slug
     const existingSlug = await this.productRepo.findOne({ where: { slug: dto.slug } });
     if (existingSlug) throw new BadRequestException('Product slug already exists');
 
-    // 2. АВТОМАТИЧНЕ ОТРИМАННЯ catalogId
+    // АВТОМАТИЧНЕ ОТРИМАННЯ catalogId
     // Шукаємо категорію, щоб взяти її catalogId
     const category = await this.categoryRepo.findOne({
       where: { id: dto.categoryId },
@@ -38,7 +38,7 @@ export class ProductsService {
 
     if (!finalCatalogId) throw new BadRequestException('Catalog ID could not be determined');
 
-    // 3. Генерація унікального SKU
+    // Генерація унікального SKU
     let sku = this.generateSKU();
     let isSkuUnique = false;
     while (!isSkuUnique) {
@@ -84,20 +84,21 @@ export class ProductsService {
       if (conflict) throw new BadRequestException('Slug already in use');
     }
 
-    // Якщо при оновленні змінили категорію, але не дали каталог - підтягуємо каталог за новою категорією
-    let finalCatalogId = dto.catalogId;
-    if (dto.categoryId && !dto.catalogId) {
+    const { catalogId, categoryId, ...rest } = dto; // Витягуємо ID окремо
+
+    let finalCatalogId = catalogId;
+    if (categoryId && !catalogId) {
       const category = await this.categoryRepo.findOne({
-        where: { id: dto.categoryId },
+        where: { id: categoryId },
         relations: ['catalog'],
       });
-      if (category) finalCatalogId = category.catalog.id;
+      if (category && category.catalog) finalCatalogId = category.catalog.id;
     }
 
     const updated = this.productRepo.merge(product, {
-      ...dto,
+      ...rest,
       catalog: finalCatalogId ? { id: finalCatalogId } : product.catalog,
-      category: dto.categoryId ? { id: dto.categoryId } : product.category,
+      category: categoryId ? { id: categoryId } : product.category,
     });
 
     return await this.productRepo.save(updated);
