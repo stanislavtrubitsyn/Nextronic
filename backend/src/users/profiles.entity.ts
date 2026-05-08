@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToOne } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToOne, JoinColumn } from 'typeorm';
 import { UsersEntity } from './users.entity';
 
 @Entity('profiles')
@@ -21,6 +21,7 @@ export class ProfilesEntity {
   @Column({ nullable: true })
   phone?: string;
 
-  @OneToOne(() => UsersEntity, (user) => user.profile)
+  @OneToOne(() => UsersEntity, (user) => user.profile, { onDelete: 'CASCADE' })
+  @JoinColumn()
   user!: UsersEntity;
 }
