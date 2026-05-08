@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { CartModule } from './cart/cart.module';
 import { OrderModule } from './orders/orders.module';
+import { BonusModule } from './bonus/bonus.module';
 @Module({
   imports: [
     // Підключаємо ConfigModule для роботи з .env файлом
@@ -48,6 +49,7 @@ import { OrderModule } from './orders/orders.module';
     AuthModule,
     CartModule,
     OrderModule,
+    BonusModule,
   ],
 })
 export class AppModule {}

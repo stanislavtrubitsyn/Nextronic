@@ -5,6 +5,7 @@ import { OrderEntity } from './orders.entity';
 import { OrderItemEntity } from './order-item.entity';
 import { CartService } from '../cart/cart.service';
 import { CreateOrderDto } from './orders.dto';
+import { BonusService } from '../bonus/bonus.service';
 
 @Injectable()
 export class OrdersService {
@@ -12,6 +13,7 @@ export class OrdersService {
     @InjectRepository(OrderEntity) private readonly orderRepo: Repository<OrderEntity>,
     private readonly cartService: CartService,
     private readonly dataSource: DataSource,
+    private readonly bonusService: BonusService,
   ) {}
 
   async createOrder(userId: string, dto: CreateOrderDto) {
@@ -48,6 +50,8 @@ export class OrdersService {
 
       await queryRunner.manager.save(orderItems);
       await this.cartService.clearCart(userId);
+
+      await this.bonusService.addBonuses(userId, totalAmount);
 
       await queryRunner.commitTransaction();
       return savedOrder;
