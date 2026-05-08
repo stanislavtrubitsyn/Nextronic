@@ -6,6 +6,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { CartModule } from './cart/cart.module';
 @Module({
   imports: [
     // Підключаємо ConfigModule для роботи з .env файлом
@@ -44,6 +45,7 @@ import { AuthModule } from './auth/auth.module';
     ProductsModule,
     UsersModule,
     AuthModule,
+    CartModule,
   ],
 })
 export class AppModule {}
