@@ -3,10 +3,12 @@ import {
   Column,
   PrimaryGeneratedColumn,
   OneToOne,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { ProfilesEntity } from './profiles.entity';
+import { WishlistsEntity } from '../wishlists/wishlists.entity';
 
 export enum UserRole {
   USER = 'user',
@@ -40,6 +42,9 @@ export class UsersEntity {
 
   @OneToOne(() => ProfilesEntity, (profile) => profile.user, { cascade: true })
   profile!: ProfilesEntity;
+
+  @OneToMany(() => WishlistsEntity, (wishlist) => wishlist.user)
+  wishlists!: WishlistsEntity[];
 
   @CreateDateColumn()
   createdAt!: Date;

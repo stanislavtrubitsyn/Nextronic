@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { CartModule } from './cart/cart.module';
 import { OrderModule } from './orders/orders.module';
 import { BonusModule } from './bonus/bonus.module';
+import { WishlistModule } from './wishlists/wishlists.module';
 @Module({
   imports: [
     // Підключаємо ConfigModule для роботи з .env файлом
@@ -50,6 +51,7 @@ import { BonusModule } from './bonus/bonus.module';
     CartModule,
     OrderModule,
     BonusModule,
+    WishlistModule,
   ],
 })
 export class AppModule {}
