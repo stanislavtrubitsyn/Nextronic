@@ -6,9 +6,15 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { CartModule } from '../cart/cart.module';
 import { BonusModule } from '../bonus/bonus.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([OrderEntity, OrderItemEntity]), CartModule, BonusModule],
+  imports: [
+    TypeOrmModule.forFeature([OrderEntity, OrderItemEntity]),
+    CartModule,
+    BonusModule,
+    NotificationsModule,
+  ],
   controllers: [OrdersController],
   providers: [OrdersService],
 })

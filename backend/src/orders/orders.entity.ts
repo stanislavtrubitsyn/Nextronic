@@ -28,8 +28,11 @@ export class OrderEntity {
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
   status!: OrderStatus;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  usedBonuses!: number; // Сума використаних бонусів
+
   @Column({ type: 'decimal', precision: 10, scale: 2 })
-  totalAmount!: number;
+  totalAmount!: number; // Кінцева сума до сплати (вже зі знижкою)
 
   @Column()
   customerName!: string;
