@@ -1,15 +1,34 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn } from 'typeorm';
 import { UsersEntity } from '../users/users.entity';
 
-@Entity('bonus_accounts')
-export class BonusAccountEntity {
+export enum BonusSource {
+  PURCHASE = 'purchase',
+  BIRTHDAY = 'birthday',
+  REFUND = 'refund',
+  SPENT = 'spent',
+  ADMIN = 'admin',
+}
+
+@Entity('bonuses')
+export class BonusEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'int', default: 0 })
-  balance!: number;
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  amount!: number;
 
-  @OneToOne(() => UsersEntity, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @Column({ type: 'enum', enum: BonusSource })
+  source!: BonusSource;
+
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt!: Date;
+
+  @Column({ default: false })
+  isExpired!: boolean;
+
+  @ManyToOne(() => UsersEntity, (user) => user.bonuses, { onDelete: 'CASCADE' })
   user!: UsersEntity;
+
+  @CreateDateColumn()
+  createdAt!: Date;
 }
