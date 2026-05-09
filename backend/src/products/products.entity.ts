@@ -5,10 +5,11 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { CategoriesEntity } from '../categories/categories.entity';
 import { CatalogsEntity } from '../catalogs/catalogs.entity';
-
+import { ReviewsEntity } from '../reviews/reviews.entity';
 @Entity('products')
 export class ProductsEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -47,6 +48,9 @@ export class ProductsEntity {
 
   @ManyToOne(() => CategoriesEntity, { onDelete: 'CASCADE', nullable: false })
   category!: CategoriesEntity;
+
+  @OneToMany(() => ReviewsEntity, (review) => review.product)
+  reviews!: ReviewsEntity[];
 
   @CreateDateColumn()
   createdAt!: Date;

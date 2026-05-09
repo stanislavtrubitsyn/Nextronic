@@ -109,4 +109,25 @@ export class ProductsService {
     if (result.affected === 0) throw new NotFoundException('Product not found');
     return { success: true };
   }
+
+  async getProductWithRating(id: string) {
+    const product = await this.productRepo.findOne({
+      where: { id },
+      relations: ['reviews'],
+    });
+
+    if (!product) throw new NotFoundException('Product not found');
+
+    const totalReviews = product.reviews.length;
+    const averageRating =
+      totalReviews > 0
+        ? product.reviews.reduce((sum, rev) => sum + rev.rating, 0) / totalReviews
+        : 0;
+
+    return {
+      ...product,
+      averageRating: Number(averageRating.toFixed(1)),
+      totalReviews,
+    };
+  }
 }

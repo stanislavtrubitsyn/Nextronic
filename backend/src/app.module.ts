@@ -11,6 +11,7 @@ import { OrderModule } from './orders/orders.module';
 import { BonusModule } from './bonus/bonus.module';
 import { WishlistModule } from './wishlists/wishlists.module';
 import { ComparisonModule } from './comparisons/comparisons.module';
+import { ReviewsModule } from './reviews/reviews.module';
 @Module({
   imports: [
     // Підключаємо ConfigModule для роботи з .env файлом
@@ -54,6 +55,7 @@ import { ComparisonModule } from './comparisons/comparisons.module';
     BonusModule,
     WishlistModule,
     ComparisonModule,
+    ReviewsModule,
   ],
 })
 export class AppModule {}
