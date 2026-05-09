@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CatalogsModule } from './catalogs/catalogs.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -12,8 +13,10 @@ import { BonusModule } from './bonus/bonus.module';
 import { WishlistModule } from './wishlists/wishlists.module';
 import { ComparisonModule } from './comparisons/comparisons.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { NotificationsModule } from './notifications';
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     // Підключаємо ConfigModule для роботи з .env файлом
     ConfigModule.forRoot({
       isGlobal: true,
@@ -56,6 +59,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     WishlistModule,
     ComparisonModule,
     ReviewsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
