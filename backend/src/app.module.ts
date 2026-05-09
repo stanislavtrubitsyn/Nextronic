@@ -10,6 +10,7 @@ import { CartModule } from './cart/cart.module';
 import { OrderModule } from './orders/orders.module';
 import { BonusModule } from './bonus/bonus.module';
 import { WishlistModule } from './wishlists/wishlists.module';
+import { ComparisonModule } from './comparisons/comparisons.module';
 @Module({
   imports: [
     // Підключаємо ConfigModule для роботи з .env файлом
@@ -52,6 +53,7 @@ import { WishlistModule } from './wishlists/wishlists.module';
     OrderModule,
     BonusModule,
     WishlistModule,
+    ComparisonModule,
   ],
 })
 export class AppModule {}
