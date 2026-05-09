@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { ProfilesEntity } from './profiles.entity';
 import { WishlistsEntity } from '../wishlists/wishlists.entity';
+import { BonusEntity } from '../bonus/bonus.entity';
 
 export enum UserRole {
   USER = 'user',
@@ -45,6 +46,9 @@ export class UsersEntity {
 
   @OneToMany(() => WishlistsEntity, (wishlist) => wishlist.user)
   wishlists!: WishlistsEntity[];
+
+  @OneToMany(() => BonusEntity, (bonus) => bonus.user)
+  bonuses!: BonusEntity[];
 
   @CreateDateColumn()
   createdAt!: Date;

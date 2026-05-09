@@ -21,6 +21,9 @@ export class ProfilesEntity {
   @Column({ nullable: true })
   phone?: string;
 
+  @Column({ type: 'date', nullable: true })
+  birthday?: string;
+
   @OneToOne(() => UsersEntity, (user) => user.profile, { onDelete: 'CASCADE' })
   @JoinColumn()
   user!: UsersEntity;
