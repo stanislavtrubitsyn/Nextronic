@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { UsersEntity, UserRole } from './users.entity';
 import { ProfilesEntity } from './profiles.entity';
 import * as bcrypt from 'bcrypt';
+import { USERS_I18N, UserLangType } from './users.i18n';
 
 @Injectable()
 export class UsersService {
@@ -14,13 +15,19 @@ export class UsersService {
     private readonly profileRepo: Repository<ProfilesEntity>,
   ) {}
 
-  async create(email: string, password?: string, googleId?: string, phone?: string) {
+  async create(
+    email: string,
+    password?: string,
+    googleId?: string,
+    phone?: string,
+    lang: UserLangType = 'ua',
+  ) {
     const existingUser = await this.userRepo.findOne({
       where: [{ email }, { phone: phone || 'never-match' }],
     });
 
     if (existingUser) {
-      throw new BadRequestException('User with this email or phone already exists');
+      throw new BadRequestException(USERS_I18N[lang].exists);
     }
 
     let hashedPassword;
@@ -43,13 +50,17 @@ export class UsersService {
   }
 
   // Адмінське оновлення
-  async adminUpdate(id: string, data: { role?: UserRole; profile?: Partial<ProfilesEntity> }) {
+  async adminUpdate(
+    id: string,
+    data: { role?: UserRole; profile?: Partial<ProfilesEntity> },
+    lang: UserLangType = 'ua',
+  ) {
     const user = await this.userRepo.findOne({
       where: { id },
       relations: ['profile'],
     });
 
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
 
     if (data.role) user.role = data.role;
 
@@ -62,13 +73,13 @@ export class UsersService {
     return await this.userRepo.save(user);
   }
 
-  async update(id: string, updateData: Partial<ProfilesEntity>) {
+  async update(id: string, updateData: Partial<ProfilesEntity>, lang: UserLangType = 'ua') {
     const user = await this.userRepo.findOne({
       where: { id },
       relations: ['profile'],
     });
 
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
 
     Object.assign(user.profile, updateData);
 
@@ -78,9 +89,9 @@ export class UsersService {
     return await this.userRepo.save(user);
   }
 
-  async remove(id: string) {
+  async remove(id: string, lang: UserLangType = 'ua') {
     const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
     return await this.userRepo.remove(user);
   }
 
