@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { AUTH_I18N, AuthLangType } from './auth.i18n';
 
 @Injectable()
 export class AuthService {
@@ -15,16 +16,17 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  async login(identifier: string, pass: string) {
+  async login(identifier: string, pass: string, lang: AuthLangType = 'ua') {
     const user = await this.usersService.findByIdentifier(identifier);
+    const t = AUTH_I18N[lang];
 
     if (!user || !user.password) {
-      throw new UnauthorizedException('Невірні дані для входу');
+      throw new UnauthorizedException(t.invalidAuth);
     }
 
     const isMatch = await bcrypt.compare(pass, user.password);
     if (!isMatch) {
-      throw new UnauthorizedException('Невірні дані для входу');
+      throw new UnauthorizedException(t.invalidAuth);
     }
 
     return this.generateToken(user);

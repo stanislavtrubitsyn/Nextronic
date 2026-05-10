@@ -2,6 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '../users/users.entity';
 import { ROLES_KEY } from './roles.decorator';
+import { AUTH_I18N, AuthLangType } from './auth.i18n';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -15,10 +16,12 @@ export class RolesGuard implements CanActivate {
 
     if (!requiredRoles) return true;
 
-    const { user } = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
+    const lang: AuthLangType = request.query?.lang || 'ua';
 
     if (!user || !requiredRoles.includes(user.role as UserRole)) {
-      throw new ForbiddenException('You do not have sufficient rights to perform this action.');
+      throw new ForbiddenException(AUTH_I18N[lang].forbidden);
     }
 
     return true;
