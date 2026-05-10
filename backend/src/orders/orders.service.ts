@@ -7,6 +7,7 @@ import { CartService } from '../cart/cart.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './orders.dto';
 import { BonusService } from '../bonus/bonus.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ORDERS_I18N, OrderLangType } from './orders.i18n';
 
 @Injectable()
 export class OrdersService {
@@ -19,35 +20,8 @@ export class OrdersService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  // Словник локалізації для замовлень
-  private readonly i18n = {
-    ua: {
-      cartEmpty: 'Кошик порожній',
-      orderNotFound: 'Замовлення не знайдено',
-      insufficientBonuses: (available: number) => `Недостатньо бонусів. Доступно: ${available}`,
-      orderCreatedTitle: 'Замовлення прийнято',
-      orderCreatedBody: (num: string, amount: number) =>
-        `Ваше замовлення №${num} на суму ${amount} грн успішно створено.`,
-      orderCancelledTitle: 'Замовлення скасовано',
-      orderCancelledBody: (num: string) =>
-        `Замовлення №${num} скасовано. Бонуси повернуто (якщо були використані).`,
-    },
-    en: {
-      cartEmpty: 'Cart is empty',
-      orderNotFound: 'Order not found',
-      insufficientBonuses: (available: number) => `Not enough bonuses. Available: ${available}`,
-      orderCreatedTitle: 'Order Accepted',
-      orderCreatedBody: (num: string, amount: number) =>
-        `Your order #${num} for ${amount} UAH has been successfully created.`,
-      orderCancelledTitle: 'Order Cancelled',
-      orderCancelledBody: (num: string) =>
-        `Order #${num} has been cancelled. Bonuses refunded (if any were used).`,
-    },
-  };
-
-  //Створення нового замовлення
-  async createOrder(userId: string, dto: CreateOrderDto, lang: 'ua' | 'en' = 'ua') {
-    const t = this.i18n[lang];
+  async createOrder(userId: string, dto: CreateOrderDto, lang: OrderLangType = 'ua') {
+    const t = ORDERS_I18N[lang];
 
     const cartItems = await this.cartService.getMyCart(userId);
     if (cartItems.length === 0) {
@@ -81,7 +55,7 @@ export class OrdersService {
 
         finalAmount = baseAmount - bonusesToUse;
 
-        // Списання бонусів
+        // Списання бонусів через менеджер транзакції
         await this.bonusService.spendBonuses(userId, bonusesToUse, lang, queryRunner.manager);
       }
 
@@ -108,7 +82,6 @@ export class OrdersService {
       await queryRunner.manager.save(orderItems);
       await this.cartService.clearCart(userId);
 
-      // Сповіщення про створення
       await this.notificationsService.createNotification(
         userId,
         t.orderCreatedTitle,
@@ -125,9 +98,8 @@ export class OrdersService {
     }
   }
 
-  // Оновлення статусу замовлення
-  async updateStatus(id: string, dto: UpdateOrderStatusDto, lang: 'ua' | 'en' = 'ua') {
-    const t = this.i18n[lang];
+  async updateStatus(id: string, dto: UpdateOrderStatusDto, lang: OrderLangType = 'ua') {
+    const t = ORDERS_I18N[lang];
 
     const order = await this.orderRepo.findOne({
       where: { id },
@@ -142,15 +114,12 @@ export class OrdersService {
     order.status = dto.status;
     const savedOrder = await this.orderRepo.save(order);
 
-    // Доставлено: нараховуємо бонуси
     if (dto.status === OrderStatus.DELIVERED && oldStatus !== OrderStatus.DELIVERED) {
       const firstItem = order.items?.[0];
       const nameObj = firstItem?.product?.name;
 
       const productName =
-        typeof nameObj === 'object'
-          ? nameObj[lang]
-          : nameObj || (lang === 'ua' ? 'Товар' : 'Product');
+        typeof nameObj === 'object' ? nameObj[lang] : nameObj || t.defaultProductName;
 
       await this.bonusService.addBonuses(
         order.user.id,
@@ -160,7 +129,6 @@ export class OrdersService {
       );
     }
 
-    // Скасовано: повертаємо бонуси
     if (dto.status === OrderStatus.CANCELLED && oldStatus !== OrderStatus.CANCELLED) {
       if (Number(order.usedBonuses) > 0) {
         await this.bonusService.refundBonuses(order.user.id, Number(order.usedBonuses), lang);
@@ -176,6 +144,17 @@ export class OrdersService {
     return savedOrder;
   }
 
+  async findOne(id: string, lang: OrderLangType = 'ua') {
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['user', 'items', 'items.product'],
+    });
+    if (!order) {
+      throw new NotFoundException(ORDERS_I18N[lang].orderNotFound);
+    }
+    return order;
+  }
+
   async getMyOrders(userId: string) {
     return await this.orderRepo.find({
       where: { user: { id: userId } },
@@ -189,16 +168,5 @@ export class OrdersService {
       relations: ['user', 'items', 'items.product'],
       order: { createdAt: 'DESC' },
     });
-  }
-
-  async findOne(id: string, lang: 'ua' | 'en' = 'ua') {
-    const order = await this.orderRepo.findOne({
-      where: { id },
-      relations: ['user', 'items', 'items.product'],
-    });
-    if (!order) {
-      throw new NotFoundException(this.i18n[lang].orderNotFound);
-    }
-    return order;
   }
 }
