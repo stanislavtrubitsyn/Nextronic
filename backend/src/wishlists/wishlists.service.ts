@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm'; // Додаємо ILike для пошуку
+import { Repository, ILike } from 'typeorm';
 import { WishlistsEntity } from './wishlists.entity';
 import { WishlistItemEntity } from './wishlist-item.entity';
 import { CreateWishlistDto, AddToWishlistDto } from './wishlists.dto';
+import { WISHLISTS_I18N, WishlistLangType } from './wishlists.i18n';
 
 @Injectable()
 export class WishlistService {
@@ -12,8 +13,9 @@ export class WishlistService {
     @InjectRepository(WishlistItemEntity) private readonly itemRepo: Repository<WishlistItemEntity>,
   ) {}
 
-  async createWishlist(userId: string, dto: CreateWishlistDto) {
-    const wishlist = this.wishlistRepo.create({ ...dto, user: { id: userId } });
+  async createWishlist(userId: string, dto: CreateWishlistDto, lang: WishlistLangType = 'ua') {
+    const name = dto.name || WISHLISTS_I18N[lang].defaultName;
+    const wishlist = this.wishlistRepo.create({ name, user: { id: userId } });
     return await this.wishlistRepo.save(wishlist);
   }
 
@@ -28,27 +30,33 @@ export class WishlistService {
     });
   }
 
-  async findOne(userId: string, id: string) {
+  async findOne(userId: string, id: string, lang: WishlistLangType = 'ua') {
     const wishlist = await this.wishlistRepo.findOne({
       where: { id, user: { id: userId } },
       relations: ['items', 'items.product'],
     });
 
     if (!wishlist) {
-      throw new NotFoundException('Wishlist not found or access denied');
+      throw new NotFoundException(WISHLISTS_I18N[lang].notFound);
     }
 
     return wishlist;
   }
 
-  async addItem(userId: string, wishlistId: string, dto: AddToWishlistDto) {
+  async addItem(
+    userId: string,
+    wishlistId: string,
+    dto: AddToWishlistDto,
+    lang: WishlistLangType = 'ua',
+  ) {
+    const t = WISHLISTS_I18N[lang];
     const wishlist = await this.wishlistRepo.findOne({
       where: { id: wishlistId },
       relations: ['user'],
     });
 
-    if (!wishlist) throw new NotFoundException('Wishlist not found');
-    if (wishlist.user.id !== userId) throw new ForbiddenException('Not your wishlist');
+    if (!wishlist) throw new NotFoundException(t.notFound);
+    if (wishlist.user.id !== userId) throw new ForbiddenException(t.notYourWishlist);
 
     const item = this.itemRepo.create({
       wishlist: { id: wishlistId },
@@ -57,11 +65,17 @@ export class WishlistService {
     return await this.itemRepo.save(item);
   }
 
-  async removeItemByProductId(userId: string, wishlistId: string, productId: string) {
+  async removeItemByProductId(
+    userId: string,
+    wishlistId: string,
+    productId: string,
+    lang: WishlistLangType = 'ua',
+  ) {
+    const t = WISHLISTS_I18N[lang];
     const wishlist = await this.wishlistRepo.findOne({
       where: { id: wishlistId, user: { id: userId } },
     });
-    if (!wishlist) throw new NotFoundException('Wishlist not found');
+    if (!wishlist) throw new NotFoundException(t.notFound);
 
     const item = await this.itemRepo.findOne({
       where: {
@@ -69,27 +83,32 @@ export class WishlistService {
         product: { id: productId },
       },
     });
-    if (!item) throw new NotFoundException('Product not found in this wishlist');
+    if (!item) throw new NotFoundException(t.productNotFound);
 
     return await this.itemRepo.remove(item);
   }
 
-  async updateWishlist(userId: string, id: string, dto: CreateWishlistDto) {
+  async updateWishlist(
+    userId: string,
+    id: string,
+    dto: CreateWishlistDto,
+    lang: WishlistLangType = 'ua',
+  ) {
     const wishlist = await this.wishlistRepo.findOne({
       where: { id, user: { id: userId } },
     });
 
     if (!wishlist) {
-      throw new NotFoundException('Wishlist not found or access denied');
+      throw new NotFoundException(WISHLISTS_I18N[lang].notFound);
     }
 
     wishlist.name = dto.name ?? wishlist.name;
     return await this.wishlistRepo.save(wishlist);
   }
 
-  async removeWishlist(userId: string, id: string) {
+  async removeWishlist(userId: string, id: string, lang: WishlistLangType = 'ua') {
     const wishlist = await this.wishlistRepo.findOne({ where: { id, user: { id: userId } } });
-    if (!wishlist) throw new NotFoundException('Wishlist not found');
+    if (!wishlist) throw new NotFoundException(WISHLISTS_I18N[lang].notFound);
     return await this.wishlistRepo.remove(wishlist);
   }
 }
