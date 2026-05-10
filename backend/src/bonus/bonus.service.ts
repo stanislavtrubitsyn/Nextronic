@@ -1,3 +1,5 @@
+// E:\Nextronic\backend\src\bonus\bonus.service.ts
+
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, EntityManager, IsNull, LessThanOrEqual } from 'typeorm';
@@ -6,7 +8,6 @@ import { BonusEntity, BonusSource } from './bonus.entity';
 import { AdminAddBonusDto, AdminSubtractBonusDto } from './bonus.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ProfilesEntity } from '../users/profiles.entity';
-import { BONUS_I18N, LangType } from './bonus.i18n';
 
 @Injectable()
 export class BonusService {
@@ -20,7 +21,7 @@ export class BonusService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  // ВТОМАТИЗАЦІЯ
+  // АВТОМАТИЗАЦІЯ
 
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async checkBirthdays() {
@@ -38,8 +39,7 @@ export class BonusService {
 
     for (const profile of birthdayProfiles) {
       if (profile.user) {
-        // За замовчуванням 'ua', але можна брати з профілю, якщо є таке поле
-        await this.addBirthdayBonuses(profile.user.id, 200, 'ua');
+        await this.addBirthdayBonuses(profile.user.id, 200);
       }
     }
   }
@@ -56,15 +56,11 @@ export class BonusService {
     );
   }
 
-  //ДОПОМІЖНІ МЕТОДИ
+  // ДОПОМІЖНІ МЕТОДИ
 
-  private formatDate(date: Date | null, lang: LangType = 'ua'): string {
-    if (!date) return BONUS_I18N[lang].unlimited;
-    return date.toLocaleDateString(lang === 'ua' ? 'uk-UA' : 'en-US', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+  private formatDate(date: Date | null): string {
+    if (!date) return 'unlimited';
+    return date.toLocaleDateString('uk-UA');
   }
 
   async getBalance(userId: string): Promise<number> {
@@ -79,12 +75,7 @@ export class BonusService {
 
   // ЛОГІКА НАРАХУВАННЯ ТА СПИСАННЯ
 
-  async addBonuses(
-    userId: string,
-    orderAmount: number,
-    productName?: string,
-    lang: LangType = 'ua',
-  ) {
+  async addBonuses(userId: string, orderAmount: number, productName?: string) {
     const amount = Math.round(orderAmount * 0.1);
     const expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
@@ -98,17 +89,16 @@ export class BonusService {
       }),
     );
 
-    const t = BONUS_I18N[lang];
-    const productInfo = productName ? t.forProduct(productName) : '';
-    await this.notificationsService.createNotification(
-      userId,
-      t.purchaseTitle,
-      t.purchaseBody(amount, productInfo, this.formatDate(expiresAt, lang)),
-    );
+    // Створюємо сповіщення через ключі шаблонів
+    await this.notificationsService.createNotification(userId, 'purchaseTitle', 'purchaseBody', {
+      amount,
+      product: productName || '', // Логіка forProduct тепер може бути на фронті або тут як параметр
+      date: this.formatDate(expiresAt),
+    });
     return bonus;
   }
 
-  async addBirthdayBonuses(userId: string, amount: number = 200, lang: LangType = 'ua') {
+  async addBirthdayBonuses(userId: string, amount: number = 200) {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 1);
 
@@ -121,16 +111,14 @@ export class BonusService {
       }),
     );
 
-    const t = BONUS_I18N[lang];
-    await this.notificationsService.createNotification(
-      userId,
-      t.birthdayTitle,
-      t.birthdayBody(amount, this.formatDate(expiresAt, lang)),
-    );
+    await this.notificationsService.createNotification(userId, 'birthdayTitle', 'birthdayBody', {
+      amount,
+      date: this.formatDate(expiresAt),
+    });
     return bonus;
   }
 
-  async adminAddBonus(dto: AdminAddBonusDto, lang: LangType = 'ua') {
+  async adminAddBonus(dto: AdminAddBonusDto) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.daysValid || 30));
 
@@ -143,16 +131,16 @@ export class BonusService {
       }),
     );
 
-    const t = BONUS_I18N[lang];
     await this.notificationsService.createNotification(
       dto.userId,
-      t.adminAddTitle,
-      t.adminAddBody(dto.amount, this.formatDate(expiresAt, lang)),
+      'adminAddTitle',
+      'adminAddBody',
+      { amount: dto.amount, date: this.formatDate(expiresAt) },
     );
     return bonus;
   }
 
-  async adminSubtractBonus(dto: AdminSubtractBonusDto, lang: LangType = 'ua') {
+  async adminSubtractBonus(dto: AdminSubtractBonusDto) {
     const bonus = await this.bonusRepo.save(
       this.bonusRepo.create({
         amount: -dto.amount,
@@ -161,38 +149,35 @@ export class BonusService {
       }),
     );
 
-    const t = BONUS_I18N[lang];
     await this.notificationsService.createNotification(
       dto.userId,
-      t.adminSubTitle,
-      t.adminSubBody(dto.amount),
+      'adminSubTitle',
+      'adminSubBody',
+      { amount: dto.amount },
     );
     return bonus;
   }
 
-  async spendBonuses(
-    userId: string,
-    amount: number,
-    lang: LangType = 'ua',
-    manager?: EntityManager,
-  ) {
+  async spendBonuses(userId: string, amount: number, manager?: EntityManager) {
     const repo = manager ? manager.getRepository(BonusEntity) : this.bonusRepo;
     const bonus = await repo.save(
       repo.create({ amount: -amount, source: BonusSource.SPENT, user: { id: userId } }),
     );
 
-    const t = BONUS_I18N[lang];
-    await this.notificationsService.createNotification(userId, t.spendTitle, t.spendBody(amount));
+    await this.notificationsService.createNotification(userId, 'spendTitle', 'spendBody', {
+      amount,
+    });
     return bonus;
   }
 
-  async refundBonuses(userId: string, amount: number, lang: LangType = 'ua') {
+  async refundBonuses(userId: string, amount: number) {
     const bonus = await this.bonusRepo.save(
       this.bonusRepo.create({ amount, source: BonusSource.REFUND, user: { id: userId } }),
     );
 
-    const t = BONUS_I18N[lang];
-    await this.notificationsService.createNotification(userId, t.refundTitle, t.refundBody(amount));
+    await this.notificationsService.createNotification(userId, 'refundTitle', 'refundBody', {
+      amount,
+    });
     return bonus;
   }
 
