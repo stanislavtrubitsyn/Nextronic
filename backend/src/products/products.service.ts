@@ -4,13 +4,14 @@ import { Repository, Not } from 'typeorm';
 import { ProductsEntity } from './products.entity';
 import { CreateProductDto, UpdateProductDto } from './products.dto';
 import { CategoriesEntity } from '../categories/categories.entity';
+import { PRODUCTS_I18N, ProductLangType } from './products.i18n';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(ProductsEntity)
     private readonly productRepo: Repository<ProductsEntity>,
-    @InjectRepository(CategoriesEntity) // Впроваджуємо репозиторій категорій
+    @InjectRepository(CategoriesEntity)
     private readonly categoryRepo: Repository<CategoriesEntity>,
   ) {}
 
@@ -19,26 +20,22 @@ export class ProductsService {
     return `NX-${randomDigits}`;
   }
 
-  async create(dto: CreateProductDto): Promise<ProductsEntity> {
-    // Перевірка slug
-    const existingSlug = await this.productRepo.findOne({ where: { slug: dto.slug } });
-    if (existingSlug) throw new BadRequestException('Product slug already exists');
+  async create(dto: CreateProductDto, lang: ProductLangType = 'ua'): Promise<ProductsEntity> {
+    const t = PRODUCTS_I18N[lang];
 
-    // АВТОМАТИЧНЕ ОТРИМАННЯ catalogId
-    // Шукаємо категорію, щоб взяти її catalogId
+    const existingSlug = await this.productRepo.findOne({ where: { slug: dto.slug } });
+    if (existingSlug) throw new BadRequestException(t.slugExists);
+
     const category = await this.categoryRepo.findOne({
       where: { id: dto.categoryId },
-      relations: ['catalog'], // Переконуємось, що зв'язок завантажений
+      relations: ['catalog'],
     });
 
-    if (!category) throw new NotFoundException('Category not found');
+    if (!category) throw new NotFoundException(t.categoryNotFound);
 
-    // Якщо catalogId не передано явно, беремо його з категорії
     const finalCatalogId = dto.catalogId || (category.catalog ? category.catalog.id : null);
+    if (!finalCatalogId) throw new BadRequestException(t.catalogError);
 
-    if (!finalCatalogId) throw new BadRequestException('Catalog ID could not be determined');
-
-    // Генерація унікального SKU
     let sku = this.generateSKU();
     let isSkuUnique = false;
     while (!isSkuUnique) {
@@ -60,31 +57,29 @@ export class ProductsService {
     return await this.productRepo.save(product);
   }
 
-  async findAll(): Promise<ProductsEntity[]> {
-    return await this.productRepo.find({
-      relations: ['catalog', 'category'],
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  async findOne(id: string): Promise<ProductsEntity> {
+  async findOne(id: string, lang: ProductLangType = 'ua'): Promise<ProductsEntity> {
     const product = await this.productRepo.findOne({
       where: { id },
       relations: ['catalog', 'category'],
     });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product) throw new NotFoundException(PRODUCTS_I18N[lang].productNotFound);
     return product;
   }
 
-  async update(id: string, dto: UpdateProductDto): Promise<ProductsEntity> {
-    const product = await this.findOne(id);
+  async update(
+    id: string,
+    dto: UpdateProductDto,
+    lang: ProductLangType = 'ua',
+  ): Promise<ProductsEntity> {
+    const t = PRODUCTS_I18N[lang];
+    const product = await this.findOne(id, lang);
 
     if (dto.slug) {
       const conflict = await this.productRepo.findOne({ where: { slug: dto.slug, id: Not(id) } });
-      if (conflict) throw new BadRequestException('Slug already in use');
+      if (conflict) throw new BadRequestException(t.slugExists);
     }
 
-    const { catalogId, categoryId, ...rest } = dto; // Витягуємо ID окремо
+    const { catalogId, categoryId, ...rest } = dto;
 
     let finalCatalogId = catalogId;
     if (categoryId && !catalogId) {
@@ -104,21 +99,20 @@ export class ProductsService {
     return await this.productRepo.save(updated);
   }
 
-  async remove(id: string): Promise<{ success: boolean }> {
+  async remove(id: string, lang: ProductLangType = 'ua'): Promise<{ success: boolean }> {
     const result = await this.productRepo.delete(id);
-    if (result.affected === 0) throw new NotFoundException('Product not found');
+    if (result.affected === 0) throw new NotFoundException(PRODUCTS_I18N[lang].productNotFound);
     return { success: true };
   }
 
-  async getProductWithRating(id: string) {
+  async getProductWithRating(id: string, lang: ProductLangType = 'ua') {
     const product = await this.productRepo.findOne({
       where: { id },
       relations: ['reviews'],
     });
 
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product) throw new NotFoundException(PRODUCTS_I18N[lang].productNotFound);
 
-    // Фільтруємо лише ті записи, де є рейтинг (відгуки)
     const reviewsWithRating = product.reviews.filter(
       (rev) => rev.rating !== null && rev.rating !== undefined,
     );
@@ -133,8 +127,14 @@ export class ProductsService {
       ...product,
       averageRating: Number(averageRating.toFixed(1)),
       totalReviews,
-      // Можна також повернути загальну кількість активностей (відгуки + питання)
       totalActivity: product.reviews.length,
     };
+  }
+
+  async findAll(): Promise<ProductsEntity[]> {
+    return await this.productRepo.find({
+      relations: ['catalog', 'category'],
+      order: { createdAt: 'DESC' },
+    });
   }
 }

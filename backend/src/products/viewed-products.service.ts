@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ViewedProductEntity } from './viewed-products.entity';
+import { PRODUCTS_I18N, ProductLangType } from './products.i18n';
 
 @Injectable()
 export class ViewedProductsService {
@@ -36,18 +37,16 @@ export class ViewedProductsService {
     });
   }
 
-  // Видалити один товар з історії
-  async removeView(userId: string, productId: string) {
+  async removeView(userId: string, productId: string, lang: ProductLangType = 'ua') {
     const result = await this.viewedRepo.delete({
       user: { id: userId },
       product: { id: productId },
     });
 
-    if (result.affected === 0) throw new NotFoundException('View record not found');
+    if (result.affected === 0) throw new NotFoundException(PRODUCTS_I18N[lang].viewNotFound);
     return { success: true };
   }
 
-  // Очистити всю історію користувача
   async clearHistory(userId: string) {
     await this.viewedRepo.delete({ user: { id: userId } });
     return { success: true };
