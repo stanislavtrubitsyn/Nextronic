@@ -19,6 +19,13 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
 
+interface RequestWithUser extends Request {
+  user: {
+    userId: string;
+    role: UserRole;
+  };
+}
+
 @Controller('products')
 export class ProductsController {
   constructor(
@@ -62,19 +69,19 @@ export class ProductsController {
 
   @Post(':id/view')
   @UseGuards(JwtAuthGuard)
-  async recordView(@Param('id', ParseUUIDPipe) productId: string, @Req() req: any) {
+  async recordView(@Param('id', ParseUUIDPipe) productId: string, @Req() req: RequestWithUser) {
     return await this.viewedProductsService.addView(req.user.userId, productId);
   }
 
   @Get('history/recent')
   @UseGuards(JwtAuthGuard)
-  async getMyViewHistory(@Req() req: any) {
+  async getMyViewHistory(@Req() req: RequestWithUser) {
     return await this.viewedProductsService.getHistory(req.user.userId);
   }
 
   @Delete('history/clear')
   @UseGuards(JwtAuthGuard)
-  async clearMyHistory(@Req() req: any) {
+  async clearMyHistory(@Req() req: RequestWithUser) {
     return await this.viewedProductsService.clearHistory(req.user.userId);
   }
 
@@ -82,7 +89,7 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard)
   async removeProductFromHistory(
     @Param('productId', ParseUUIDPipe) productId: string,
-    @Req() req: any,
+    @Req() req: RequestWithUser,
   ) {
     return await this.viewedProductsService.removeView(req.user.userId, productId);
   }

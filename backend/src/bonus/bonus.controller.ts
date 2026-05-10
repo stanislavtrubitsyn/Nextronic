@@ -6,18 +6,25 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
 import { AdminAddBonusDto, AdminSubtractBonusDto } from './bonus.dto';
 
+interface RequestWithUser extends Request {
+  user: {
+    userId: string;
+    role: UserRole;
+  };
+}
+
 @Controller('bonus')
 @UseGuards(JwtAuthGuard)
 export class BonusController {
   constructor(private readonly bonusService: BonusService) {}
 
   @Get('balance')
-  async getMyBalance(@Req() req: any) {
+  async getMyBalance(@Req() req: RequestWithUser) {
     return await this.bonusService.getBalance(req.user.userId);
   }
 
   @Get('history')
-  async getMyHistory(@Req() req: any) {
+  async getMyHistory(@Req() req: RequestWithUser) {
     return await this.bonusService.getHistory(req.user.userId);
   }
 
