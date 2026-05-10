@@ -7,10 +7,13 @@ export class NotificationsEntity {
   id!: string;
 
   @Column()
-  title!: string;
+  titleKey!: string;
 
-  @Column('text')
-  message!: string;
+  @Column()
+  messageKey!: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  params!: any;
 
   @Column({ default: false })
   isRead!: boolean;
