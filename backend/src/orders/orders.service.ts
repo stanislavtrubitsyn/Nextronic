@@ -55,8 +55,7 @@ export class OrdersService {
 
         finalAmount = baseAmount - bonusesToUse;
 
-        // Списання бонусів через менеджер транзакції
-        await this.bonusService.spendBonuses(userId, bonusesToUse, lang, queryRunner.manager);
+        await this.bonusService.spendBonuses(userId, bonusesToUse, queryRunner.manager);
       }
 
       const order = queryRunner.manager.create(OrderEntity, {
@@ -84,8 +83,12 @@ export class OrdersService {
 
       await this.notificationsService.createNotification(
         userId,
-        t.orderCreatedTitle,
-        t.orderCreatedBody(savedOrder.orderNumber, finalAmount),
+        'orderCreatedTitle',
+        'orderCreatedBody',
+        {
+          num: savedOrder.orderNumber,
+          amount: finalAmount,
+        },
       );
 
       await queryRunner.commitTransaction();
@@ -118,26 +121,23 @@ export class OrdersService {
       const firstItem = order.items?.[0];
       const nameObj = firstItem?.product?.name;
 
-      const productName =
-        typeof nameObj === 'object' ? nameObj[lang] : nameObj || t.defaultProductName;
+      const productName = typeof nameObj === 'object' ? nameObj['ua'] : nameObj || 'Product';
 
-      await this.bonusService.addBonuses(
-        order.user.id,
-        Number(order.totalAmount),
-        productName,
-        lang,
-      );
+      await this.bonusService.addBonuses(order.user.id, Number(order.totalAmount), productName);
     }
 
+    // Логіка скасування
     if (dto.status === OrderStatus.CANCELLED && oldStatus !== OrderStatus.CANCELLED) {
       if (Number(order.usedBonuses) > 0) {
-        await this.bonusService.refundBonuses(order.user.id, Number(order.usedBonuses), lang);
+        await this.bonusService.refundBonuses(order.user.id, Number(order.usedBonuses));
       }
 
+      // Динамічне сповіщення про скасування
       await this.notificationsService.createNotification(
         order.user.id,
-        t.orderCancelledTitle,
-        t.orderCancelledBody(order.orderNumber),
+        'orderCancelledTitle',
+        'orderCancelledBody',
+        { num: order.orderNumber },
       );
     }
 
