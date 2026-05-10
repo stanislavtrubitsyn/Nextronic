@@ -118,16 +118,23 @@ export class ProductsService {
 
     if (!product) throw new NotFoundException('Product not found');
 
-    const totalReviews = product.reviews.length;
+    // Фільтруємо лише ті записи, де є рейтинг (відгуки)
+    const reviewsWithRating = product.reviews.filter(
+      (rev) => rev.rating !== null && rev.rating !== undefined,
+    );
+
+    const totalReviews = reviewsWithRating.length;
     const averageRating =
       totalReviews > 0
-        ? product.reviews.reduce((sum, rev) => sum + rev.rating, 0) / totalReviews
+        ? reviewsWithRating.reduce((sum, rev) => sum + (rev.rating || 0), 0) / totalReviews
         : 0;
 
     return {
       ...product,
       averageRating: Number(averageRating.toFixed(1)),
       totalReviews,
+      // Можна також повернути загальну кількість активностей (відгуки + питання)
+      totalActivity: product.reviews.length,
     };
   }
 }
