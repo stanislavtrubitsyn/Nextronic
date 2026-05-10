@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
 import { CatalogsEntity } from './catalogs.entity';
 import { CreateCatalogDto, UpdateCatalogDto } from './catalogs.dto';
+import { CATALOGS_I18N, CatalogLangType } from './catalogs.i18n';
 
 @Injectable()
 export class CatalogsService {
@@ -11,17 +12,14 @@ export class CatalogsService {
     private readonly catalogRepo: Repository<CatalogsEntity>,
   ) {}
 
-  // Створення нового каталогу
-  async create(dto: CreateCatalogDto): Promise<CatalogsEntity> {
-    // Перевірка унікальності slug
+  async create(dto: CreateCatalogDto, lang: CatalogLangType = 'ua'): Promise<CatalogsEntity> {
     const existing = await this.catalogRepo.findOne({ where: { slug: dto.slug } });
-    if (existing) throw new BadRequestException('Catalog with this slug already exists');
+    if (existing) throw new BadRequestException(CATALOGS_I18N[lang].slugExists);
 
     const newCatalog = this.catalogRepo.create(dto);
     return await this.catalogRepo.save(newCatalog);
   }
 
-  // Отримання всіх каталогів
   async findAll(): Promise<CatalogsEntity[]> {
     return await this.catalogRepo.find({
       relations: ['categories'],
@@ -29,31 +27,30 @@ export class CatalogsService {
     });
   }
 
-  // Пошук одного каталогу за ID
-  async findOne(id: string): Promise<CatalogsEntity> {
+  async findOne(id: string, lang: CatalogLangType = 'ua'): Promise<CatalogsEntity> {
     const catalog = await this.catalogRepo.findOne({ where: { id }, relations: ['categories'] });
-    if (!catalog) throw new NotFoundException(`Catalog not found`);
+    if (!catalog) throw new NotFoundException(CATALOGS_I18N[lang].notFound);
     return catalog;
   }
 
-  // Оновлення каталогу
-  async update(id: string, dto: UpdateCatalogDto): Promise<CatalogsEntity> {
-    // Перевіряємо чи існує такий каталог
-    const catalog = await this.findOne(id);
+  async update(
+    id: string,
+    dto: UpdateCatalogDto,
+    lang: CatalogLangType = 'ua',
+  ): Promise<CatalogsEntity> {
+    const catalog = await this.findOne(id, lang);
 
     if (dto.slug) {
       const conflict = await this.catalogRepo.findOne({ where: { slug: dto.slug, id: Not(id) } });
-      if (conflict) throw new BadRequestException('Slug already in use');
+      if (conflict) throw new BadRequestException(CATALOGS_I18N[lang].slugInUse);
     }
 
-    // Об'єднуємо існуючі дані з новими з DTO
     const updated = this.catalogRepo.merge(catalog, dto);
     return await this.catalogRepo.save(updated);
   }
 
-  // Видалення каталогу
-  async remove(id: string): Promise<{ success: boolean }> {
-    const catalog = await this.findOne(id);
+  async remove(id: string, lang: CatalogLangType = 'ua'): Promise<{ success: boolean }> {
+    const catalog = await this.findOne(id, lang);
     await this.catalogRepo.remove(catalog);
     return { success: true };
   }

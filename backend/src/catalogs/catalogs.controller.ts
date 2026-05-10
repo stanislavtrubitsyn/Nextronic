@@ -8,6 +8,7 @@ import {
   Delete,
   ParseUUIDPipe,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { CatalogsEntity } from './catalogs.entity';
 import { CatalogsService } from './catalogs.service';
@@ -16,6 +17,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
+import { CatalogLangType } from './catalogs.i18n';
 
 @Controller('catalogs')
 export class CatalogsController {
@@ -27,15 +29,21 @@ export class CatalogsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<CatalogsEntity> {
-    return this.catalogsService.findOne(id);
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('lang') lang: CatalogLangType = 'ua',
+  ): Promise<CatalogsEntity> {
+    return this.catalogsService.findOne(id, lang);
   }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  create(@Body() body: CreateCatalogDto): Promise<CatalogsEntity> {
-    return this.catalogsService.create(body);
+  create(
+    @Body() body: CreateCatalogDto,
+    @Query('lang') lang: CatalogLangType = 'ua',
+  ): Promise<CatalogsEntity> {
+    return this.catalogsService.create(body, lang);
   }
 
   @Patch(':id')
@@ -44,14 +52,18 @@ export class CatalogsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateCatalogDto,
+    @Query('lang') lang: CatalogLangType = 'ua',
   ): Promise<CatalogsEntity> {
-    return this.catalogsService.update(id, body);
+    return this.catalogsService.update(id, body, lang);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN) // Тільки адмін може видаляти каталоги
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<{ success: boolean }> {
-    return this.catalogsService.remove(id);
+  @Roles(UserRole.ADMIN)
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('lang') lang: CatalogLangType = 'ua',
+  ): Promise<{ success: boolean }> {
+    return this.catalogsService.remove(id, lang);
   }
 }
