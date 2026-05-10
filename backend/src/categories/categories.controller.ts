@@ -8,6 +8,7 @@ import {
   Delete,
   ParseUUIDPipe,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CategoriesEntity } from './categories.entity';
@@ -16,6 +17,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
+import { CategoryLangType } from './categories.i18n';
 
 @Controller('categories')
 export class CategoriesController {
@@ -27,15 +29,21 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<CategoriesEntity> {
-    return this.categoriesService.findOne(id);
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('lang') lang: CategoryLangType = 'ua',
+  ): Promise<CategoriesEntity> {
+    return this.categoriesService.findOne(id, lang);
   }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  create(@Body() body: CreateCategoriesDto): Promise<CategoriesEntity> {
-    return this.categoriesService.create(body);
+  create(
+    @Body() body: CreateCategoriesDto,
+    @Query('lang') lang: CategoryLangType = 'ua',
+  ): Promise<CategoriesEntity> {
+    return this.categoriesService.create(body, lang);
   }
 
   @Patch(':id')
@@ -44,14 +52,18 @@ export class CategoriesController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateCategoriesDto,
+    @Query('lang') lang: CategoryLangType = 'ua',
   ): Promise<CategoriesEntity> {
-    return this.categoriesService.update(id, body);
+    return this.categoriesService.update(id, body, lang);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<{ success: boolean }> {
-    return this.categoriesService.remove(id);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('lang') lang: CategoryLangType = 'ua',
+  ): Promise<{ success: boolean }> {
+    return this.categoriesService.remove(id, lang);
   }
 }
