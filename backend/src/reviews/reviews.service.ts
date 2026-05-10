@@ -11,6 +11,7 @@ import { ReviewsEntity, ReviewType } from './reviews.entity';
 import { CreateReviewDto, UpdateReviewDto } from './reviews.dto';
 import { OrderEntity, OrderStatus } from '../orders/orders.entity';
 import { UserRole } from '../users/users.entity';
+import { REVIEWS_I18N, ReviewLangType } from './reviews.i18n';
 
 @Injectable()
 export class ReviewsService {
@@ -21,13 +22,13 @@ export class ReviewsService {
     private readonly orderRepo: Repository<OrderEntity>,
   ) {}
 
-  async create(userId: string, dto: CreateReviewDto) {
-    //Валідація рейтингу для відгуків
+  async create(userId: string, dto: CreateReviewDto, lang: ReviewLangType = 'ua') {
+    const t = REVIEWS_I18N[lang];
+
     if (dto.type === ReviewType.REVIEW && !dto.rating) {
-      throw new BadRequestException('Rating is required for reviews');
+      throw new BadRequestException(t.ratingRequired);
     }
 
-    //Перевірка на дублікат відгуку
     if (dto.type === ReviewType.REVIEW) {
       const existing = await this.reviewRepo.findOne({
         where: {
@@ -36,20 +37,18 @@ export class ReviewsService {
           type: ReviewType.REVIEW,
         },
       });
-      if (existing) throw new ConflictException('You already left a review');
+      if (existing) throw new ConflictException(t.alreadyLeft);
     }
 
-    //Перевірка "Придбано"
+    // Перевірка "Придбано" (тільки якщо замовлення доставлено)
     const purchase = await this.orderRepo.findOne({
       where: {
         user: { id: userId },
-        status: OrderStatus.DELIVERED,
+        status: OrderStatus.DELIVERED, // Тепер враховуємо тільки статус "Доставлено"
         items: { product: { id: dto.productId } },
       },
     });
 
-    //Створення запису
-    // Використовуємо undefined замість null, щоб уникнути помилок типізації
     const review = this.reviewRepo.create({
       ...dto,
       user: { id: userId },
@@ -61,8 +60,34 @@ export class ReviewsService {
     return await this.reviewRepo.save(review);
   }
 
+  async update(userId: string, id: string, dto: UpdateReviewDto, lang: ReviewLangType = 'ua') {
+    const review = await this.reviewRepo.findOne({
+      where: { id, user: { id: userId } },
+    });
+    if (!review) throw new NotFoundException(REVIEWS_I18N[lang].notFound);
+
+    Object.assign(review, dto);
+    return await this.reviewRepo.save(review);
+  }
+
+  async remove(id: string, userId: string, role: UserRole, lang: ReviewLangType = 'ua') {
+    const t = REVIEWS_I18N[lang];
+    const review = await this.reviewRepo.findOne({
+      where: { id },
+      relations: ['user'],
+    });
+
+    if (!review) throw new NotFoundException(t.notFound);
+
+    if (role !== UserRole.ADMIN && review.user.id !== userId) {
+      throw new ForbiddenException(t.accessDenied);
+    }
+
+    await this.reviewRepo.remove(review);
+    return { success: true };
+  }
+
   async getProductReviews(productId: string) {
-    // Використовуємо IsNull() для коректного фільтра
     return await this.reviewRepo.find({
       where: {
         product: { id: productId },
@@ -71,31 +96,5 @@ export class ReviewsService {
       relations: ['user', 'replies', 'replies.user'],
       order: { createdAt: 'DESC' },
     });
-  }
-
-  async update(userId: string, id: string, dto: UpdateReviewDto) {
-    const review = await this.reviewRepo.findOne({
-      where: { id, user: { id: userId } },
-    });
-    if (!review) throw new NotFoundException('Review not found or access denied');
-
-    Object.assign(review, dto);
-    return await this.reviewRepo.save(review);
-  }
-
-  async remove(id: string, userId: string, role: UserRole) {
-    const review = await this.reviewRepo.findOne({
-      where: { id },
-      relations: ['user'],
-    });
-
-    if (!review) throw new NotFoundException('Review not found');
-
-    if (role !== UserRole.ADMIN && review.user.id !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
-
-    await this.reviewRepo.remove(review);
-    return { success: true };
   }
 }
