@@ -9,10 +9,12 @@ import {
   Req,
   UseGuards,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AddToCartDto, UpdateCartItemDto } from './cart.dto';
+import { CartLangType } from './cart.i18n';
 
 interface RequestWithUser extends Request {
   user: {
@@ -40,13 +42,18 @@ export class CartController {
     @Req() req: RequestWithUser,
     @Param('id', ParseUUIDPipe) itemId: string,
     @Body() dto: UpdateCartItemDto,
+    @Query('lang') lang: CartLangType = 'ua',
   ) {
-    return await this.cartService.updateQuantity(req.user.userId, itemId, dto.quantity);
+    return await this.cartService.updateQuantity(req.user.userId, itemId, dto.quantity, lang);
   }
 
   @Delete(':id')
-  async removeItem(@Req() req: RequestWithUser, @Param('id', ParseUUIDPipe) itemId: string) {
-    await this.cartService.removeItem(req.user.userId, itemId);
+  async removeItem(
+    @Req() req: RequestWithUser,
+    @Param('id', ParseUUIDPipe) itemId: string,
+    @Query('lang') lang: CartLangType = 'ua',
+  ) {
+    await this.cartService.removeItem(req.user.userId, itemId, lang);
     return { success: true };
   }
 

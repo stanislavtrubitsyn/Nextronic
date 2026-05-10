@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CartEntity } from './cart.entity';
 import { AddToCartDto } from './cart.dto';
+import { CART_I18N, CartLangType } from './cart.i18n';
 
 @Injectable()
 export class CartService {
@@ -20,7 +21,6 @@ export class CartService {
   }
 
   async addToCart(userId: string, dto: AddToCartDto) {
-    // Перевіряємо, чи є вже такий товар у кошику цього юзера
     let item = await this.cartRepo.findOne({
       where: { user: { id: userId }, product: { id: dto.productId } },
     });
@@ -37,23 +37,32 @@ export class CartService {
     return await this.cartRepo.save(item);
   }
 
-  async updateQuantity(userId: string, itemId: string, quantity: number) {
+  async updateQuantity(
+    userId: string,
+    itemId: string,
+    quantity: number,
+    lang: CartLangType = 'ua',
+  ) {
     const item = await this.cartRepo.findOne({
       where: { id: itemId, user: { id: userId } },
     });
 
-    if (!item) throw new NotFoundException('Cart item not found');
+    if (!item) {
+      throw new NotFoundException(CART_I18N[lang].itemNotFound);
+    }
 
     item.quantity = quantity;
     return await this.cartRepo.save(item);
   }
 
-  async removeItem(userId: string, itemId: string) {
+  async removeItem(userId: string, itemId: string, lang: CartLangType = 'ua') {
     const item = await this.cartRepo.findOne({
       where: { id: itemId, user: { id: userId } },
     });
 
-    if (!item) throw new NotFoundException('Cart item not found');
+    if (!item) {
+      throw new NotFoundException(CART_I18N[lang].itemNotFound);
+    }
     return await this.cartRepo.remove(item);
   }
 
