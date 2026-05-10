@@ -1,14 +1,23 @@
-import { Controller, Post, Get, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Body,
+  Param,
+  Req,
+  UseGuards,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { ComparisonService } from './comparisons.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AddToComparisonDto } from './comparisons.dto';
+import { ComparisonLangType } from './comparisons.i18n';
 import { Request } from 'express';
 
 interface RequestWithUser extends Request {
-  user: {
-    userId: string;
-    email: string;
-  };
+  user: { userId: string; email: string };
 }
 
 @Controller('comparisons')
@@ -17,8 +26,12 @@ export class ComparisonController {
   constructor(private readonly compService: ComparisonService) {}
 
   @Post()
-  async add(@Req() req: RequestWithUser, @Body() dto: AddToComparisonDto) {
-    return await this.compService.addToComparison(req.user.userId, dto.productId);
+  async add(
+    @Req() req: RequestWithUser,
+    @Body() dto: AddToComparisonDto,
+    @Query('lang') lang: ComparisonLangType = 'ua',
+  ) {
+    return await this.compService.addToComparison(req.user.userId, dto.productId, lang);
   }
 
   @Get()
@@ -27,12 +40,20 @@ export class ComparisonController {
   }
 
   @Delete('product/:productId')
-  async removeProduct(@Req() req: RequestWithUser, @Param('productId') productId: string) {
-    return await this.compService.removeItem(req.user.userId, productId);
+  async removeProduct(
+    @Req() req: RequestWithUser,
+    @Param('productId', ParseUUIDPipe) productId: string,
+    @Query('lang') lang: ComparisonLangType = 'ua',
+  ) {
+    return await this.compService.removeItem(req.user.userId, productId, lang);
   }
 
   @Delete(':id')
-  async removeList(@Req() req: RequestWithUser, @Param('id') id: string) {
-    return await this.compService.removeComparison(req.user.userId, id);
+  async removeList(
+    @Req() req: RequestWithUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('lang') lang: ComparisonLangType = 'ua',
+  ) {
+    return await this.compService.removeComparison(req.user.userId, id, lang);
   }
 }
