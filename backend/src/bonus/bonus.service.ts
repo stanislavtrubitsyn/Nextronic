@@ -6,6 +6,7 @@ import { BonusEntity, BonusSource } from './bonus.entity';
 import { AdminAddBonusDto, AdminSubtractBonusDto } from './bonus.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ProfilesEntity } from '../users/profiles.entity';
+import { BONUS_I18N, LangType } from './bonus.i18n';
 
 @Injectable()
 export class BonusService {
@@ -19,51 +20,7 @@ export class BonusService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  private readonly i18n = {
-    ua: {
-      unlimited: 'необмежено',
-      purchaseTitle: 'Нарахування бонусів',
-      purchaseBody: (amount: number, product: string, date: string) =>
-        `Вам нараховано ${amount} бонусів${product}. Дійсні до: ${date}.`,
-      birthdayTitle: 'З днем народження!',
-      birthdayBody: (amount: number, date: string) =>
-        `Даруємо вам ${amount} бонусів до вашого свята! Використайте їх до ${date}.`,
-      adminAddTitle: 'Подарункові бонуси',
-      adminAddBody: (amount: number, date: string) =>
-        `Адміністратор нарахував вам ${amount} бонусів. Дійсні до: ${date}.`,
-      adminSubTitle: 'Списання бонусів',
-      adminSubBody: (amount: number) => `Адміністратор списав ${amount} бонусів з вашого рахунку.`,
-      spendTitle: 'Використання бонусів',
-      spendBody: (amount: number) =>
-        `З вашого рахунку списано ${amount} бонусів для оплати замовлення.`,
-      refundTitle: 'Повернення бонусів',
-      refundBody: (amount: number) => `Вам повернуто ${amount} бонусів за скасоване замовлення.`,
-      forProduct: (name: string) => ` за товар "${name}"`,
-    },
-    en: {
-      unlimited: 'unlimited',
-      purchaseTitle: 'Bonus Accrual',
-      purchaseBody: (amount: number, product: string, date: string) =>
-        `You have been credited with ${amount} bonuses${product}. Valid until: ${date}.`,
-      birthdayTitle: 'Happy Birthday!',
-      birthdayBody: (amount: number, date: string) =>
-        `We are giving you ${amount} bonuses for your holiday! Use them until ${date}.`,
-      adminAddTitle: 'Gift Bonuses',
-      adminAddBody: (amount: number, date: string) =>
-        `The administrator has credited you with ${amount} bonuses. Valid until: ${date}.`,
-      adminSubTitle: 'Bonus Deduction',
-      adminSubBody: (amount: number) =>
-        `The administrator has deducted ${amount} bonuses from your account.`,
-      spendTitle: 'Bonus Usage',
-      spendBody: (amount: number) => `${amount} bonuses have been deducted for your order payment.`,
-      refundTitle: 'Bonus Refund',
-      refundBody: (amount: number) =>
-        `${amount} bonuses have been refunded for your cancelled order.`,
-      forProduct: (name: string) => ` for product "${name}"`,
-    },
-  };
-
-  // АВТОМАТИЗАЦІЯ: Перевірка іменинників щодня о 09:00
+  // ВТОМАТИЗАЦІЯ
 
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async checkBirthdays() {
@@ -72,7 +29,6 @@ export class BonusService {
     const day = today.getDate();
     const month = today.getMonth() + 1;
 
-    // Шукаємо профілі, де день і місяць народження збігаються з сьогоднішнім
     const birthdayProfiles = await this.profileRepo
       .createQueryBuilder('profile')
       .leftJoinAndSelect('profile.user', 'user')
@@ -82,12 +38,11 @@ export class BonusService {
 
     for (const profile of birthdayProfiles) {
       if (profile.user) {
+        // За замовчуванням 'ua', але можна брати з профілю, якщо є таке поле
         await this.addBirthdayBonuses(profile.user.id, 200, 'ua');
       }
     }
   }
-
-  // АВТОМАТИЗАЦІЯ: Позначення протермінованих бонусів щоночі
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupExpiredBonuses() {
@@ -101,8 +56,10 @@ export class BonusService {
     );
   }
 
-  private formatDate(date: Date | null, lang: 'ua' | 'en' = 'ua'): string {
-    if (!date) return this.i18n[lang].unlimited;
+  //ДОПОМІЖНІ МЕТОДИ
+
+  private formatDate(date: Date | null, lang: LangType = 'ua'): string {
+    if (!date) return BONUS_I18N[lang].unlimited;
     return date.toLocaleDateString(lang === 'ua' ? 'uk-UA' : 'en-US', {
       day: '2-digit',
       month: '2-digit',
@@ -120,11 +77,13 @@ export class BonusService {
     return bonuses.reduce((sum, b) => sum + Number(b.amount), 0);
   }
 
+  // ЛОГІКА НАРАХУВАННЯ ТА СПИСАННЯ
+
   async addBonuses(
     userId: string,
     orderAmount: number,
     productName?: string,
-    lang: 'ua' | 'en' = 'ua',
+    lang: LangType = 'ua',
   ) {
     const amount = Math.round(orderAmount * 0.1);
     const expiresAt = new Date();
@@ -139,7 +98,7 @@ export class BonusService {
       }),
     );
 
-    const t = this.i18n[lang];
+    const t = BONUS_I18N[lang];
     const productInfo = productName ? t.forProduct(productName) : '';
     await this.notificationsService.createNotification(
       userId,
@@ -149,7 +108,7 @@ export class BonusService {
     return bonus;
   }
 
-  async addBirthdayBonuses(userId: string, amount: number = 200, lang: 'ua' | 'en' = 'ua') {
+  async addBirthdayBonuses(userId: string, amount: number = 200, lang: LangType = 'ua') {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 1);
 
@@ -162,7 +121,7 @@ export class BonusService {
       }),
     );
 
-    const t = this.i18n[lang];
+    const t = BONUS_I18N[lang];
     await this.notificationsService.createNotification(
       userId,
       t.birthdayTitle,
@@ -171,7 +130,7 @@ export class BonusService {
     return bonus;
   }
 
-  async adminAddBonus(dto: AdminAddBonusDto, lang: 'ua' | 'en' = 'ua') {
+  async adminAddBonus(dto: AdminAddBonusDto, lang: LangType = 'ua') {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.daysValid || 30));
 
@@ -184,7 +143,7 @@ export class BonusService {
       }),
     );
 
-    const t = this.i18n[lang];
+    const t = BONUS_I18N[lang];
     await this.notificationsService.createNotification(
       dto.userId,
       t.adminAddTitle,
@@ -193,7 +152,7 @@ export class BonusService {
     return bonus;
   }
 
-  async adminSubtractBonus(dto: AdminSubtractBonusDto, lang: 'ua' | 'en' = 'ua') {
+  async adminSubtractBonus(dto: AdminSubtractBonusDto, lang: LangType = 'ua') {
     const bonus = await this.bonusRepo.save(
       this.bonusRepo.create({
         amount: -dto.amount,
@@ -202,7 +161,7 @@ export class BonusService {
       }),
     );
 
-    const t = this.i18n[lang];
+    const t = BONUS_I18N[lang];
     await this.notificationsService.createNotification(
       dto.userId,
       t.adminSubTitle,
@@ -214,7 +173,7 @@ export class BonusService {
   async spendBonuses(
     userId: string,
     amount: number,
-    lang: 'ua' | 'en' = 'ua',
+    lang: LangType = 'ua',
     manager?: EntityManager,
   ) {
     const repo = manager ? manager.getRepository(BonusEntity) : this.bonusRepo;
@@ -222,17 +181,17 @@ export class BonusService {
       repo.create({ amount: -amount, source: BonusSource.SPENT, user: { id: userId } }),
     );
 
-    const t = this.i18n[lang];
+    const t = BONUS_I18N[lang];
     await this.notificationsService.createNotification(userId, t.spendTitle, t.spendBody(amount));
     return bonus;
   }
 
-  async refundBonuses(userId: string, amount: number, lang: 'ua' | 'en' = 'ua') {
+  async refundBonuses(userId: string, amount: number, lang: LangType = 'ua') {
     const bonus = await this.bonusRepo.save(
       this.bonusRepo.create({ amount, source: BonusSource.REFUND, user: { id: userId } }),
     );
 
-    const t = this.i18n[lang];
+    const t = BONUS_I18N[lang];
     await this.notificationsService.createNotification(userId, t.refundTitle, t.refundBody(amount));
     return bonus;
   }
