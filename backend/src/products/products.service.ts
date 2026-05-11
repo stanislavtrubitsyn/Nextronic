@@ -5,6 +5,8 @@ import { ProductsEntity } from './products.entity';
 import { CreateProductDto, UpdateProductDto } from './products.dto';
 import { CategoriesEntity } from '../categories/categories.entity';
 import { PRODUCTS_I18N, ProductLangType } from './products.i18n';
+import { RecommendationsService } from '../recommendations/recommendations.service';
+import { ActivityAction } from '../recommendations/user-activity.entity';
 
 @Injectable()
 export class ProductsService {
@@ -13,6 +15,7 @@ export class ProductsService {
     private readonly productRepo: Repository<ProductsEntity>,
     @InjectRepository(CategoriesEntity)
     private readonly categoryRepo: Repository<CategoriesEntity>,
+    private readonly recommendationsService: RecommendationsService,
   ) {}
 
   private generateSKU(): string {
@@ -136,5 +139,32 @@ export class ProductsService {
       relations: ['catalog', 'category'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  //Метод пошуку
+  async searchProducts(query?: string, categoryId?: string, userId?: string) {
+    //Логіка рекомендацій: Записуємо активність
+    if (userId && categoryId) {
+      await this.recommendationsService.logActivity(userId, categoryId, ActivityAction.SEARCH);
+    }
+
+    //Пошук у бд
+    const qb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.catalog', 'catalog')
+      .where('product.isActive = :isActive', { isActive: true });
+
+    if (query) {
+      qb.andWhere("(product.name->>'ua' ILIKE :query OR product.name->>'en' ILIKE :query)", {
+        query: `%${query}%`,
+      });
+    }
+
+    if (categoryId) {
+      qb.andWhere('category.id = :categoryId', { categoryId });
+    }
+
+    return await qb.orderBy('product.createdAt', 'DESC').getMany();
   }
 }

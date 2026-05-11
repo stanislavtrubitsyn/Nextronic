@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { ViewedProductsService } from './viewed-products.service';
@@ -18,9 +19,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
+import { RecommendationsService } from '../recommendations/recommendations.service';
+import { ActivityAction } from '../recommendations/user-activity.entity';
 
 interface RequestWithUser extends Request {
-  user: {
+  user?: {
     userId: string;
     role: UserRole;
   };
@@ -31,11 +34,25 @@ export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly viewedProductsService: ViewedProductsService,
+    private readonly recommendationsService: RecommendationsService,
   ) {}
 
   @Get()
   findAll(): Promise<ProductsEntity[]> {
     return this.productsService.findAll();
+  }
+
+  //Ендпоінт пошуку
+  @Get('search')
+  async search(
+    @Query('q') query?: string,
+    @Query('categoryId') categoryId?: string,
+    @Req() req?: RequestWithUser,
+  ) {
+    // Якщо юзер передав токен і JwtAuthGuard/Middleware його розпарсив - беремо ID.
+    // Якщо ні (публічний пошук) - буде undefined, і логування просто не відбудеться.
+    const userId = req?.user?.userId;
+    return await this.productsService.searchProducts(query, categoryId, userId);
   }
 
   @Get(':id')
@@ -70,19 +87,28 @@ export class ProductsController {
   @Post(':id/view')
   @UseGuards(JwtAuthGuard)
   async recordView(@Param('id', ParseUUIDPipe) productId: string, @Req() req: RequestWithUser) {
-    return await this.viewedProductsService.addView(req.user.userId, productId);
+    const product = await this.productsService.findOne(productId);
+
+    // Логуємо активність для рекомендацій
+    await this.recommendationsService.logActivity(
+      req.user!.userId,
+      product.category.id,
+      ActivityAction.VIEW,
+    );
+
+    return await this.viewedProductsService.addView(req.user!.userId, productId);
   }
 
   @Get('history/recent')
   @UseGuards(JwtAuthGuard)
   async getMyViewHistory(@Req() req: RequestWithUser) {
-    return await this.viewedProductsService.getHistory(req.user.userId);
+    return await this.viewedProductsService.getHistory(req.user!.userId);
   }
 
   @Delete('history/clear')
   @UseGuards(JwtAuthGuard)
   async clearMyHistory(@Req() req: RequestWithUser) {
-    return await this.viewedProductsService.clearHistory(req.user.userId);
+    return await this.viewedProductsService.clearHistory(req.user!.userId);
   }
 
   @Delete('history/:productId')
@@ -91,6 +117,6 @@ export class ProductsController {
     @Param('productId', ParseUUIDPipe) productId: string,
     @Req() req: RequestWithUser,
   ) {
-    return await this.viewedProductsService.removeView(req.user.userId, productId);
+    return await this.viewedProductsService.removeView(req.user!.userId, productId);
   }
 }
