@@ -5,9 +5,10 @@ import { ReviewsService } from './reviews.service';
 import { ReviewsController } from './reviews.controller';
 import { OrderEntity } from '../orders/orders.entity';
 import { AuthModule } from '../auth/auth.module';
+import { ProductsEntity } from '@/products';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ReviewsEntity, OrderEntity]), AuthModule],
+  imports: [TypeOrmModule.forFeature([ReviewsEntity, OrderEntity, ProductsEntity]), AuthModule],
   controllers: [ReviewsController],
   providers: [ReviewsService],
 })

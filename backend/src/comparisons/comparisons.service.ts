@@ -5,6 +5,8 @@ import { ComparisonsEntity } from './comparisons.entity';
 import { ComparisonItemEntity } from './comparison-item.entity';
 import { ProductsEntity } from '../products/products.entity';
 import { COMPARISONS_I18N, ComparisonLangType } from './comparisons.i18n';
+import { RecommendationsService } from '../recommendations/recommendations.service';
+import { ActivityAction } from '../recommendations/user-activity.entity';
 
 @Injectable()
 export class ComparisonService {
@@ -13,6 +15,7 @@ export class ComparisonService {
     @InjectRepository(ComparisonItemEntity)
     private readonly itemRepo: Repository<ComparisonItemEntity>,
     @InjectRepository(ProductsEntity) private readonly productRepo: Repository<ProductsEntity>,
+    private readonly recommendationsService: RecommendationsService,
   ) {}
 
   async addToComparison(userId: string, productId: string, lang: ComparisonLangType = 'ua') {
@@ -23,6 +26,13 @@ export class ComparisonService {
       relations: ['category'],
     });
     if (!product) throw new NotFoundException(t.productNotFound);
+
+    //Логіка рекомендацій
+    await this.recommendationsService.logActivity(
+      userId,
+      product.category.id,
+      ActivityAction.COMPARE,
+    );
 
     const category = product.category;
 

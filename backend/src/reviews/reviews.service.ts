@@ -12,6 +12,9 @@ import { CreateReviewDto, UpdateReviewDto } from './reviews.dto';
 import { OrderEntity, OrderStatus } from '../orders/orders.entity';
 import { UserRole } from '../users/users.entity';
 import { REVIEWS_I18N, ReviewLangType } from './reviews.i18n';
+import { RecommendationsService } from '../recommendations/recommendations.service';
+import { ActivityAction } from '../recommendations/user-activity.entity';
+import { ProductsEntity } from '../products/products.entity';
 
 @Injectable()
 export class ReviewsService {
@@ -20,6 +23,9 @@ export class ReviewsService {
     private readonly reviewRepo: Repository<ReviewsEntity>,
     @InjectRepository(OrderEntity)
     private readonly orderRepo: Repository<OrderEntity>,
+    @InjectRepository(ProductsEntity)
+    private readonly productRepo: Repository<ProductsEntity>,
+    private readonly recommendationsService: RecommendationsService,
   ) {}
 
   async create(userId: string, dto: CreateReviewDto, lang: ReviewLangType = 'ua') {
@@ -40,11 +46,11 @@ export class ReviewsService {
       if (existing) throw new ConflictException(t.alreadyLeft);
     }
 
-    // Перевірка "Придбано" (тільки якщо замовлення доставлено)
+    // Перевірка "Придбано"
     const purchase = await this.orderRepo.findOne({
       where: {
         user: { id: userId },
-        status: OrderStatus.DELIVERED, // Тепер враховуємо тільки статус "Доставлено"
+        status: OrderStatus.DELIVERED,
         items: { product: { id: dto.productId } },
       },
     });
@@ -57,7 +63,22 @@ export class ReviewsService {
       isVerifiedPurchase: !!purchase,
     });
 
-    return await this.reviewRepo.save(review);
+    const savedReview = await this.reviewRepo.save(review);
+
+    //Логіка рекомендацій
+    const product = await this.productRepo.findOne({
+      where: { id: dto.productId },
+      relations: ['category'],
+    });
+
+    if (product && product.category) {
+      await this.recommendationsService.logActivity(
+        userId,
+        product.category.id,
+        ActivityAction.REVIEW,
+      );
+    }
+    return savedReview;
   }
 
   async update(userId: string, id: string, dto: UpdateReviewDto, lang: ReviewLangType = 'ua') {

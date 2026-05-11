@@ -5,12 +5,17 @@ import { WishlistsEntity } from './wishlists.entity';
 import { WishlistItemEntity } from './wishlist-item.entity';
 import { CreateWishlistDto, AddToWishlistDto } from './wishlists.dto';
 import { WISHLISTS_I18N, WishlistLangType } from './wishlists.i18n';
+import { ProductsEntity } from '../products/products.entity';
+import { RecommendationsService } from '../recommendations/recommendations.service';
+import { ActivityAction } from '../recommendations/user-activity.entity';
 
 @Injectable()
 export class WishlistService {
   constructor(
     @InjectRepository(WishlistsEntity) private readonly wishlistRepo: Repository<WishlistsEntity>,
     @InjectRepository(WishlistItemEntity) private readonly itemRepo: Repository<WishlistItemEntity>,
+    @InjectRepository(ProductsEntity) private readonly productRepo: Repository<ProductsEntity>,
+    private readonly recommendationsService: RecommendationsService,
   ) {}
 
   async createWishlist(userId: string, dto: CreateWishlistDto, lang: WishlistLangType = 'ua') {
@@ -50,6 +55,24 @@ export class WishlistService {
     lang: WishlistLangType = 'ua',
   ) {
     const t = WISHLISTS_I18N[lang];
+
+    //Шукаємо товар
+    const product = await this.productRepo.findOne({
+      where: { id: dto.productId },
+      relations: ['category'],
+    });
+
+    //
+    if (!product) throw new NotFoundException(t.productNotFound);
+
+    //Тепер Typescript знає, що product точно існує, і помилки не буде
+    await this.recommendationsService.logActivity(
+      userId,
+      product.category.id,
+      ActivityAction.WISHLIST,
+    );
+
+    //Перевіряємо сам список бажаного
     const wishlist = await this.wishlistRepo.findOne({
       where: { id: wishlistId },
       relations: ['user'],
@@ -58,6 +81,7 @@ export class WishlistService {
     if (!wishlist) throw new NotFoundException(t.notFound);
     if (wishlist.user.id !== userId) throw new ForbiddenException(t.notYourWishlist);
 
+    //Зберігаємо
     const item = this.itemRepo.create({
       wishlist: { id: wishlistId },
       product: { id: dto.productId },

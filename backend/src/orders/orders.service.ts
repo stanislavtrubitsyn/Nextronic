@@ -9,6 +9,10 @@ import { BonusService } from '../bonus/bonus.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ORDERS_I18N, OrderLangType } from './orders.i18n';
 
+import { RecommendationsService } from '../recommendations/recommendations.service';
+import { ActivityAction } from '../recommendations/user-activity.entity';
+import { ProductsEntity } from '../products/products.entity';
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -18,6 +22,7 @@ export class OrdersService {
     private readonly dataSource: DataSource,
     private readonly bonusService: BonusService,
     private readonly notificationsService: NotificationsService,
+    private readonly recommendationsService: RecommendationsService,
   ) {}
 
   async createOrder(userId: string, dto: CreateOrderDto, lang: OrderLangType = 'ua') {
@@ -81,6 +86,22 @@ export class OrdersService {
       await queryRunner.manager.save(orderItems);
       await this.cartService.clearCart(userId);
 
+      //Логіка рекомендацій
+      for (const item of cartItems) {
+        const productWithCategory = await queryRunner.manager.findOne(ProductsEntity, {
+          where: { id: item.product.id },
+          relations: ['category'],
+        });
+
+        if (productWithCategory && productWithCategory.category) {
+          await this.recommendationsService.logActivity(
+            userId,
+            productWithCategory.category.id,
+            ActivityAction.ORDER,
+          );
+        }
+      }
+
       await this.notificationsService.createNotification(
         userId,
         'orderCreatedTitle',
@@ -126,13 +147,11 @@ export class OrdersService {
       await this.bonusService.addBonuses(order.user.id, Number(order.totalAmount), productName);
     }
 
-    // Логіка скасування
     if (dto.status === OrderStatus.CANCELLED && oldStatus !== OrderStatus.CANCELLED) {
       if (Number(order.usedBonuses) > 0) {
         await this.bonusService.refundBonuses(order.user.id, Number(order.usedBonuses));
       }
 
-      // Динамічне сповіщення про скасування
       await this.notificationsService.createNotification(
         order.user.id,
         'orderCancelledTitle',
