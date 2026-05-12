@@ -10,6 +10,7 @@ import {
 import { CategoriesEntity } from '../categories/categories.entity';
 import { CatalogsEntity } from '../catalogs/catalogs.entity';
 import { ReviewsEntity } from '../reviews/reviews.entity';
+
 @Entity('products')
 export class ProductsEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -38,6 +39,14 @@ export class ProductsEntity {
 
   @Column({ type: 'text', array: true, default: [] })
   images!: string[];
+
+  @Column({ type: 'jsonb', default: [] })
+  characteristics!: any[];
+  // Зберігає масив груп: [{ group: {ua, en}, items: [{name: {ua, en}, value: {ua, en}}] }]
+
+  @Column({ type: 'jsonb', nullable: true })
+  filters?: Record<string, string | string[]>;
+  // Плоский об'єкт для швидкого пошуку: { "diagonal": "6.3", "ram": "256", "brand": "apple" }
 
   @Column({ default: true })
   isActive!: boolean;

@@ -21,6 +21,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 import { ActivityAction } from '../recommendations/user-activity.entity';
+import { Request } from 'express';
 
 interface RequestWithUser extends Request {
   user?: {
@@ -42,17 +43,41 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
-  //Ендпоінт пошуку
+  //ЕНДПОІНТ ПОШУКУ ТА ФІЛЬТРАЦІЇ
   @Get('search')
   async search(
     @Query('q') query?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('inStock') inStock?: string,
+    @Query('sort') sort?: string,
+    @Query() allQueryParams?: Record<string, any>,
     @Req() req?: RequestWithUser,
   ) {
-    // Якщо юзер передав токен і JwtAuthGuard/Middleware його розпарсив - беремо ID.
-    // Якщо ні (публічний пошук) - буде undefined, і логування просто не відбудеться.
     const userId = req?.user?.userId;
-    return await this.productsService.searchProducts(query, categoryId, userId);
+
+    // Відділяємо системні параметри від динамічних фільтрів
+    const filters: Record<string, any> = {};
+    if (allQueryParams) {
+      const systemKeys = ['q', 'categoryId', 'lang', 'minPrice', 'maxPrice', 'inStock', 'sort'];
+      for (const [key, value] of Object.entries(allQueryParams)) {
+        if (!systemKeys.includes(key)) {
+          filters[key] = value;
+        }
+      }
+    }
+
+    return await this.productsService.searchProducts({
+      query,
+      categoryId,
+      filters,
+      userId,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      inStock: inStock === 'true',
+      sort,
+    });
   }
 
   @Get(':id')

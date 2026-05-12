@@ -141,14 +141,25 @@ export class ProductsService {
     });
   }
 
-  //Метод пошуку
-  async searchProducts(query?: string, categoryId?: string, userId?: string) {
-    //Логіка рекомендацій: Записуємо активність
+  //МЕТОД ПОШУКУ ТА ФІЛЬТРАЦІЇ ПО JSONB
+  async searchProducts(params: {
+    query?: string;
+    categoryId?: string;
+    filters?: Record<string, any>;
+    userId?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    inStock?: boolean;
+    sort?: string;
+  }) {
+    const { query, categoryId, filters, userId, minPrice, maxPrice, inStock, sort } = params;
+
+    // Логіка рекомендацій
     if (userId && categoryId) {
       await this.recommendationsService.logActivity(userId, categoryId, ActivityAction.SEARCH);
     }
 
-    //Пошук у бд
+    // Базовий пошук у БД
     const qb = this.productRepo
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
@@ -165,6 +176,50 @@ export class ProductsService {
       qb.andWhere('category.id = :categoryId', { categoryId });
     }
 
-    return await qb.orderBy('product.createdAt', 'DESC').getMany();
+    //Фільтр по ціні
+    if (minPrice !== undefined) {
+      qb.andWhere('product.price >= :minPrice', { minPrice });
+    }
+    if (maxPrice !== undefined) {
+      qb.andWhere('product.price <= :maxPrice', { maxPrice });
+    }
+
+    //Фільтр по наявності
+    if (inStock) {
+      qb.andWhere('product.stock > 0');
+    }
+
+    // ДИНАМІЧНА ФІЛЬТРАЦІЯ ПО JSONB
+    if (filters && Object.keys(filters).length > 0) {
+      for (const [key, value] of Object.entries(filters)) {
+        if (Array.isArray(value)) {
+          qb.andWhere(`product.filters ->> :key${key} IN (:...values${key})`, {
+            [`key${key}`]: key,
+            [`values${key}`]: value,
+          });
+        } else {
+          qb.andWhere(`product.filters ->> :key${key} = :value${key}`, {
+            [`key${key}`]: key,
+            [`value${key}`]: value,
+          });
+        }
+      }
+    }
+
+    //Сортування
+    switch (sort) {
+      case 'price_asc':
+        qb.orderBy('product.price', 'ASC');
+        break;
+      case 'price_desc':
+        qb.orderBy('product.price', 'DESC');
+        break;
+      // Тут можна додати сортування за рейтингом, коли виведеш його в окрему колонку
+      default:
+        qb.orderBy('product.createdAt', 'DESC'); // За замовчуванням найновіші
+        break;
+    }
+
+    return await qb.getMany();
   }
 }
