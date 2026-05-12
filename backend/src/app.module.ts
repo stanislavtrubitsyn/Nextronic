@@ -16,6 +16,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { NotificationsModule } from './notifications';
 import { RecommendationsModule } from './recommendations';
 import { NovaPoshtaModule } from './novaposhta/novaposhta.module';
+import { UkrposhtaModule } from './ukrposhta/ukrposhta.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -64,6 +65,7 @@ import { NovaPoshtaModule } from './novaposhta/novaposhta.module';
     NotificationsModule,
     RecommendationsModule,
     NovaPoshtaModule,
+    UkrposhtaModule,
   ],
 })
 export class AppModule {}
