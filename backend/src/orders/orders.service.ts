@@ -11,6 +11,8 @@ import { ORDERS_I18N, OrderLangType } from './orders.i18n';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 import { ActivityAction } from '../recommendations/user-activity.entity';
 import { ProductsEntity } from '../products/products.entity';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit-log.entity';
 
 @Injectable()
 export class OrdersService {
@@ -22,6 +24,7 @@ export class OrdersService {
     private readonly bonusService: BonusService,
     private readonly notificationsService: NotificationsService,
     private readonly recommendationsService: RecommendationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   async createOrder(userId: string, dto: CreateOrderDto, lang: OrderLangType = 'ua') {
@@ -42,18 +45,15 @@ export class OrdersService {
       let discountAmount = 0;
 
       for (const item of cartItems) {
-        //КОНТРОЛЬ ЗАЛИШКІВ
         if (item.product.stock < item.quantity) {
           const nameObj = item.product.name;
           const productName = typeof nameObj === 'object' ? nameObj[lang] : 'Товар';
           throw new BadRequestException(t.outOfStock(productName));
         }
 
-        //СПИСАННЯ ЗІ СКЛАДУ
         item.product.stock -= item.quantity;
         await queryRunner.manager.save(item.product);
 
-        //РОЗРАХУНОК ФІНАНСІВ
         const currentPrice = Number(item.product.price);
         const originalPrice = item.product.oldPrice ? Number(item.product.oldPrice) : currentPrice;
 
@@ -64,7 +64,6 @@ export class OrdersService {
       let finalAmount = baseAmount - discountAmount;
       let bonusesToUse = dto.usedBonuses || 0;
 
-      //ЗАСТОСУВАННЯ БОНУСІВ
       if (bonusesToUse > 0) {
         const availableBalance = await this.bonusService.getBalance(userId);
 
@@ -72,7 +71,6 @@ export class OrdersService {
           throw new BadRequestException(t.insufficientBonuses(availableBalance));
         }
 
-        // Макс. знижка - 50% ВІД КІНЦЕВОЇ СУМИ ТОВАРІВ
         const maxDiscount = finalAmount * 0.5;
         if (bonusesToUse > maxDiscount) {
           bonusesToUse = Math.floor(maxDiscount);
@@ -82,7 +80,6 @@ export class OrdersService {
         await this.bonusService.spendBonuses(userId, bonusesToUse, queryRunner.manager);
       }
 
-      // Запланована дата доставки
       const estimatedDeliveryDate = new Date();
       estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 3);
 
@@ -114,7 +111,6 @@ export class OrdersService {
       await queryRunner.manager.save(orderItems);
       await this.cartService.clearCart(userId);
 
-      // Логіка рекомендацій
       for (const item of cartItems) {
         const productWithCategory = await queryRunner.manager.findOne(ProductsEntity, {
           where: { id: item.product.id },
@@ -147,7 +143,12 @@ export class OrdersService {
     }
   }
 
-  async updateStatus(id: string, dto: UpdateOrderStatusDto, lang: OrderLangType = 'ua') {
+  async updateStatus(
+    id: string,
+    dto: UpdateOrderStatusDto,
+    adminId: string,
+    lang: OrderLangType = 'ua',
+  ) {
     const t = ORDERS_I18N[lang];
 
     const order = await this.orderRepo.findOne({
@@ -160,9 +161,11 @@ export class OrdersService {
     }
 
     const oldStatus = order.status;
-    if (oldStatus === dto.status) return order; // Якщо статус не змінився, нічого не робимо
+    if (oldStatus === dto.status) return order;
 
-    // Відкриваємо транзакцію для безпечного оновлення
+    // Робимо зліпок старого стану замовлення до будь-яких змін
+    const oldOrderSnapshot = JSON.parse(JSON.stringify(order));
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -170,29 +173,23 @@ export class OrdersService {
     try {
       order.status = dto.status;
 
-      // Якщо ДОСТАВЛЕНО
       if (dto.status === OrderStatus.DELIVERED) {
         order.deliveryDate = new Date();
-        order.isPaid = true; // Ставимо оплачено
+        order.isPaid = true;
 
-        // Нарахування бонусів
         const firstItem = order.items?.[0];
         const nameObj = firstItem?.product?.name;
         const productName = typeof nameObj === 'object' ? nameObj['ua'] : nameObj || 'Product';
         await this.bonusService.addBonuses(order.user.id, Number(order.totalAmount), productName);
       }
 
-      // Якщо СКАСОВАНО
       if (dto.status === OrderStatus.CANCELLED) {
-        // Повертаємо бонуси
         if (Number(order.usedBonuses) > 0) {
           await this.bonusService.refundBonuses(order.user.id, Number(order.usedBonuses));
         }
 
-        // ПОВЕРТАЄМО ТОВАРИ НА СКЛАД
         for (const item of order.items) {
           if (item.product) {
-            // Завантажуємо актуальний товар, щоб не перезаписати інший сейв
             const product = await queryRunner.manager.findOne(ProductsEntity, {
               where: { id: item.product.id },
             });
@@ -203,7 +200,6 @@ export class OrdersService {
           }
         }
 
-        // Сповіщення
         await this.notificationsService.createNotification(
           order.user.id,
           'orderCancelledTitle',
@@ -213,6 +209,17 @@ export class OrdersService {
       }
 
       const savedOrder = await queryRunner.manager.save(order);
+
+      //ЗАПИСУЄМО В АУДИТ ПЕРЕД КОМІТОМ
+      await this.auditService.logAction(
+        adminId,
+        AuditAction.UPDATE,
+        'OrderEntity',
+        savedOrder.id,
+        oldOrderSnapshot, // Старий стан (щоб знати, з якого статусу перейшли)
+        savedOrder, // Новий стан
+      );
+
       await queryRunner.commitTransaction();
       return savedOrder;
     } catch (err) {

@@ -7,6 +7,8 @@ import { CategoriesEntity } from '../categories/categories.entity';
 import { PRODUCTS_I18N, ProductLangType } from './products.i18n';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 import { ActivityAction } from '../recommendations/user-activity.entity';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit-log.entity';
 
 @Injectable()
 export class ProductsService {
@@ -16,6 +18,7 @@ export class ProductsService {
     @InjectRepository(CategoriesEntity)
     private readonly categoryRepo: Repository<CategoriesEntity>,
     private readonly recommendationsService: RecommendationsService,
+    private readonly auditService: AuditService, //ДОДАЛИ AUDIT SERVICE В ІНЖЕКЦІЮ
   ) {}
 
   private generateSKU(): string {
@@ -23,7 +26,12 @@ export class ProductsService {
     return `NX-${randomDigits}`;
   }
 
-  async create(dto: CreateProductDto, lang: ProductLangType = 'ua'): Promise<ProductsEntity> {
+  // ДОДАНО adminId
+  async create(
+    dto: CreateProductDto,
+    adminId: string,
+    lang: ProductLangType = 'ua',
+  ): Promise<ProductsEntity> {
     const t = PRODUCTS_I18N[lang];
 
     const existingSlug = await this.productRepo.findOne({ where: { slug: dto.slug } });
@@ -57,7 +65,19 @@ export class ProductsService {
       category: { id: dto.categoryId },
     });
 
-    return await this.productRepo.save(product);
+    const savedProduct = await this.productRepo.save(product);
+
+    //ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.CREATE,
+      'ProductsEntity',
+      savedProduct.id,
+      null, // Старого стану немає
+      savedProduct, // Новий стан
+    );
+
+    return savedProduct;
   }
 
   async findOne(id: string, lang: ProductLangType = 'ua'): Promise<ProductsEntity> {
@@ -69,13 +89,15 @@ export class ProductsService {
     return product;
   }
 
+  // ДОДАНО adminId
   async update(
     id: string,
     dto: UpdateProductDto,
+    adminId: string,
     lang: ProductLangType = 'ua',
   ): Promise<ProductsEntity> {
     const t = PRODUCTS_I18N[lang];
-    const product = await this.findOne(id, lang);
+    const oldProduct = await this.findOne(id, lang); //ЗБЕРІГАЄМО СТАРИЙ СТАН ДЛЯ ВІДКАТУ
 
     if (dto.slug) {
       const conflict = await this.productRepo.findOne({ where: { slug: dto.slug, id: Not(id) } });
@@ -93,18 +115,48 @@ export class ProductsService {
       if (category && category.catalog) finalCatalogId = category.catalog.id;
     }
 
-    const updated = this.productRepo.merge(product, {
+    const updated = this.productRepo.merge(oldProduct, {
       ...rest,
-      catalog: finalCatalogId ? { id: finalCatalogId } : product.catalog,
-      category: categoryId ? { id: categoryId } : product.category,
+      catalog: finalCatalogId ? { id: finalCatalogId } : oldProduct.catalog,
+      category: categoryId ? { id: categoryId } : oldProduct.category,
     });
 
-    return await this.productRepo.save(updated);
+    const savedProduct = await this.productRepo.save(updated);
+
+    // <-- ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.UPDATE,
+      'ProductsEntity',
+      savedProduct.id,
+      oldProduct, // Старий стан
+      savedProduct, // Новий стан
+    );
+
+    return savedProduct;
   }
 
-  async remove(id: string, lang: ProductLangType = 'ua'): Promise<{ success: boolean }> {
+  // ДОДАНО adminId
+  async remove(
+    id: string,
+    adminId: string,
+    lang: ProductLangType = 'ua',
+  ): Promise<{ success: boolean }> {
+    const oldProduct = await this.findOne(id, lang); //ЗБЕРІГАЄМО ПЕРЕД ВИДАЛЕННЯМ
+
     const result = await this.productRepo.delete(id);
     if (result.affected === 0) throw new NotFoundException(PRODUCTS_I18N[lang].productNotFound);
+
+    //ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.DELETE,
+      'ProductsEntity',
+      id,
+      oldProduct, // Старий стан (для можливості відновлення)
+      null,
+    );
+
     return { success: true };
   }
 
@@ -141,7 +193,6 @@ export class ProductsService {
     });
   }
 
-  //МЕТОД ПОШУКУ ТА ФІЛЬТРАЦІЇ ПО JSONB
   async searchProducts(params: {
     query?: string;
     categoryId?: string;
@@ -154,12 +205,10 @@ export class ProductsService {
   }) {
     const { query, categoryId, filters, userId, minPrice, maxPrice, inStock, sort } = params;
 
-    // Логіка рекомендацій
     if (userId && categoryId) {
       await this.recommendationsService.logActivity(userId, categoryId, ActivityAction.SEARCH);
     }
 
-    // Базовий пошук у БД
     const qb = this.productRepo
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
@@ -176,7 +225,6 @@ export class ProductsService {
       qb.andWhere('category.id = :categoryId', { categoryId });
     }
 
-    //Фільтр по ціні
     if (minPrice !== undefined) {
       qb.andWhere('product.price >= :minPrice', { minPrice });
     }
@@ -184,12 +232,10 @@ export class ProductsService {
       qb.andWhere('product.price <= :maxPrice', { maxPrice });
     }
 
-    //Фільтр по наявності
     if (inStock) {
       qb.andWhere('product.stock > 0');
     }
 
-    // ДИНАМІЧНА ФІЛЬТРАЦІЯ ПО JSONB
     if (filters && Object.keys(filters).length > 0) {
       for (const [key, value] of Object.entries(filters)) {
         if (Array.isArray(value)) {
@@ -206,7 +252,6 @@ export class ProductsService {
       }
     }
 
-    //Сортування
     switch (sort) {
       case 'price_asc':
         qb.orderBy('product.price', 'ASC');
@@ -214,9 +259,8 @@ export class ProductsService {
       case 'price_desc':
         qb.orderBy('product.price', 'DESC');
         break;
-      // Тут можна додати сортування за рейтингом, коли виведеш його в окрему колонку
       default:
-        qb.orderBy('product.createdAt', 'DESC'); // За замовчуванням найновіші
+        qb.orderBy('product.createdAt', 'DESC');
         break;
     }
 

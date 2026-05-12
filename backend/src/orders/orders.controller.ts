@@ -39,8 +39,9 @@ export class OrdersController {
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,
+    @Req() req: RequestWithUser,
     @Query('lang') lang: OrderLangType = 'ua',
   ) {
-    return await this.ordersService.updateStatus(id, dto, lang);
+    return await this.ordersService.updateStatus(id, dto, req.user.userId, lang);
   }
 }

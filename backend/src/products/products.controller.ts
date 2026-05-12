@@ -43,7 +43,7 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
-  //ЕНДПОІНТ ПОШУКУ ТА ФІЛЬТРАЦІЇ
+  // ЕНДПОІНТ ПОШУКУ ТА ФІЛЬТРАЦІЇ
   @Get('search')
   async search(
     @Query('q') query?: string,
@@ -57,7 +57,6 @@ export class ProductsController {
   ) {
     const userId = req?.user?.userId;
 
-    // Відділяємо системні параметри від динамічних фільтрів
     const filters: Record<string, any> = {};
     if (allQueryParams) {
       const systemKeys = ['q', 'categoryId', 'lang', 'minPrice', 'maxPrice', 'inStock', 'sort'];
@@ -88,8 +87,8 @@ export class ProductsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  create(@Body() body: CreateProductDto): Promise<ProductsEntity> {
-    return this.productsService.create(body);
+  create(@Body() body: CreateProductDto, @Req() req: RequestWithUser): Promise<ProductsEntity> {
+    return this.productsService.create(body, req.user!.userId);
   }
 
   @Patch(':id')
@@ -98,29 +97,30 @@ export class ProductsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateProductDto,
+    @Req() req: RequestWithUser,
   ): Promise<ProductsEntity> {
-    return this.productsService.update(id, body);
+    return this.productsService.update(id, body, req.user!.userId);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<{ success: boolean }> {
-    return this.productsService.remove(id);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<{ success: boolean }> {
+    return this.productsService.remove(id, req.user!.userId);
   }
 
   @Post(':id/view')
   @UseGuards(JwtAuthGuard)
   async recordView(@Param('id', ParseUUIDPipe) productId: string, @Req() req: RequestWithUser) {
     const product = await this.productsService.findOne(productId);
-
-    // Логуємо активність для рекомендацій
     await this.recommendationsService.logActivity(
       req.user!.userId,
       product.category.id,
       ActivityAction.VIEW,
     );
-
     return await this.viewedProductsService.addView(req.user!.userId, productId);
   }
 

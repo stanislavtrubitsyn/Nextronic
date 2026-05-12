@@ -4,20 +4,40 @@ import { Repository, Not } from 'typeorm';
 import { CatalogsEntity } from './catalogs.entity';
 import { CreateCatalogDto, UpdateCatalogDto } from './catalogs.dto';
 import { CATALOGS_I18N, CatalogLangType } from './catalogs.i18n';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit-log.entity';
 
 @Injectable()
 export class CatalogsService {
   constructor(
     @InjectRepository(CatalogsEntity)
     private readonly catalogRepo: Repository<CatalogsEntity>,
+    private readonly auditService: AuditService,
   ) {}
 
-  async create(dto: CreateCatalogDto, lang: CatalogLangType = 'ua'): Promise<CatalogsEntity> {
+  // Додали adminId
+  async create(
+    dto: CreateCatalogDto,
+    adminId: string,
+    lang: CatalogLangType = 'ua',
+  ): Promise<CatalogsEntity> {
     const existing = await this.catalogRepo.findOne({ where: { slug: dto.slug } });
     if (existing) throw new BadRequestException(CATALOGS_I18N[lang].slugExists);
 
     const newCatalog = this.catalogRepo.create(dto);
-    return await this.catalogRepo.save(newCatalog);
+    const savedCatalog = await this.catalogRepo.save(newCatalog);
+
+    //ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.CREATE,
+      'CatalogsEntity', // Точна назва сутності для відновлення
+      savedCatalog.id,
+      null,
+      savedCatalog,
+    );
+
+    return savedCatalog;
   }
 
   async findAll(): Promise<CatalogsEntity[]> {
@@ -33,25 +53,56 @@ export class CatalogsService {
     return catalog;
   }
 
+  // Додали adminId
   async update(
     id: string,
     dto: UpdateCatalogDto,
+    adminId: string,
     lang: CatalogLangType = 'ua',
   ): Promise<CatalogsEntity> {
-    const catalog = await this.findOne(id, lang);
+    const oldCatalog = await this.findOne(id, lang); //Зберігаємо старий стан
 
     if (dto.slug) {
       const conflict = await this.catalogRepo.findOne({ where: { slug: dto.slug, id: Not(id) } });
       if (conflict) throw new BadRequestException(CATALOGS_I18N[lang].slugInUse);
     }
 
-    const updated = this.catalogRepo.merge(catalog, dto);
-    return await this.catalogRepo.save(updated);
+    const updated = this.catalogRepo.merge(oldCatalog, dto);
+    const savedCatalog = await this.catalogRepo.save(updated);
+
+    //ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.UPDATE,
+      'CatalogsEntity',
+      savedCatalog.id,
+      oldCatalog, // Старий стан (для відкату)
+      savedCatalog, // Новий стан
+    );
+
+    return savedCatalog;
   }
 
-  async remove(id: string, lang: CatalogLangType = 'ua'): Promise<{ success: boolean }> {
-    const catalog = await this.findOne(id, lang);
-    await this.catalogRepo.remove(catalog);
+  // Додали adminId
+  async remove(
+    id: string,
+    adminId: string,
+    lang: CatalogLangType = 'ua',
+  ): Promise<{ success: boolean }> {
+    const oldCatalog = await this.findOne(id, lang); //Зберігаємо старий стан перед видаленням
+
+    await this.catalogRepo.remove(oldCatalog);
+
+    //ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.DELETE,
+      'CatalogsEntity',
+      id,
+      oldCatalog, // Старий стан
+      null,
+    );
+
     return { success: true };
   }
 }

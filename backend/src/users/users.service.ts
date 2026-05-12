@@ -5,6 +5,8 @@ import { UsersEntity, UserRole } from './users.entity';
 import { ProfilesEntity } from './profiles.entity';
 import * as bcrypt from 'bcrypt';
 import { USERS_I18N, UserLangType } from './users.i18n';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit-log.entity';
 
 @Injectable()
 export class UsersService {
@@ -13,6 +15,7 @@ export class UsersService {
     private readonly userRepo: Repository<UsersEntity>,
     @InjectRepository(ProfilesEntity)
     private readonly profileRepo: Repository<ProfilesEntity>,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(
@@ -49,21 +52,18 @@ export class UsersService {
     return await this.userRepo.save(user);
   }
 
-  //МЕТОД ДЛЯ GOOGLE АВТОРИЗАЦІЇ
   async findOrCreateGoogleUser(googleProfile: {
     email: string;
     googleId: string;
     firstName?: string;
     lastName?: string;
   }) {
-    // ВИПРАВЛЕНО: замінили let на const
     const user = await this.userRepo.findOne({
       where: { email: googleProfile.email },
       relations: ['profile'],
     });
 
     if (user) {
-      // Якщо юзер є, але googleId ще не прив'язаний
       if (!user.googleId) {
         user.googleId = googleProfile.googleId;
         await this.userRepo.save(user);
@@ -71,7 +71,6 @@ export class UsersService {
       return user;
     }
 
-    // Якщо юзера немає — створюємо нового (без пароля)
     const newUser = this.userRepo.create({
       email: googleProfile.email,
       googleId: googleProfile.googleId,
@@ -85,10 +84,11 @@ export class UsersService {
     return await this.userRepo.save(newUser);
   }
 
-  // Адмінське оновлення
+  // Адмінське оновлення З ЛОГУВАННЯМ
   async adminUpdate(
     id: string,
     data: { role?: UserRole; profile?: Partial<ProfilesEntity> },
+    adminId: string,
     lang: UserLangType = 'ua',
   ) {
     const user = await this.userRepo.findOne({
@@ -98,6 +98,9 @@ export class UsersService {
 
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
 
+    // Робимо глибоку копію старого стану (JSON.parse), щоб TypeORM не змінив oldValues по посиланню
+    const oldUserSnapshot = JSON.parse(JSON.stringify(user));
+
     if (data.role) user.role = data.role;
 
     if (data.profile) {
@@ -106,7 +109,19 @@ export class UsersService {
       if (data.profile.phone) user.phone = data.profile.phone;
     }
 
-    return await this.userRepo.save(user);
+    const savedUser = await this.userRepo.save(user);
+
+    // ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.UPDATE,
+      'UsersEntity',
+      savedUser.id,
+      oldUserSnapshot, // Старий стан до модифікації
+      savedUser, // Новий стан
+    );
+
+    return savedUser;
   }
 
   async update(id: string, updateData: Partial<ProfilesEntity>, lang: UserLangType = 'ua') {
@@ -125,10 +140,29 @@ export class UsersService {
     return await this.userRepo.save(user);
   }
 
-  async remove(id: string, lang: UserLangType = 'ua') {
-    const user = await this.userRepo.findOne({ where: { id } });
+  // Видалення З ЛОГУВАННЯМ
+  async remove(id: string, adminId?: string, lang: UserLangType = 'ua') {
+    const user = await this.userRepo.findOne({ where: { id }, relations: ['profile'] });
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
-    return await this.userRepo.remove(user);
+
+    // Робимо копію перед видаленням
+    const oldUserSnapshot = JSON.parse(JSON.stringify(user));
+
+    const result = await this.userRepo.remove(user);
+
+    // ЗАПИСУЄМО В АУДИТ (якщо дію ініціював адмін або сам користувач)
+    if (adminId) {
+      await this.auditService.logAction(
+        adminId,
+        AuditAction.DELETE,
+        'UsersEntity',
+        id,
+        oldUserSnapshot, // Старий стан (щоб можна було відновити акаунт)
+        null,
+      );
+    }
+
+    return result;
   }
 
   async findByEmail(email: string) {

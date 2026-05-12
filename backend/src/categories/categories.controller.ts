@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Query,
+  Req,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CategoriesEntity } from './categories.entity';
@@ -18,6 +19,14 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
 import { CategoryLangType } from './categories.i18n';
+import { Request } from 'express';
+
+interface RequestWithUser extends Request {
+  user?: {
+    userId: string;
+    role: UserRole;
+  };
+}
 
 @Controller('categories')
 export class CategoriesController {
@@ -41,9 +50,10 @@ export class CategoriesController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   create(
     @Body() body: CreateCategoriesDto,
+    @Req() req: RequestWithUser,
     @Query('lang') lang: CategoryLangType = 'ua',
   ): Promise<CategoriesEntity> {
-    return this.categoriesService.create(body, lang);
+    return this.categoriesService.create(body, req.user!.userId, lang);
   }
 
   @Patch(':id')
@@ -52,9 +62,10 @@ export class CategoriesController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateCategoriesDto,
+    @Req() req: RequestWithUser,
     @Query('lang') lang: CategoryLangType = 'ua',
   ): Promise<CategoriesEntity> {
-    return this.categoriesService.update(id, body, lang);
+    return this.categoriesService.update(id, body, req.user!.userId, lang);
   }
 
   @Delete(':id')
@@ -62,8 +73,9 @@ export class CategoriesController {
   @Roles(UserRole.ADMIN)
   remove(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: RequestWithUser,
     @Query('lang') lang: CategoryLangType = 'ua',
   ): Promise<{ success: boolean }> {
-    return this.categoriesService.remove(id, lang);
+    return this.categoriesService.remove(id, req.user!.userId, lang);
   }
 }

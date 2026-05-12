@@ -4,15 +4,23 @@ import { Repository, Not } from 'typeorm';
 import { CategoriesEntity } from './categories.entity';
 import { CreateCategoriesDto, UpdateCategoriesDto } from './categories.dto';
 import { CATEGORIES_I18N, CategoryLangType } from './categories.i18n';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit-log.entity';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     @InjectRepository(CategoriesEntity)
     private readonly categoryRepo: Repository<CategoriesEntity>,
+    private readonly auditService: AuditService,
   ) {}
 
-  async create(dto: CreateCategoriesDto, lang: CategoryLangType = 'ua'): Promise<CategoriesEntity> {
+  // Додали adminId
+  async create(
+    dto: CreateCategoriesDto,
+    adminId: string,
+    lang: CategoryLangType = 'ua',
+  ): Promise<CategoriesEntity> {
     const existing = await this.categoryRepo.findOne({ where: { slug: dto.slug } });
     if (existing) throw new BadRequestException(CATEGORIES_I18N[lang].slugExists);
 
@@ -21,7 +29,19 @@ export class CategoriesService {
       catalog: { id: dto.catalogId },
     });
 
-    return await this.categoryRepo.save(newCategory);
+    const savedCategory = await this.categoryRepo.save(newCategory);
+
+    // ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.CREATE,
+      'CategoriesEntity',
+      savedCategory.id,
+      null, // Старого стану немає
+      savedCategory, // Новий стан
+    );
+
+    return savedCategory;
   }
 
   async findAll(): Promise<CategoriesEntity[]> {
@@ -40,12 +60,14 @@ export class CategoriesService {
     return category;
   }
 
+  // Додали adminId
   async update(
     id: string,
     dto: UpdateCategoriesDto,
+    adminId: string,
     lang: CategoryLangType = 'ua',
   ): Promise<CategoriesEntity> {
-    const category = await this.findOne(id, lang);
+    const oldCategory = await this.findOne(id, lang); // Зберігаємо старий стан для відкату
 
     if (dto.slug) {
       const conflict = await this.categoryRepo.findOne({ where: { slug: dto.slug, id: Not(id) } });
@@ -54,17 +76,47 @@ export class CategoriesService {
 
     const { catalogId, ...rest } = dto;
 
-    const updated = this.categoryRepo.merge(category, {
+    const updated = this.categoryRepo.merge(oldCategory, {
       ...rest,
-      catalog: catalogId ? { id: catalogId } : category.catalog,
+      catalog: catalogId ? { id: catalogId } : oldCategory.catalog,
     });
 
-    return await this.categoryRepo.save(updated);
+    const savedCategory = await this.categoryRepo.save(updated);
+
+    // ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.UPDATE,
+      'CategoriesEntity',
+      savedCategory.id,
+      oldCategory, // Старий стан
+      savedCategory, // Новий стан
+    );
+
+    return savedCategory;
   }
 
-  async remove(id: string, lang: CategoryLangType = 'ua'): Promise<{ success: boolean }> {
+  // Додали adminId
+  async remove(
+    id: string,
+    adminId: string,
+    lang: CategoryLangType = 'ua',
+  ): Promise<{ success: boolean }> {
+    const oldCategory = await this.findOne(id, lang); // Зберігаємо старий стан перед видаленням
+
     const result = await this.categoryRepo.delete(id);
     if (result.affected === 0) throw new NotFoundException(CATEGORIES_I18N[lang].notFound);
+
+    //ЗАПИСУЄМО В АУДИТ
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.DELETE,
+      'CategoriesEntity',
+      id,
+      oldCategory, // Старий стан для можливості відновлення
+      null,
+    );
+
     return { success: true };
   }
 }

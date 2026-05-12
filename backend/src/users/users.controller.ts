@@ -45,11 +45,13 @@ export class UsersController {
 
   @Delete('profile/me')
   async deleteMyAccount(@Req() req: RequestWithUser, @Query('lang') lang: UserLangType = 'ua') {
-    await this.usersService.remove(req.user.userId, lang);
+    // Передаємо userId як adminId, щоб зафіксувати, що користувач сам видалив свій акаунт
+    await this.usersService.remove(req.user.userId, req.user.userId, lang);
     return { success: true, message: USERS_I18N[lang].accountDeleted };
   }
 
-  //Адмінські та модераторські методи
+  // Адмінські та модераторські методи
+
   @Get()
   @Roles(UserRole.ADMIN)
   async getAllUsers() {
@@ -74,18 +76,20 @@ export class UsersController {
   async adminUpdateUser(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateData: { role?: UserRole; profile?: Partial<ProfilesEntity> },
+    @Req() req: RequestWithUser,
     @Query('lang') lang: UserLangType = 'ua',
   ): Promise<UsersEntity> {
-    return await this.usersService.adminUpdate(id, updateData, lang);
+    return await this.usersService.adminUpdate(id, updateData, req.user.userId, lang);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   async removeUser(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: RequestWithUser,
     @Query('lang') lang: UserLangType = 'ua',
   ) {
-    await this.usersService.remove(id, lang);
+    await this.usersService.remove(id, req.user.userId, lang);
     return { success: true };
   }
 }

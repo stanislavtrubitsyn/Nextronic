@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Query,
+  Req,
 } from '@nestjs/common';
 import { CatalogsEntity } from './catalogs.entity';
 import { CatalogsService } from './catalogs.service';
@@ -18,6 +19,14 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
 import { CatalogLangType } from './catalogs.i18n';
+import { Request } from 'express';
+
+interface RequestWithUser extends Request {
+  user?: {
+    userId: string;
+    role: UserRole;
+  };
+}
 
 @Controller('catalogs')
 export class CatalogsController {
@@ -41,9 +50,10 @@ export class CatalogsController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   create(
     @Body() body: CreateCatalogDto,
+    @Req() req: RequestWithUser,
     @Query('lang') lang: CatalogLangType = 'ua',
   ): Promise<CatalogsEntity> {
-    return this.catalogsService.create(body, lang);
+    return this.catalogsService.create(body, req.user!.userId, lang);
   }
 
   @Patch(':id')
@@ -52,9 +62,10 @@ export class CatalogsController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateCatalogDto,
+    @Req() req: RequestWithUser,
     @Query('lang') lang: CatalogLangType = 'ua',
   ): Promise<CatalogsEntity> {
-    return this.catalogsService.update(id, body, lang);
+    return this.catalogsService.update(id, body, req.user!.userId, lang);
   }
 
   @Delete(':id')
@@ -62,8 +73,9 @@ export class CatalogsController {
   @Roles(UserRole.ADMIN)
   remove(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: RequestWithUser,
     @Query('lang') lang: CatalogLangType = 'ua',
   ): Promise<{ success: boolean }> {
-    return this.catalogsService.remove(id, lang);
+    return this.catalogsService.remove(id, req.user!.userId, lang);
   }
 }
