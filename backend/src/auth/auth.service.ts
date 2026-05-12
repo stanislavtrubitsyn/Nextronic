@@ -32,8 +32,14 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  //МЕТОД ДЛЯ GOOGLE АВТОРИЗАЦІЇ
-  async googleLogin(googleUser: any) {
+  // МЕТОД ДЛЯ GOOGLE АВТОРИЗАЦІЇ
+  // Замінили any на чітко описану структуру
+  async googleLogin(googleUser: {
+    email: string;
+    googleId: string;
+    firstName?: string;
+    lastName?: string;
+  }) {
     if (!googleUser) {
       throw new UnauthorizedException('Дані від Google не отримано');
     }

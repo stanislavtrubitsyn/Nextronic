@@ -1,9 +1,27 @@
-import { Controller, Post, Body, Get, UseGuards, Req, Res } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto } from './auth.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
+
+interface GoogleRequest extends Request {
+  user?: {
+    email: string;
+    googleId: string;
+    firstName?: string;
+    lastName?: string;
+  };
+}
 
 @Controller('auth')
 export class AuthController {
@@ -30,12 +48,16 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+  async googleAuthRedirect(@Req() req: GoogleRequest, @Res() res: Response) {
+    if (!req.user) {
+      throw new UnauthorizedException('Не вдалося отримати дані про користувача від Google');
+    }
+
     const tokenData = await this.authService.googleLogin(req.user);
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
 
-    //Редірект
+    // Редірект
     return res.redirect(`${frontendUrl}/login/success?token=${tokenData.access_token}`);
   }
 }
