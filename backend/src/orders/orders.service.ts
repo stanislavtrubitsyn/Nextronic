@@ -27,7 +27,8 @@ export class OrdersService {
   async createOrder(userId: string, dto: CreateOrderDto, lang: OrderLangType = 'ua') {
     const t = ORDERS_I18N[lang];
 
-    const cartItems = await this.cartService.getMyCart(userId);
+    const cartData = await this.cartService.getMyCart(userId);
+    const cartItems = cartData.items;
     if (cartItems.length === 0) {
       throw new BadRequestException(t.cartEmpty);
     }

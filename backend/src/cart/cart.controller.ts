@@ -15,6 +15,7 @@ import { CartService } from './cart.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AddToCartDto, UpdateCartItemDto } from './cart.dto';
 import { CartLangType } from './cart.i18n';
+import { Request } from 'express';
 
 interface RequestWithUser extends Request {
   user: {
@@ -33,8 +34,12 @@ export class CartController {
   }
 
   @Post()
-  async addToCart(@Req() req: RequestWithUser, @Body() dto: AddToCartDto) {
-    return await this.cartService.addToCart(req.user.userId, dto);
+  async addToCart(
+    @Req() req: RequestWithUser,
+    @Body() dto: AddToCartDto,
+    @Query('lang') lang: CartLangType = 'ua',
+  ) {
+    return await this.cartService.addToCart(req.user.userId, dto, lang);
   }
 
   @Patch(':id')
