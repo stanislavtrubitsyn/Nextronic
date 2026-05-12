@@ -49,6 +49,42 @@ export class UsersService {
     return await this.userRepo.save(user);
   }
 
+  //МЕТОД ДЛЯ GOOGLE АВТОРИЗАЦІЇ
+  async findOrCreateGoogleUser(googleProfile: {
+    email: string;
+    googleId: string;
+    firstName?: string;
+    lastName?: string;
+  }) {
+    // ВИПРАВЛЕНО: замінили let на const
+    const user = await this.userRepo.findOne({
+      where: { email: googleProfile.email },
+      relations: ['profile'],
+    });
+
+    if (user) {
+      // Якщо юзер є, але googleId ще не прив'язаний
+      if (!user.googleId) {
+        user.googleId = googleProfile.googleId;
+        await this.userRepo.save(user);
+      }
+      return user;
+    }
+
+    // Якщо юзера немає — створюємо нового (без пароля)
+    const newUser = this.userRepo.create({
+      email: googleProfile.email,
+      googleId: googleProfile.googleId,
+      profile: {
+        email: googleProfile.email,
+        firstName: googleProfile.firstName,
+        lastName: googleProfile.lastName,
+      },
+    });
+
+    return await this.userRepo.save(newUser);
+  }
+
   // Адмінське оновлення
   async adminUpdate(
     id: string,
