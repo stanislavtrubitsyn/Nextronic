@@ -7,7 +7,7 @@ import {
   IsNumber,
   Min,
 } from 'class-validator';
-import { OrderStatus } from './orders.entity';
+import { OrderStatus, PaymentMethod } from './orders.entity';
 
 export class CreateOrderDto {
   @IsString()
@@ -20,6 +20,10 @@ export class CreateOrderDto {
   @IsString()
   @IsNotEmpty()
   shippingAddress!: string;
+
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
 
   @IsOptional()
   @IsNumber()
