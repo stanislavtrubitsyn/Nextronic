@@ -15,6 +15,7 @@ import { ComparisonModule } from './comparisons/comparisons.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { NotificationsModule } from './notifications';
 import { RecommendationsModule } from './recommendations';
+import { NovaPoshtaModule } from './novaposhta/novaposhta.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -62,6 +63,7 @@ import { RecommendationsModule } from './recommendations';
     ReviewsModule,
     NotificationsModule,
     RecommendationsModule,
+    NovaPoshtaModule,
   ],
 })
 export class AppModule {}
