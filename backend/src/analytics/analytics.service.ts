@@ -8,6 +8,8 @@ import { ViewedProductEntity } from '../products/viewed-products.entity';
 import { ProductsEntity } from '../products/products.entity';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
+import { ReviewsEntity } from '../reviews/reviews.entity';
+import { WishlistItemEntity } from '../wishlists/wishlist-item.entity';
 
 @Injectable()
 export class AnalyticsService {
@@ -18,6 +20,9 @@ export class AnalyticsService {
     @InjectRepository(ViewedProductEntity)
     private readonly viewedRepo: Repository<ViewedProductEntity>,
     @InjectRepository(ProductsEntity) private readonly productRepo: Repository<ProductsEntity>,
+    @InjectRepository(ReviewsEntity) private readonly reviewRepo: Repository<ReviewsEntity>,
+    @InjectRepository(WishlistItemEntity)
+    private readonly wishlistItemRepo: Repository<WishlistItemEntity>,
     private readonly auditService: AuditService,
   ) {}
 
@@ -60,6 +65,29 @@ export class AnalyticsService {
 
     const onlineUsers = Math.floor(Math.random() * (1350 - 1100 + 1)) + 1100;
 
+    // ЛІНІЙНІ ГРАФІКИ (Динаміка по днях)
+
+    // Графік продажів
+    const salesChart = await this.orderRepo
+      .createQueryBuilder('o')
+      .select("TO_CHAR(o.createdAt, 'YYYY-MM-DD')", 'date')
+      .addSelect('SUM(o.totalAmount)', 'value')
+      .where('o.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .andWhere('o.status != :cancelled', { cancelled: OrderStatus.CANCELLED })
+      .groupBy("TO_CHAR(o.createdAt, 'YYYY-MM-DD')")
+      .orderBy('date', 'ASC')
+      .getRawMany();
+
+    // Графік активності (перегляди товарів як індикатор активності)
+    const activityChart = await this.viewedRepo
+      .createQueryBuilder('v')
+      .select("TO_CHAR(v.viewedAt, 'YYYY-MM-DD')", 'date')
+      .addSelect('COUNT(v.id)', 'value')
+      .where('v.viewedAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .groupBy("TO_CHAR(v.viewedAt, 'YYYY-MM-DD')")
+      .orderBy('date', 'ASC')
+      .getRawMany();
+
     // КАТЕГОРІЇ (Кругова діаграма продажів)
     const categoryShares = await this.orderItemRepo
       .createQueryBuilder('item')
@@ -74,17 +102,20 @@ export class AnalyticsService {
       .limit(5)
       .getRawMany();
 
-    // ПОПУЛЯРНІ ТОВАРИ
+    // ПІДБІРКА ТОПІВ
+    const selectProductFields = [
+      'product.id AS id',
+      'product.name AS name',
+      'product.images AS images',
+      'product.price AS price',
+    ];
+
+    // Топ по замовленнях
     const topOrdered = await this.orderItemRepo
       .createQueryBuilder('item')
       .innerJoin('item.order', 'order')
       .innerJoin('item.product', 'product')
-      .select([
-        'product.id AS id',
-        'product.name AS name',
-        'product.images AS images',
-        'product.price AS price',
-      ])
+      .select(selectProductFields)
       .addSelect('SUM(item.quantity)', 'count')
       .where('order.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
       .groupBy('product.id')
@@ -92,16 +123,11 @@ export class AnalyticsService {
       .limit(5)
       .getRawMany();
 
-    // ТОП по переглядах
+    // Топ по переглядах
     const topViewed = await this.viewedRepo
       .createQueryBuilder('view')
       .innerJoin('view.product', 'product')
-      .select([
-        'product.id AS id',
-        'product.name AS name',
-        'product.images AS images',
-        'product.price AS price',
-      ])
+      .select(selectProductFields)
       .addSelect('COUNT(view.id)', 'count')
       .where('view.viewedAt BETWEEN :startDate AND :endDate', { startDate, endDate })
       .groupBy('product.id')
@@ -109,7 +135,30 @@ export class AnalyticsService {
       .limit(5)
       .getRawMany();
 
-    // ОСТАННЯ АКТИВНІСТЬ
+    // Топ по відгуках
+    const topReviewed = await this.reviewRepo
+      .createQueryBuilder('review')
+      .innerJoin('review.product', 'product')
+      .select(selectProductFields)
+      .addSelect('COUNT(review.id)', 'count')
+      .where('review.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .groupBy('product.id')
+      .orderBy('count', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    // Топ по обраному (Wishlists)
+    const topWishlisted = await this.wishlistItemRepo
+      .createQueryBuilder('w_item')
+      .innerJoin('w_item.product', 'product')
+      .select(selectProductFields)
+      .addSelect('COUNT(w_item.id)', 'count')
+      .groupBy('product.id')
+      .orderBy('count', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    // ОСТАННЯ АКТИВНІСТЬ (Логи аудиту)
     const recentLogs = await this.auditService.getRecentActivity(6);
 
     const formattedActivity = recentLogs.map((log) => {
@@ -144,6 +193,8 @@ export class AnalyticsService {
         revenue: totalRevenue,
       },
       charts: {
+        salesGraph: salesChart.map((s: any) => ({ date: s.date, value: Number(s.value) })),
+        activityGraph: activityChart.map((a: any) => ({ date: a.date, value: Number(a.value) })),
         categories: categoryShares.map((c: any) => {
           const catName = typeof c.name === 'string' ? JSON.parse(c.name as string) : c.name;
           return {
@@ -153,9 +204,10 @@ export class AnalyticsService {
         }),
       },
       tops: {
-        // Використовуємо стрілочну функцію замість передачі методу
         ordered: topOrdered.map((item: any) => this.formatProductResult(item)),
         viewed: topViewed.map((item: any) => this.formatProductResult(item)),
+        reviewed: topReviewed.map((item: any) => this.formatProductResult(item)),
+        wishlisted: topWishlisted.map((item: any) => this.formatProductResult(item)),
       },
       recentActivity: formattedActivity,
     };
