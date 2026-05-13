@@ -45,6 +45,10 @@ export class AnalyticsService {
       endDate.setHours(23, 59, 59, 999);
     } else if (period === 'all') startDate = new Date(0); // Від початку часів
 
+    //ДИНАМІЧНЕ ГРУПУВАННЯ ДЛЯ ГРАФІКІВ
+    // Якщо вибрано "24 години", групуємо по годинах, інакше по днях
+    const dateFormat = period === '24h' ? 'YYYY-MM-DD HH24:00' : 'YYYY-MM-DD';
+
     // ВЕРХНІ KPI (Статистика)
     const totalUsers = await this.userRepo.count({
       where: { createdAt: Between(startDate, endDate) },
@@ -65,30 +69,30 @@ export class AnalyticsService {
 
     const onlineUsers = Math.floor(Math.random() * (1350 - 1100 + 1)) + 1100;
 
-    // ЛІНІЙНІ ГРАФІКИ (Динаміка по днях)
+    // ЛІНІЙНІ ГРАФІКИ (Динаміка)
 
     // Графік продажів
     const salesChart = await this.orderRepo
       .createQueryBuilder('o')
-      .select("TO_CHAR(o.createdAt, 'YYYY-MM-DD')", 'date')
+      .select(`TO_CHAR(o.createdAt, '${dateFormat}')`, 'date')
       .addSelect('SUM(o.totalAmount)', 'value')
       .where('o.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
       .andWhere('o.status != :cancelled', { cancelled: OrderStatus.CANCELLED })
-      .groupBy("TO_CHAR(o.createdAt, 'YYYY-MM-DD')")
+      .groupBy(`TO_CHAR(o.createdAt, '${dateFormat}')`)
       .orderBy('date', 'ASC')
       .getRawMany();
 
     // Графік активності (перегляди товарів як індикатор активності)
     const activityChart = await this.viewedRepo
       .createQueryBuilder('v')
-      .select("TO_CHAR(v.viewedAt, 'YYYY-MM-DD')", 'date')
+      .select(`TO_CHAR(v.viewedAt, '${dateFormat}')`, 'date')
       .addSelect('COUNT(v.id)', 'value')
       .where('v.viewedAt BETWEEN :startDate AND :endDate', { startDate, endDate })
-      .groupBy("TO_CHAR(v.viewedAt, 'YYYY-MM-DD')")
+      .groupBy(`TO_CHAR(v.viewedAt, '${dateFormat}')`)
       .orderBy('date', 'ASC')
       .getRawMany();
 
-    // КАТЕГОРІЇ (Кругова діаграма продажів)
+    // КАТЕГОРІЇ (Кругова діаграма продажів + Топ 20 категорій)
     const categoryShares = await this.orderItemRepo
       .createQueryBuilder('item')
       .innerJoin('item.order', 'order')
@@ -99,7 +103,7 @@ export class AnalyticsService {
       .where('order.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
       .groupBy('category.id')
       .orderBy('sales', 'DESC')
-      .limit(5)
+      .limit(20)
       .getRawMany();
 
     // ПІДБІРКА ТОПІВ
