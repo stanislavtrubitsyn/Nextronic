@@ -51,7 +51,7 @@ export class AuditService {
 
   // ВІДКАТ ДО ПОПЕРЕДНЬОЇ ВЕРСІЇ
   async revertChange(logId: string) {
-    const log = await this.auditRepo.findOne({ where: { id: logId } });
+    const log = await this.auditRepo.findOne({ where: { id: logId }, relations: ['admin'] });
     if (!log) throw new NotFoundException('Лог не знайдено');
 
     if (log.action === AuditAction.CREATE) {
@@ -62,14 +62,36 @@ export class AuditService {
       throw new BadRequestException('Немає попередніх даних для відкату');
     }
 
-    // Динамічно отримуємо репозиторій сутності за її назвою
     const entityRepo = this.dataSource.getRepository(log.entityName);
 
-    // Знаходимо поточний запис
-    const currentEntity = await entityRepo.findOne({ where: { id: log.entityId } });
-    if (!currentEntity) throw new NotFoundException('Сутність вже не існує');
+    //ВІДНОВЛЕННЯ ПІСЛЯ ВИДАЛЕННЯ
+    if (log.action === AuditAction.DELETE) {
+      const currentEntity = await entityRepo.findOne({ where: { id: log.entityId } });
+      if (currentEntity)
+        throw new BadRequestException('Сутність вже існує (відновлення неможливе)');
 
-    // Відновлюємо старі значення з правильним приведенням типів для TypeORM
+      // Створюємо сутність наново з oldValues
+      const restoredEntity = entityRepo.create(log.oldValues as DeepPartial<ObjectLiteral>);
+      await entityRepo.save(restoredEntity);
+
+      // Логуємо сам факт відновлення
+      await this.logAction(
+        log.admin?.id || 'SYSTEM',
+        AuditAction.CREATE, // Технічно ми її створюємо знову
+        log.entityName,
+        log.entityId,
+        null,
+        restoredEntity,
+      );
+
+      return { success: true, message: 'Успішно відновлено видалений запис' };
+    }
+
+    //ВІДКАТ ОНОВЛЕННЯ (UPDATE)
+    const currentEntity = await entityRepo.findOne({ where: { id: log.entityId } });
+    if (!currentEntity) throw new NotFoundException('Сутність вже не існує (можливо її видалили)');
+
+    // Відновлюємо старі значення
     const revertedEntity = entityRepo.merge(
       currentEntity,
       log.oldValues as DeepPartial<ObjectLiteral>,
