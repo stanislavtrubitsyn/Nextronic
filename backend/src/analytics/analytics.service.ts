@@ -31,30 +31,58 @@ export class AnalyticsService {
     customStart?: string,
     customEnd?: string,
   ) {
-    // Визначаємо початкову та кінцеву дати для фільтрації
+    //ВИЗНАЧАЄМО ПОТОЧНИЙ ПЕРІОД
     let startDate = new Date();
     let endDate = new Date();
 
-    if (period === '24h') startDate.setHours(startDate.getHours() - 24);
-    else if (period === 'week') startDate.setDate(startDate.getDate() - 7);
-    else if (period === 'month') startDate.setMonth(startDate.getMonth() - 1);
-    else if (period === 'year') startDate.setFullYear(startDate.getFullYear() - 1);
-    else if (period === 'custom' && customStart && customEnd) {
+    //ВИЗНАЧАЄМО ПОПЕРЕДНІЙ ПЕРІОД ДЛЯ ТРЕНДІВ (ВІДСОТКІВ)
+    let prevStartDate = new Date();
+    let prevEndDate = new Date();
+
+    if (period === '24h') {
+      startDate.setHours(startDate.getHours() - 24);
+      prevEndDate = new Date(startDate);
+      prevStartDate.setHours(prevStartDate.getHours() - 48);
+    } else if (period === 'week') {
+      startDate.setDate(startDate.getDate() - 7);
+      prevEndDate = new Date(startDate);
+      prevStartDate.setDate(prevStartDate.getDate() - 14);
+    } else if (period === 'month') {
+      startDate.setMonth(startDate.getMonth() - 1);
+      prevEndDate = new Date(startDate);
+      prevStartDate.setMonth(prevStartDate.getMonth() - 2);
+    } else if (period === 'year') {
+      startDate.setFullYear(startDate.getFullYear() - 1);
+      prevEndDate = new Date(startDate);
+      prevStartDate.setFullYear(prevStartDate.getFullYear() - 2);
+    } else if (period === 'custom' && customStart && customEnd) {
       startDate = new Date(customStart);
       endDate = new Date(customEnd);
       endDate.setHours(23, 59, 59, 999);
-    } else if (period === 'all') startDate = new Date(0); // Від початку часів
 
-    //ДИНАМІЧНЕ ГРУПУВАННЯ ДЛЯ ГРАФІКІВ
-    // Якщо вибрано "24 години", групуємо по годинах, інакше по днях
+      // Вираховуємо тривалість кастомного періоду
+      const diff = endDate.getTime() - startDate.getTime();
+      prevEndDate = new Date(startDate);
+      prevStartDate = new Date(startDate.getTime() - diff);
+    } else if (period === 'all') {
+      startDate = new Date(0);
+      prevStartDate = new Date(0);
+      prevEndDate = new Date(0);
+    }
+
+    // ДИНАМІЧНЕ ГРУПУВАННЯ ДЛЯ ГРАФІКІВ
     const dateFormat = period === '24h' ? 'YYYY-MM-DD HH24:00' : 'YYYY-MM-DD';
 
-    // ВЕРХНІ KPI (Статистика)
+    //ВЕРХНІ KPI (Статистика за поточний період)
     const totalUsers = await this.userRepo.count({
       where: { createdAt: Between(startDate, endDate) },
     });
 
     const totalOrders = await this.orderRepo.count({
+      where: { createdAt: Between(startDate, endDate) },
+    });
+
+    const totalReviews = await this.reviewRepo.count({
       where: { createdAt: Between(startDate, endDate) },
     });
 
@@ -64,10 +92,40 @@ export class AnalyticsService {
       .where('o.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
       .andWhere('o.status != :cancelled', { cancelled: OrderStatus.CANCELLED })
       .getRawOne();
-
     const totalRevenue = revenueResult?.total ? Number(revenueResult.total) : 0;
 
     const onlineUsers = Math.floor(Math.random() * (1350 - 1100 + 1)) + 1100;
+
+    //ДАНІ ЗА ПОПЕРЕДНІЙ ПЕРІОД
+    const prevUsers = await this.userRepo.count({
+      where: { createdAt: Between(prevStartDate, prevEndDate) },
+    });
+    const prevOrders = await this.orderRepo.count({
+      where: { createdAt: Between(prevStartDate, prevEndDate) },
+    });
+    const prevReviews = await this.reviewRepo.count({
+      where: { createdAt: Between(prevStartDate, prevEndDate) },
+    });
+
+    const prevRevenueResult = await this.orderRepo
+      .createQueryBuilder('o')
+      .select('SUM(o.totalAmount)', 'total')
+      .where('o.createdAt BETWEEN :startDate AND :endDate', {
+        startDate: prevStartDate,
+        endDate: prevEndDate,
+      })
+      .andWhere('o.status != :cancelled', { cancelled: OrderStatus.CANCELLED })
+      .getRawOne();
+    const prevRevenue = prevRevenueResult?.total ? Number(prevRevenueResult.total) : 0;
+
+    const prevOnlineUsers = onlineUsers - Math.floor(Math.random() * 200);
+
+    //ФУНКЦІЯ ДЛЯ РОЗРАХУНКУ ТРЕНДУ (%)
+    const calcTrend = (current: number, previous: number): number => {
+      if (period === 'all') return 0;
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Number((((current - previous) / previous) * 100).toFixed(1));
+    };
 
     // Графік продажів
     const salesChart = await this.orderRepo
@@ -80,7 +138,7 @@ export class AnalyticsService {
       .orderBy('date', 'ASC')
       .getRawMany();
 
-    // Графік активності (перегляди товарів як індикатор активності)
+    // Графік активності
     const activityChart = await this.viewedRepo
       .createQueryBuilder('v')
       .select(`TO_CHAR(v.viewedAt, '${dateFormat}')`, 'date')
@@ -90,7 +148,7 @@ export class AnalyticsService {
       .orderBy('date', 'ASC')
       .getRawMany();
 
-    // КАТЕГОРІЇ (Кругова діаграма продажів + Топ 20 категорій)
+    // КАТЕГОРІЇ (Топ 20)
     const categoryShares = await this.orderItemRepo
       .createQueryBuilder('item')
       .innerJoin('item.order', 'order')
@@ -149,7 +207,7 @@ export class AnalyticsService {
       .limit(5)
       .getRawMany();
 
-    // Топ по обраному (Wishlists)
+    // Топ по обраному
     const topWishlisted = await this.wishlistItemRepo
       .createQueryBuilder('w_item')
       .innerJoin('w_item.product', 'product')
@@ -161,40 +219,64 @@ export class AnalyticsService {
       .limit(5)
       .getRawMany();
 
-    // ОСТАННЯ АКТИВНІСТЬ (Логи аудиту)
+    // ОСТАННЯ АКТИВНІСТЬ
     const recentLogs = await this.auditService.getRecentActivity(6);
 
     const formattedActivity = recentLogs.map((log) => {
-      let actionType = 'Змінено';
-      if (log.action === AuditAction.CREATE) actionType = 'Створено';
-      if (log.action === AuditAction.UPDATE) actionType = 'Оновлено';
-      if (log.action === AuditAction.DELETE) actionType = 'Видалено';
+      //Формуємо тип дії
+      let entityNameStr = 'запис';
+      if (log.entityName === 'ProductsEntity') entityNameStr = 'товар';
+      if (log.entityName === 'OrderEntity') entityNameStr = 'замовлення';
+      if (log.entityName === 'UsersEntity') entityNameStr = 'користувача';
+      if (log.entityName === 'CategoriesEntity') entityNameStr = 'категорію';
+      if (log.entityName === 'CatalogsEntity') entityNameStr = 'каталог';
+      if (log.entityName === 'ReviewsEntity') entityNameStr = 'відгук';
 
-      let entityName = log.entityName;
-      if (entityName === 'ProductsEntity') entityName = 'Товар';
-      if (entityName === 'OrderEntity') entityName = 'Замовлення';
-      if (entityName === 'UsersEntity') entityName = 'Користувач';
-      if (entityName === 'CategoriesEntity') entityName = 'Категорія';
-      if (entityName === 'CatalogsEntity') entityName = 'Каталог';
-      if (entityName === 'ReviewsEntity') entityName = 'Відгук';
+      let actionDesc = '';
+      if (log.action === AuditAction.CREATE) actionDesc = `Додано новий ${entityNameStr}`;
+      if (log.action === AuditAction.UPDATE) actionDesc = `Відредаговано ${entityNameStr}`;
+      if (log.action === AuditAction.DELETE) actionDesc = `Видалено ${entityNameStr}`;
+
+      //Витягуємо назву об'єкта з JSON зліпка
+      const data = log.newValues || log.oldValues || {};
+      let itemName = '';
+
+      if (log.entityName === 'OrderEntity') {
+        itemName = `№${data.orderNumber || 'Невідомо'}`;
+      } else if (log.entityName === 'UsersEntity') {
+        itemName = data.profile?.firstName
+          ? `${data.profile.firstName} ${data.profile.lastName || ''}`.trim()
+          : data.email || '';
+      } else {
+        // Товари, Категорії, Каталоги мають поле name (об'єкт {ua, en} або рядок)
+        const nameObj = data.name;
+        if (typeof nameObj === 'object' && nameObj !== null) {
+          itemName = nameObj.ua || nameObj.en || '';
+        } else if (typeof nameObj === 'string') {
+          itemName = nameObj;
+        } else if (log.entityName === 'ReviewsEntity') {
+          itemName = data.comment ? `"${data.comment.substring(0, 40)}..."` : '';
+        }
+      }
 
       return {
         id: log.id,
         adminName: log.admin?.profile?.firstName
-          ? `${log.admin.profile.firstName} ${log.admin.profile.lastName}`
+          ? `${log.admin.profile.firstName} ${log.admin.profile.lastName || ''}`.trim()
           : 'Система/Невідомо',
         role: log.admin?.role || 'admin',
-        action: `${actionType} запис: ${entityName}`,
+        action: itemName ? `${actionDesc}:\n${itemName}` : actionDesc,
         date: log.createdAt,
       };
     });
 
     return {
       kpi: {
-        online: onlineUsers,
-        users: totalUsers,
-        orders: totalOrders,
-        revenue: totalRevenue,
+        online: { value: onlineUsers, trend: calcTrend(onlineUsers, prevOnlineUsers) },
+        users: { value: totalUsers, trend: calcTrend(totalUsers, prevUsers) },
+        orders: { value: totalOrders, trend: calcTrend(totalOrders, prevOrders) },
+        reviews: { value: totalReviews, trend: calcTrend(totalReviews, prevReviews) },
+        revenue: { value: totalRevenue, trend: calcTrend(totalRevenue, prevRevenue) },
       },
       charts: {
         salesGraph: salesChart.map((s: any) => ({ date: s.date, value: Number(s.value) })),
