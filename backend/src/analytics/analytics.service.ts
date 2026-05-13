@@ -69,8 +69,6 @@ export class AnalyticsService {
 
     const onlineUsers = Math.floor(Math.random() * (1350 - 1100 + 1)) + 1100;
 
-    // ЛІНІЙНІ ГРАФІКИ (Динаміка)
-
     // Графік продажів
     const salesChart = await this.orderRepo
       .createQueryBuilder('o')
@@ -178,6 +176,7 @@ export class AnalyticsService {
       if (entityName === 'UsersEntity') entityName = 'Користувач';
       if (entityName === 'CategoriesEntity') entityName = 'Категорія';
       if (entityName === 'CatalogsEntity') entityName = 'Каталог';
+      if (entityName === 'ReviewsEntity') entityName = 'Відгук';
 
       return {
         id: log.id,

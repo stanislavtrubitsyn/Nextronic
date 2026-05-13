@@ -15,6 +15,8 @@ import { REVIEWS_I18N, ReviewLangType } from './reviews.i18n';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 import { ActivityAction } from '../recommendations/user-activity.entity';
 import { ProductsEntity } from '../products/products.entity';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit-log.entity';
 
 @Injectable()
 export class ReviewsService {
@@ -26,6 +28,7 @@ export class ReviewsService {
     @InjectRepository(ProductsEntity)
     private readonly productRepo: Repository<ProductsEntity>,
     private readonly recommendationsService: RecommendationsService,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(userId: string, dto: CreateReviewDto, lang: ReviewLangType = 'ua') {
@@ -100,11 +103,27 @@ export class ReviewsService {
 
     if (!review) throw new NotFoundException(t.notFound);
 
-    if (role !== UserRole.ADMIN && review.user.id !== userId) {
+    if (role !== UserRole.ADMIN && role !== UserRole.MODERATOR && review.user.id !== userId) {
       throw new ForbiddenException(t.accessDenied);
     }
 
+    // Робимо зліпок старого стану перед видаленням
+    const oldReviewSnapshot = JSON.parse(JSON.stringify(review));
+
     await this.reviewRepo.remove(review);
+
+    // ЛОГУЄМО ВИДАЛЕННЯ
+    if (role === UserRole.ADMIN || role === UserRole.MODERATOR) {
+      await this.auditService.logAction(
+        userId,
+        AuditAction.DELETE,
+        'ReviewsEntity',
+        id,
+        oldReviewSnapshot,
+        null,
+      );
+    }
+
     return { success: true };
   }
 
