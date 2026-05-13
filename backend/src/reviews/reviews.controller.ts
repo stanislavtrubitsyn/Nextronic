@@ -18,6 +18,7 @@ import { UserRole } from '../users/users.entity';
 import { CreateReviewDto, UpdateReviewDto } from './reviews.dto';
 import { Request } from 'express';
 import { ReviewLangType } from './reviews.i18n';
+
 interface RequestWithUser extends Request {
   user: { userId: string; role: UserRole };
 }
@@ -34,6 +35,13 @@ export class ReviewsController {
     @Query('lang') lang: ReviewLangType = 'ua',
   ) {
     return await this.reviewsService.create(req.user.userId, dto, lang);
+  }
+
+  //ЕНДПОІНТ ДЛЯ ПРОФІЛЮ КОРИСТУВАЧА
+  @Get('my')
+  @UseGuards(JwtAuthGuard)
+  async getMyReviews(@Req() req: RequestWithUser) {
+    return await this.reviewsService.getMyReviews(req.user.userId);
   }
 
   @Get('product/:productId')

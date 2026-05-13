@@ -17,6 +17,7 @@ import { ActivityAction } from '../recommendations/user-activity.entity';
 import { ProductsEntity } from '../products/products.entity';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
+import { NotificationsService } from '../notifications/notifications.service'; // <-- ДОДАНО
 
 @Injectable()
 export class ReviewsService {
@@ -29,6 +30,7 @@ export class ReviewsService {
     private readonly productRepo: Repository<ProductsEntity>,
     private readonly recommendationsService: RecommendationsService,
     private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService, // <-- ДОДАНО
   ) {}
 
   async create(userId: string, dto: CreateReviewDto, lang: ReviewLangType = 'ua') {
@@ -68,7 +70,28 @@ export class ReviewsService {
 
     const savedReview = await this.reviewRepo.save(review);
 
-    //Логіка рекомендацій
+    // СПОВІЩЕННЯ ПРО ВІДПОВІДЬ
+    if (dto.parentId) {
+      const parentReview = await this.reviewRepo.findOne({
+        where: { id: dto.parentId },
+        relations: ['user', 'product'],
+      });
+
+      // Надсилаємо сповіщення, тільки якщо користувач не відповів сам собі
+      if (parentReview && parentReview.user.id !== userId) {
+        const nameObj = parentReview.product?.name;
+        const productName = typeof nameObj === 'object' ? nameObj[lang] || nameObj['ua'] : 'Товар';
+
+        await this.notificationsService.createNotification(
+          parentReview.user.id,
+          'replyTitle',
+          'replyBody',
+          { product: productName },
+        );
+      }
+    }
+
+    // Логіка рекомендацій
     const product = await this.productRepo.findOne({
       where: { id: dto.productId },
       relations: ['category'],
@@ -134,6 +157,15 @@ export class ReviewsService {
         parent: IsNull(),
       },
       relations: ['user', 'replies', 'replies.user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  // МЕТОД ДЛЯ ПРОФІЛЮ КОРИСТУВАЧА
+  async getMyReviews(userId: string) {
+    return await this.reviewRepo.find({
+      where: { user: { id: userId } },
+      relations: ['product'], // Завантажуємо товар, щоб фронт міг зробити посилання
       order: { createdAt: 'DESC' },
     });
   }
