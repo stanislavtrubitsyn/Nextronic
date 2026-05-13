@@ -230,6 +230,27 @@ export class OrdersService {
     }
   }
 
+  // ЗАГЛУШКА ДЛЯ ОПЛАТИ ОНЛАЙН
+  async mockPayOrder(id: string, userId: string, lang: OrderLangType = 'ua') {
+    const order = await this.orderRepo.findOne({ where: { id, user: { id: userId } } });
+
+    if (!order) {
+      throw new NotFoundException(ORDERS_I18N[lang].orderNotFound);
+    }
+    if (order.isPaid) {
+      throw new BadRequestException(ORDERS_I18N[lang].orderAlreadyPaid);
+    }
+
+    order.isPaid = true;
+
+    // Якщо замовлення було тільки створене (PENDING), переводимо його в "Обробляється"
+    if (order.status === OrderStatus.PENDING) {
+      order.status = OrderStatus.PROCESSING;
+    }
+
+    return await this.orderRepo.save(order);
+  }
+
   async findOne(id: string, lang: OrderLangType = 'ua') {
     const order = await this.orderRepo.findOne({
       where: { id },

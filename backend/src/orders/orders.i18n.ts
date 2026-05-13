@@ -2,8 +2,9 @@ export const ORDERS_I18N = {
   ua: {
     cartEmpty: 'Кошик порожній',
     orderNotFound: 'Замовлення не знайдено',
+    orderAlreadyPaid: 'Замовлення вже оплачено',
     insufficientBonuses: (available: number) => `Недостатньо бонусів. Доступно: ${available}`,
-    outOfStock: (name: string) => `Недостатньо товару на складі: ${name}`, // <-- НОВЕ
+    outOfStock: (name: string) => `Недостатньо товару на складі: ${name}`,
     orderCreatedTitle: 'Замовлення прийнято',
     orderCreatedBody: (num: string, amount: number) =>
       `Ваше замовлення №${num} на суму ${amount} грн успішно створено.`,
@@ -15,8 +16,9 @@ export const ORDERS_I18N = {
   en: {
     cartEmpty: 'Cart is empty',
     orderNotFound: 'Order not found',
+    orderAlreadyPaid: 'Order is already paid',
     insufficientBonuses: (available: number) => `Not enough bonuses. Available: ${available}`,
-    outOfStock: (name: string) => `Not enough stock for: ${name}`, // <-- НОВЕ
+    outOfStock: (name: string) => `Not enough stock for: ${name}`,
     orderCreatedTitle: 'Order Accepted',
     orderCreatedBody: (num: string, amount: number) =>
       `Your order #${num} for ${amount} UAH has been successfully created.`,

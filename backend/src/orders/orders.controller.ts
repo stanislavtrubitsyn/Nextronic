@@ -44,4 +44,13 @@ export class OrdersController {
   ) {
     return await this.ordersService.updateStatus(id, dto, req.user.userId, lang);
   }
+
+  @Patch(':id/pay')
+  async payOrder(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+    @Query('lang') lang: OrderLangType = 'ua',
+  ) {
+    return await this.ordersService.mockPayOrder(id, req.user.userId, lang);
+  }
 }
