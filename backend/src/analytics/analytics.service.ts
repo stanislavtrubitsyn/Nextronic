@@ -157,6 +157,7 @@ export class AnalyticsService {
       .innerJoin('w_item.product', 'product')
       .select(selectProductFields)
       .addSelect('COUNT(w_item.id)', 'count')
+      .where('w_item.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
       .groupBy('product.id')
       .orderBy('count', 'DESC')
       .limit(5)

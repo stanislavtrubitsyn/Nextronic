@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn } from 'typeorm';
 import { WishlistsEntity } from './wishlists.entity';
 import { ProductsEntity } from '../products/products.entity';
 
@@ -12,4 +12,7 @@ export class WishlistItemEntity {
 
   @ManyToOne(() => ProductsEntity, { onDelete: 'CASCADE' })
   product!: ProductsEntity;
+
+  @CreateDateColumn()
+  createdAt!: Date;
 }
