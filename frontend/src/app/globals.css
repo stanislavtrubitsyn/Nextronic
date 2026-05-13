@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
+@theme {
+  /* брейкпоінти */
+  --breakpoint-mobile: 375px;
+  --breakpoint-tablet: 1024px;
+  --breakpoint-pc: 1920px;
+
+  /* Реєстрація кольорів як Tailwind-класів */
+  --color-page-bg: var(--page-bg);
+  --color-header-bg: var(--header-bg);
+  --color-header-border: var(--header-border);
+  --color-footer-bg: var(--footer-bg);
+  --color-block-bg: var(--block-bg);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-btn-bg: #6D28D9;
+  --color-btn-text: #FFFFFF;
+  --color-icon-dim: #4E525C;
+  --color-icon-active: #6D28D9;
+  --color-accent-yellow: #FFCF00;
+  --color-success: #14E914;
+  --color-error: #FF090B;
+  --color-old-price: #4E4E4E;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Світла тема */
+  --page-bg: #F2F2F2;
+  --header-bg: #FFFFFF;
+  --header-border: #E5E7EB;
+  --footer-bg: #FFFFFF;
+  --block-bg: #FFFFFF;
+  --card-bg: #FFFFFF;
+  --card-border: #E5E7EB;
+  --font-inter: 'Inter', sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme='dark'] {
+  /* Темна тема  */
+  --page-bg: #0E0F12;
+  --header-bg: #101217;
+  --header-border: #23262F;
+  --footer-bg: #111118;
+  --block-bg: #15171C;
+  --card-bg: #15171C;
+  --card-border: #23262F;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--page-bg);
+  font-family: var(--font-inter);
+  transition: background-color 0.3s ease;
 }
