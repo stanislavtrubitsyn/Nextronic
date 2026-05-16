@@ -17,6 +17,6 @@ async function bootstrap() {
   // Додаємо CORS, щоб фронтенд міг робити запити
   app.enableCors();
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT || 3000);
 }
 void bootstrap();

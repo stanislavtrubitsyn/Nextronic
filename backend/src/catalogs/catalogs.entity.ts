@@ -13,7 +13,7 @@ export class CatalogsEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   icon?: string;
 
   @Column({ type: 'jsonb', nullable: false })
