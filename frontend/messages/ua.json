@@ -2,5 +2,43 @@
 	"HomePage": {
 		"title": "Вітаємо в Nextronic!",
 		"description": "Ваш улюблений магазин електроніки"
+	},
+	"LocaleSwitcher": {
+		"ua": "Українська",
+		"en": "Англійська"
+	},
+	"ThemeSwitcher": {
+		"light": "Світла",
+		"dark": "Темна"
+	},
+	"AppSearch": {
+		"placeholder": "Пошук",
+		"button": "Знайти"
+	},
+	"SearchPage": {
+		"resultsFor": "Результати пошуку для",
+		"errorLoading": "Сталася помилка при завантаженні товарів. Спробуйте пізніше.",
+		"notFound": "Нічого не знайдено за вашим запитом. Спробуйте змінити ключові слова.",
+		"buyBtn": "Купити"
+	},
+	"AppCartButton": {
+		"label": "Кошик"
+	},
+	"UserProfileButton": {
+		"label": "Кабінет"
+	},
+	"AppComparisonButton": {
+		"label": "Порівняння"
+	},
+	"AppWishlistButton": {
+		"label": "Обране"
+	},
+	"AppNotificationButton": {
+		"label": "Повідомлення"
+	},
+	"AppCatalog": {
+		"label": "Каталог",
+		"allCategories": "Всі категорії >",
+		"viewAll": "Дивитись всі >"
 	}
 }

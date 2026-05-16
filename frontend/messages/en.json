@@ -2,5 +2,43 @@
 	"HomePage": {
 		"title": "Welcome to Nextronic!",
 		"description": "Your favorite electronics store"
+	},
+	"LocaleSwitcher": {
+		"ua": "Ukrainian",
+		"en": "English"
+	},
+	"ThemeSwitcher": {
+		"light": "Light",
+		"dark": "Dark"
+	},
+	"AppSearch": {
+		"placeholder": "Search",
+		"button": "Find"
+	},
+	"SearchPage": {
+		"resultsFor": "Search results for",
+		"errorLoading": "An error occurred while loading products. Please try again later.",
+		"notFound": "No products found for your request. Try changing the keywords.",
+		"buyBtn": "Buy"
+	},
+	"AppCartButton": {
+		"label": "Cart"
+	},
+	"UserProfileButton": {
+		"label": "Profile"
+	},
+	"AppComparisonButton": {
+		"label": "Compare"
+	},
+	"AppWishlistButton": {
+		"label": "Wishlist"
+	},
+	"AppNotificationButton": {
+		"label": "Messages"
+	},
+	"AppCatalog": {
+		"label": "Catalog",
+		"allCategories": "All categories >",
+		"viewAll": "View all >"
 	}
 }
