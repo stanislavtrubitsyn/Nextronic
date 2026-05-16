@@ -1,43 +1,74 @@
 'use client'
 import { useTheme } from 'next-themes'
-import { Button } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { Box, Typography } from '@mui/material'
+import { LightModeOutlined, ModeNightRounded } from '@mui/icons-material'
+import { useTranslations } from 'next-intl'
 
 export const ThemeSwitcher = () => {
-	const { theme, setTheme } = useTheme()
-	const [mounted, setMounted] = useState(false)
+	const { resolvedTheme, setTheme } = useTheme()
+	const t = useTranslations('ThemeSwitcher')
 
-	// useEffect спрацьовує тільки в браузері
-	useEffect(() => {
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		setMounted(true)
-	}, [])
-
-	// Поки ми на сервері, малюємо "пустушку" такого ж розміру, щоб уникнути блимання (Hydration Mismatch)
-	if (!mounted) {
-		return <div className='h-9' /> // Приблизна висота кнопок
+	const toggleTheme = () => {
+		setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
 	}
 
 	return (
-		<div className='flex gap-4 justify-center'>
-			<Button
-				variant={theme === 'light' ? 'contained' : 'outlined'}
-				onClick={() => setTheme('light')}
+		<Box onClick={toggleTheme} sx={{ cursor: 'pointer', userSelect: 'none' }}>
+			{/* СВІТЛА ТЕМА */}
+			<Box
+				sx={{
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: 'center',
+					color: '#6D28D9',
+					'[data-theme="dark"] &': { display: 'none' },
+				}}
 			>
-				Світла
-			</Button>
-			<Button
-				variant={theme === 'dark' ? 'contained' : 'outlined'}
-				onClick={() => setTheme('dark')}
+				<ModeNightRounded
+					sx={{
+						width: '25px',
+						height: '25px',
+						transition: 'color 0.3s ease-in-out',
+					}}
+				/>
+				<Typography
+					sx={{
+						fontSize: '13px',
+						fontFamily: 'var(--font-inter)',
+						fontWeight: 500,
+					}}
+				>
+					{t('dark')}
+				</Typography>
+			</Box>
+
+			{/* ТЕМНА ТЕМА */}
+			<Box
+				sx={{
+					display: 'none',
+					flexDirection: 'column',
+					alignItems: 'center',
+					color: '#FFCF00',
+					'[data-theme="dark"] &': { display: 'flex' },
+				}}
 			>
-				Темна
-			</Button>
-			<Button
-				variant={theme === 'system' ? 'contained' : 'outlined'}
-				onClick={() => setTheme('system')}
-			>
-				Системна
-			</Button>
-		</div>
+				<LightModeOutlined
+					sx={{
+						width: '25px',
+						height: '25px',
+						transition: 'color 0.3s ease-in-out',
+					}}
+				/>
+				<Typography
+					sx={{
+						fontSize: '13px',
+						fontFamily: 'var(--font-inter)',
+						fontWeight: 500,
+					}}
+				>
+					{t('light')}
+				</Typography>
+			</Box>
+		</Box>
 	)
 }
