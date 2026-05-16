@@ -7,6 +7,7 @@ import { routing } from '@/i18n/routing'
 import { ThemeProvider as NextThemesProvider } from 'next-themes'
 import '../globals.css'
 import { Header } from '@/shared/components/layout/Header/Header'
+import { Footer } from '@/shared/components/layout/Footer/Footer'
 
 const inter = Inter({
 	subsets: ['latin', 'cyrillic'],
@@ -64,6 +65,7 @@ export default async function LocaleLayout({
 						<Providers>
 							<Header />
 							<main className='flex-1 flex flex-col'>{children}</main>
+							<Footer />
 						</Providers>
 					</NextIntlClientProvider>
 				</NextThemesProvider>
