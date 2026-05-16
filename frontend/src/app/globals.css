@@ -14,9 +14,12 @@
   --color-block-bg: var(--block-bg);
   --color-card-bg: var(--card-bg);
   --color-card-border: var(--card-border);
+  
+  --color-icon-dim: var(--theme-icon-dim);
+  --color-text-main: var(--theme-text);
+
   --color-btn-bg: #6D28D9;
   --color-btn-text: #FFFFFF;
-  --color-icon-dim: #4E525C;
   --color-icon-active: #6D28D9;
   --color-accent-yellow: #FFCF00;
   --color-success: #14E914;
@@ -33,6 +36,13 @@
   --block-bg: #FFFFFF;
   --card-bg: #FFFFFF;
   --card-border: #E5E7EB;
+  
+  /* Текстові кольори для світлої теми */
+  --theme-text: #1E2128; /* Чорний текст для заголовків */
+  --theme-icon-dim: #4E525C; /* Темно-сірий текст для опису */
+  --theme-transition: 0s; /* Спочатку анімація вимкнена */
+  --font-inter: 'Inter', sans-serif;
+  
   --font-inter: 'Inter', sans-serif;
 }
 
@@ -45,10 +55,22 @@
   --block-bg: #15171C;
   --card-bg: #15171C;
   --card-border: #23262F;
+  
+  /* Текстові кольори для темної теми */
+  --theme-text: #FFFFFF; /* Білий текст для заголовків */
+  --theme-icon-dim: #9CA3AF; /* Світло-сірий текст для опису */
 }
 
+body,
+.MuiPaper-root:not(.MuiPopover-paper):not(.MuiAutocomplete-paper),
+.MuiAppBar-root,
+section {
+  transition: background-color var(--theme-transition) ease,
+              color var(--theme-transition) ease,
+              border-color var(--theme-transition) ease !important;
+}
 body {
-  background-color: var(--page-bg);
+  background-color: var(--page-bg) !important;
+  color: var(--theme-text);
   font-family: var(--font-inter);
-  transition: background-color 0.3s ease;
 }

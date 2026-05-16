@@ -4,7 +4,9 @@ import { Inter } from 'next/font/google'
 import { Providers } from './providers'
 import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
+import { ThemeProvider as NextThemesProvider } from 'next-themes'
 import '../globals.css'
+import { Header } from '@/shared/components/layout/Header/Header'
 
 const inter = Inter({
 	subsets: ['latin', 'cyrillic'],
@@ -37,10 +39,34 @@ export default async function LocaleLayout({
 			className={`${inter.variable} h-full`}
 			suppressHydrationWarning
 		>
+			<head>
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `
+							(function() {
+								try {
+									const theme = localStorage.getItem('theme') ||
+										(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+									document.documentElement.setAttribute('data-theme', theme);
+								} catch (e) {}
+							})();
+						`,
+					}}
+				/>
+			</head>
 			<body className='min-h-full flex flex-col'>
-				<NextIntlClientProvider messages={messages}>
-					<Providers>{children}</Providers>
-				</NextIntlClientProvider>
+				<NextThemesProvider
+					attribute='data-theme'
+					defaultTheme='system'
+					enableSystem
+				>
+					<NextIntlClientProvider messages={messages}>
+						<Providers>
+							<Header />
+							<main className='flex-1 flex flex-col'>{children}</main>
+						</Providers>
+					</NextIntlClientProvider>
+				</NextThemesProvider>
 			</body>
 		</html>
 	)

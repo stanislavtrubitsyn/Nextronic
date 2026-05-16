@@ -1,20 +1,43 @@
 'use client'
-import { ThemeProvider as NextThemesProvider, useTheme } from 'next-themes'
+import { useState, useEffect, useMemo } from 'react'
+import { useTheme } from 'next-themes'
 import {
 	createTheme,
 	ThemeProvider as MUIThemeProvider,
 } from '@mui/material/styles'
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter'
 import CssBaseline from '@mui/material/CssBaseline'
-import { useMemo, useEffect, useState } from 'react'
+
+if (typeof window !== 'undefined') {
+	const originalError = console.error
+	console.error = (...args) => {
+		if (
+			typeof args[0] === 'string' &&
+			args[0].includes('Encountered a script tag')
+		) {
+			return
+		}
+		originalError(...args)
+	}
+}
 
 function MUIWrapper({ children }: { children: React.ReactNode }) {
 	const { resolvedTheme } = useTheme()
 	const [mounted, setMounted] = useState(false)
 
 	useEffect(() => {
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		setMounted(true)
+		const frame = requestAnimationFrame(() => {
+			setMounted(true)
+		})
+
+		const timer = setTimeout(() => {
+			document.documentElement.style.setProperty('--theme-transition', '0.3s')
+		}, 100)
+
+		return () => {
+			cancelAnimationFrame(frame)
+			clearTimeout(timer)
+		}
 	}, [])
 
 	const theme = useMemo(
@@ -23,23 +46,35 @@ function MUIWrapper({ children }: { children: React.ReactNode }) {
 				palette: {
 					mode: mounted && resolvedTheme === 'dark' ? 'dark' : 'light',
 					primary: { main: '#6D28D9' },
-					background: {
-						default:
-							mounted && resolvedTheme === 'dark' ? '#0E0F12' : '#F2F2F2',
-						paper: mounted && resolvedTheme === 'dark' ? '#15171C' : '#FFFFFF',
-					},
 				},
 				breakpoints: {
-					values: { xs: 0, sm: 375, md: 1024, lg: 1920, xl: 2000 },
+					values: { xs: 0, sm: 376, md: 1025, lg: 1921, xl: 2001 },
 				},
 				typography: {
 					fontFamily: 'var(--font-inter)',
 				},
+				components: {
+					MuiCssBaseline: {
+						styleOverrides: {
+							body: {
+								color: 'var(--theme-text) !important',
+								backgroundColor: 'var(--page-bg) !important',
+							},
+						},
+					},
+					MuiPaper: {
+						styleOverrides: {
+							root: {
+								backgroundColor: 'var(--color-block-bg)',
+								backgroundImage: 'none !important',
+								boxShadow: 'none',
+							},
+						},
+					},
+				},
 			}),
 		[resolvedTheme, mounted],
 	)
-
-	if (!mounted) return <div style={{ visibility: 'hidden' }}>{children}</div>
 
 	return (
 		<MUIThemeProvider theme={theme}>
@@ -52,13 +87,7 @@ function MUIWrapper({ children }: { children: React.ReactNode }) {
 export function Providers({ children }: { children: React.ReactNode }) {
 	return (
 		<AppRouterCacheProvider>
-			<NextThemesProvider
-				attribute='data-theme'
-				defaultTheme='system'
-				enableSystem
-			>
-				<MUIWrapper>{children}</MUIWrapper>
-			</NextThemesProvider>
+			<MUIWrapper>{children}</MUIWrapper>
 		</AppRouterCacheProvider>
 	)
 }
