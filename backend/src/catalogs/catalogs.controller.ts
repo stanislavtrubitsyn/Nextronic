@@ -37,6 +37,11 @@ export class CatalogsController {
     return this.catalogsService.findAll();
   }
 
+  @Get('menu')
+  getMenu() {
+    return this.catalogsService.getMenuWithTopProducts();
+  }
+
   @Get(':id')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,

@@ -1,11 +1,12 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
+import { Repository, Not, DataSource } from 'typeorm';
 import { CatalogsEntity } from './catalogs.entity';
 import { CreateCatalogDto, UpdateCatalogDto } from './catalogs.dto';
 import { CATALOGS_I18N, CatalogLangType } from './catalogs.i18n';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
+import { ProductsEntity } from '../products/products.entity';
 
 @Injectable()
 export class CatalogsService {
@@ -13,6 +14,7 @@ export class CatalogsService {
     @InjectRepository(CatalogsEntity)
     private readonly catalogRepo: Repository<CatalogsEntity>,
     private readonly auditService: AuditService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // Додали adminId
@@ -53,6 +55,30 @@ export class CatalogsService {
     return catalog;
   }
 
+  async getMenuWithTopProducts() {
+    const catalogs = await this.catalogRepo.find({
+      relations: ['categories'],
+      order: { createdAt: 'ASC' },
+    });
+
+    for (const catalog of catalogs) {
+      for (const category of catalog.categories) {
+        // Шукаємо ТОП-5 товарів для поточної категорії
+        const products = await this.dataSource
+          .getRepository(ProductsEntity)
+          .createQueryBuilder('product')
+          .where('product.category.id = :categoryId', { categoryId: category.id })
+          .andWhere('product.isActive = :isActive', { isActive: true })
+          .orderBy('product.createdAt', 'DESC') // Сортуємо за новизною (можна змінити на популярність)
+          .limit(5) // Беремо рівно 5
+          .getMany();
+
+        // Додаємо їх до об'єкта категорії
+        (category as any).topProducts = products;
+      }
+    }
+    return catalogs;
+  }
   // Додали adminId
   async update(
     id: string,
