@@ -3,42 +3,104 @@
 		"title": "Welcome to Nextronic!",
 		"description": "Your favorite electronics store"
 	},
+
 	"LocaleSwitcher": {
 		"ua": "Ukrainian",
 		"en": "English"
 	},
+
 	"ThemeSwitcher": {
 		"light": "Light",
 		"dark": "Dark"
 	},
+
 	"AppSearch": {
 		"placeholder": "Search",
 		"button": "Find"
 	},
+
 	"SearchPage": {
 		"resultsFor": "Search results for",
 		"errorLoading": "An error occurred while loading products. Please try again later.",
 		"notFound": "No products found for your request. Try changing the keywords.",
 		"buyBtn": "Buy"
 	},
+
 	"AppCartButton": {
 		"label": "Cart"
 	},
+
 	"UserProfileButton": {
 		"label": "Profile"
 	},
+
 	"AppComparisonButton": {
 		"label": "Compare"
 	},
+
 	"AppWishlistButton": {
 		"label": "Wishlist"
 	},
+
 	"AppNotificationButton": {
 		"label": "Messages"
 	},
+
 	"AppCatalog": {
 		"label": "Catalog",
 		"allCategories": "All categories >",
 		"viewAll": "View all >"
+	},
+
+	"Footer": {
+		"columns": {
+			"about": "About us:",
+			"aboutItems": {
+				"company": "About company",
+				"vacancies": "Vacancies",
+				"news": "News"
+			},
+			"guarantee": "Guarantee:",
+			"guaranteeItems": {
+				"official": "Official guarantee",
+				"service": "Service centers",
+				"check": "Product check"
+			},
+			"payment": "Payment:",
+			"paymentItems": {
+				"card": "Card payment",
+				"parts": "Payment in installments",
+				"cod": "Cash on delivery"
+			},
+			"delivery": "Delivery:",
+			"deliveryItems": {
+				"np": "Nova Poshta",
+				"ukrposhta": "Ukrposhta",
+				"courier": "Courier delivery"
+			},
+			"returns": "Returns:",
+			"returnsItems": {
+				"days": "14 days after purchase",
+				"conditions": "Return conditions"
+			}
+		},
+		"contacts": {
+			"title": "Contacts:",
+			"phone": "Phone:",
+			"schedule": "Schedule:",
+			"scheduleValue": "Mon-Fri: 09:00-20:00",
+			"email": "Email:"
+		},
+		"subscription": {
+			"title": "Subscribe to be the first to know about new promotions!",
+			"placeholder": "Enter your email:",
+			"button": "Subscribe"
+		},
+		"slogan": {
+			"brand": "NEXTRonic",
+			"text": " – always find it!"
+		},
+		"socials": "We are in social networks:",
+		"copyright": "© All rights reserved. 2026 – "
 	}
 }

@@ -3,42 +3,104 @@
 		"title": "Вітаємо в Nextronic!",
 		"description": "Ваш улюблений магазин електроніки"
 	},
+
 	"LocaleSwitcher": {
 		"ua": "Українська",
 		"en": "Англійська"
 	},
+
 	"ThemeSwitcher": {
 		"light": "Світла",
 		"dark": "Темна"
 	},
+
 	"AppSearch": {
 		"placeholder": "Пошук",
 		"button": "Знайти"
 	},
+
 	"SearchPage": {
 		"resultsFor": "Результати пошуку для",
 		"errorLoading": "Сталася помилка при завантаженні товарів. Спробуйте пізніше.",
 		"notFound": "Нічого не знайдено за вашим запитом. Спробуйте змінити ключові слова.",
 		"buyBtn": "Купити"
 	},
+
 	"AppCartButton": {
 		"label": "Кошик"
 	},
+
 	"UserProfileButton": {
 		"label": "Кабінет"
 	},
+
 	"AppComparisonButton": {
 		"label": "Порівняння"
 	},
+
 	"AppWishlistButton": {
 		"label": "Обране"
 	},
+
 	"AppNotificationButton": {
 		"label": "Повідомлення"
 	},
+
 	"AppCatalog": {
 		"label": "Каталог",
 		"allCategories": "Всі категорії >",
 		"viewAll": "Дивитись всі >"
+	},
+
+	"Footer": {
+		"columns": {
+			"about": "Про нас:",
+			"aboutItems": {
+				"company": "Про компанію",
+				"vacancies": "Вакансії",
+				"news": "Новини"
+			},
+			"guarantee": "Гарантія:",
+			"guaranteeItems": {
+				"official": "Офіційна гарантія",
+				"service": "Сервісні центри",
+				"check": "Перевірка товару"
+			},
+			"payment": "Оплата:",
+			"paymentItems": {
+				"card": "Оплата карткою",
+				"parts": "Оплата частинами",
+				"cod": "Накладений платіж"
+			},
+			"delivery": "Доставка:",
+			"deliveryItems": {
+				"np": "Нова Пошта",
+				"ukrposhta": "Укрпошта",
+				"courier": "Кур'єрська доставка"
+			},
+			"returns": "Повернення:",
+			"returnsItems": {
+				"days": "14 днів після покупки",
+				"conditions": "Умови повернення"
+			}
+		},
+		"contacts": {
+			"title": "Контакти:",
+			"phone": "Телефон:",
+			"schedule": "Графік:",
+			"scheduleValue": "Пн-Пт: 09:00-20:00",
+			"email": "Email:"
+		},
+		"subscription": {
+			"title": "Підписуйтесь та дізнавайтесь про нові акції першими!",
+			"placeholder": "Введіть вашу пошту:",
+			"button": "Підписатися"
+		},
+		"slogan": {
+			"brand": "NEXTRonic",
+			"text": " – завжди знайдеш!"
+		},
+		"socials": "Ми у соціальних мережах:",
+		"copyright": "© Всі права захищені. 2026 – "
 	}
 }
