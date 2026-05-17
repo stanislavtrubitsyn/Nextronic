@@ -16,7 +16,18 @@
 
 	"AppSearch": {
 		"placeholder": "Search",
-		"button": "Find"
+		"button": "Search",
+		"waitingTitle": "Enter something so we can help you find what you need:",
+		"waitingSubtitle": "For example, it could be these products:",
+		"suggestedProducts": ["Headphones", "Phones"],
+		"successTitle": "There are results for the query «{query}»:",
+		"errorTitle": "No results found for the query «{query}»:",
+		"errorSubtitle": "Perhaps you entered an incorrect query:",
+		"errorTips": ["Check the spelling.", "Use only keywords."],
+		"recentSearches": "Recent searches:",
+		"clearBtn": "clear",
+		"viewedProducts": "Viewed products:",
+		"viewAllBtn": "All viewed products >"
 	},
 
 	"SearchPage": {
