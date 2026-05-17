@@ -113,5 +113,18 @@
 		},
 		"socials": "We are in social networks:",
 		"copyright": "© All rights reserved. 2026 – "
+	},
+
+	"LoginPage": {
+		"title": "Log in to your account",
+		"loginMethod": "Login method:",
+		"phone": "Phone number",
+		"email": "Email address",
+		"password": "Password",
+		"submit": "Log in",
+		"or": "Or",
+		"google": "Continue with Google",
+		"noAccount": "Don't have an account?",
+		"register": "Register right now"
 	}
 }
