@@ -9,12 +9,15 @@ import { UserProfileButton } from '../../ui/UserProfileButton/UserProfileButton'
 import { AppComparisonButton } from '../../ui/AppComparisonButton/AppComparisonButton'
 import { AppNotificationButton } from '../../ui/AppNotificationButton/AppNotificationButton'
 import { AppCatalog } from '../../ui/AppCatalog/AppCatalog'
+
 export const Header = () => {
 	return (
 		<AppBar
-			position='static'
+			position='sticky'
 			elevation={0}
 			sx={{
+				top: 0,
+				zIndex: 1100,
 				backgroundColor: 'var(--color-header-bg) !important',
 				backgroundImage: 'none !important',
 				borderBottom: '1px solid var(--color-header-border)',
@@ -41,7 +44,10 @@ export const Header = () => {
 					justifyContent: 'space-between',
 				}}
 			>
-				<AppLogo />
+				<Box sx={{ display: 'flex', alignItems: 'center' }}>
+					<AppLogo />
+				</Box>
+
 				<Box
 					sx={{
 						width: '100%',
@@ -55,6 +61,7 @@ export const Header = () => {
 					<AppCatalog />
 					<AppSearch />
 				</Box>
+
 				<Box
 					sx={{
 						display: 'flex',

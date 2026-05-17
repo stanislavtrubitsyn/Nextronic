@@ -9,7 +9,7 @@ import {
 	TextField,
 } from '@mui/material'
 import { useTranslations } from 'next-intl'
-import { Link } from '@/i18n/routing'
+import { Link, useRouter, usePathname } from '@/i18n/routing'
 import { InstagramIcon } from '../../ui/icons/InstagramIcon'
 import { FacebookIcon } from '../../ui/icons/FacebookIcon'
 import { YouTubeIcon } from '../../ui/icons/YouTubeIcon'
@@ -20,6 +20,16 @@ export const Footer = () => {
 	const t = useTranslations('Footer')
 	const currentYear = new Date().getFullYear()
 
+	const router = useRouter()
+	const pathname = usePathname()
+
+	const handleLogoClick = () => {
+		if (pathname === '/') {
+			window.scrollTo({ top: 0, behavior: 'smooth' })
+		} else {
+			router.push('/')
+		}
+	}
 	// Структура колонок генерується динамічно з перекладів
 	const columns = [
 		{
@@ -72,7 +82,7 @@ export const Footer = () => {
 		<Box
 			component='footer'
 			sx={{
-				backgroundColor: 'var(--color-header-bg)',
+				backgroundColor: 'var(--color-footer-bg)',
 				mt: 'auto', // Відштовхує футер донизу, якщо сторінка коротка
 			}}
 		>
@@ -233,7 +243,7 @@ export const Footer = () => {
 						justifyContent: 'space-between',
 					}}
 				>
-					{/* Блок 1: Логотип/Слоган та Копірайт */}
+					{/* Логотип/Слоган та Копірайт */}
 					<Box
 						sx={{
 							display: 'flex',
@@ -243,7 +253,9 @@ export const Footer = () => {
 						}}
 					>
 						<Typography
+							onClick={handleLogoClick}
 							sx={{
+								cursor: 'pointer',
 								fontFamily: 'var(--font-inter)',
 								fontWeight: 700,
 								fontSize: { xs: '20px', md: '24px' },
@@ -269,7 +281,7 @@ export const Footer = () => {
 						</Typography>
 					</Box>
 
-					{/* Блок 2: Форма підписки */}
+					{/* Форма підписки */}
 					<Box
 						sx={{
 							display: 'flex',
@@ -378,7 +390,7 @@ export const Footer = () => {
 						</Box>
 					</Box>
 
-					{/* Блок 3: Соціальні мережі */}
+					{/* Соціальні мережі */}
 					<Box
 						sx={{
 							display: 'flex',
@@ -433,12 +445,12 @@ export const Footer = () => {
 									key={index}
 									href={social.href}
 									target='_blank'
-									disableRipple // ДОДАНО: прибирає коло анімації при кліку, яке без падінгів виглядає зайвим
+									disableRipple
 									sx={{
-										color: 'var(--theme-icon-dim)', // Дефолтний сірий колір
+										color: 'var(--theme-icon-dim)',
 										transition: 'color 0.3s ease',
-										padding: 0, // ЗМІНЕНО: повністю прибрали внутрішні відступи MUI
-										'&:hover': { color: '#6D28D9' }, // Плавно стає фіолетовим
+										padding: 0,
+										'&:hover': { color: '#6D28D9' },
 									}}
 								>
 									{social.icon}

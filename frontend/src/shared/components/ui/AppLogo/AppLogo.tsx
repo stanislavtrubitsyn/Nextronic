@@ -1,10 +1,19 @@
 'use client'
 import { Typography } from '@mui/material'
-import Link from 'next/link'
+import { Link, usePathname } from '@/i18n/routing'
 
 export const AppLogo = () => {
+	const pathname = usePathname()
+
+	const handleClick = (e: React.MouseEvent) => {
+		if (pathname === '/') {
+			e.preventDefault()
+			window.scrollTo({ top: 0, behavior: 'smooth' })
+		}
+	}
+
 	return (
-		<Link href='/' style={{ textDecoration: 'none' }}>
+		<Link href='/' onClick={handleClick} style={{ textDecoration: 'none' }}>
 			<Typography
 				component='h1'
 				sx={{
