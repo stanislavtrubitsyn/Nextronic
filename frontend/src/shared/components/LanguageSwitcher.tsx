@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { Box, Typography, Popover } from '@mui/material'
 import { LanguageOutlined } from '@mui/icons-material'
 import { useLocale, useTranslations } from 'next-intl'
@@ -12,6 +12,7 @@ export const LanguageSwitcher = () => {
 	const router = useRouter()
 	const pathname = usePathname()
 
+	const [isPending, startTransition] = useTransition()
 	const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null)
 
 	const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -23,7 +24,9 @@ export const LanguageSwitcher = () => {
 	}
 
 	const handleSwitch = (newLocale: string) => {
-		router.replace(pathname, { locale: newLocale })
+		startTransition(() => {
+			router.replace(pathname, { locale: newLocale })
+		})
 		handleClose()
 	}
 
@@ -89,7 +92,6 @@ export const LanguageSwitcher = () => {
 					},
 				}}
 			>
-				{/* Плашка Українська */}
 				<Box
 					onClick={() => handleSwitch('ua')}
 					sx={{
@@ -134,7 +136,6 @@ export const LanguageSwitcher = () => {
 					</Typography>
 				</Box>
 
-				{/* Плашка Англійська */}
 				<Box
 					onClick={() => handleSwitch('en')}
 					sx={{
