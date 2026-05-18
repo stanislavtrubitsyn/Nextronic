@@ -126,5 +126,19 @@
 		"google": "Continue with Google",
 		"noAccount": "Don't have an account?",
 		"register": "Register right now"
+	},
+
+	"RegisterPage": {
+		"title": "Register an account",
+		"firstName": "First name",
+		"lastName": "Last name",
+		"phone": "Phone number",
+		"email": "Email address",
+		"password": "Password",
+		"submit": "Register",
+		"or": "Or",
+		"google": "Continue with Google",
+		"hasAccount": "Already have an account?",
+		"login": "Log in right now"
 	}
 }
