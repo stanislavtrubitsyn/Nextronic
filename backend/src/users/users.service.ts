@@ -24,7 +24,7 @@ export class UsersService {
     googleId?: string,
     phone?: string,
     lang: UserLangType = 'ua',
-  ) {
+  ): Promise<UsersEntity> {
     const existingUser = await this.userRepo.findOne({
       where: [{ email }, { phone: phone || 'never-match' }],
     });
@@ -43,10 +43,7 @@ export class UsersService {
       phone,
       password: hashedPassword,
       googleId,
-      profile: {
-        email,
-        phone,
-      },
+      profile: { email, phone },
     });
 
     return await this.userRepo.save(user);
@@ -57,7 +54,7 @@ export class UsersService {
     googleId: string;
     firstName?: string;
     lastName?: string;
-  }) {
+  }): Promise<UsersEntity> {
     const user = await this.userRepo.findOne({
       where: { email: googleProfile.email },
       relations: ['profile'],
@@ -84,25 +81,18 @@ export class UsersService {
     return await this.userRepo.save(newUser);
   }
 
-  // Адмінське оновлення З ЛОГУВАННЯМ
   async adminUpdate(
     id: string,
     data: { role?: UserRole; profile?: Partial<ProfilesEntity> },
     adminId: string,
     lang: UserLangType = 'ua',
-  ) {
-    const user = await this.userRepo.findOne({
-      where: { id },
-      relations: ['profile'],
-    });
-
+  ): Promise<UsersEntity> {
+    const user = await this.userRepo.findOne({ where: { id }, relations: ['profile'] });
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
 
-    // Робимо глибоку копію старого стану (JSON.parse), щоб TypeORM не змінив oldValues по посиланню
-    const oldUserSnapshot = JSON.parse(JSON.stringify(user));
+    const oldUserSnapshot = { ...user, profile: { ...user.profile } };
 
     if (data.role) user.role = data.role;
-
     if (data.profile) {
       Object.assign(user.profile, data.profile);
       if (data.profile.email) user.email = data.profile.email;
@@ -110,62 +100,94 @@ export class UsersService {
     }
 
     const savedUser = await this.userRepo.save(user);
-
-    // ЗАПИСУЄМО В АУДИТ
     await this.auditService.logAction(
       adminId,
       AuditAction.UPDATE,
       'UsersEntity',
       savedUser.id,
-      oldUserSnapshot, // Старий стан до модифікації
-      savedUser, // Новий стан
+      oldUserSnapshot,
+      savedUser,
     );
-
     return savedUser;
   }
 
-  async update(id: string, updateData: Partial<ProfilesEntity>, lang: UserLangType = 'ua') {
-    const user = await this.userRepo.findOne({
-      where: { id },
-      relations: ['profile'],
-    });
-
+  async update(
+    id: string,
+    updateData: Partial<ProfilesEntity>,
+    lang: UserLangType = 'ua',
+  ): Promise<UsersEntity> {
+    const user = await this.userRepo.findOne({ where: { id }, relations: ['profile'] });
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
 
     Object.assign(user.profile, updateData);
-
     if (updateData.email) user.email = updateData.email;
     if (updateData.phone) user.phone = updateData.phone;
 
     return await this.userRepo.save(user);
   }
 
-  // Видалення З ЛОГУВАННЯМ
-  async remove(id: string, adminId?: string, lang: UserLangType = 'ua') {
+  async updatePassword(
+    id: string,
+    newPassword: string,
+    oldPassword?: string,
+    lang: UserLangType = 'ua',
+  ): Promise<{ success: boolean }> {
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .getOne();
+
+    if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
+
+    if (user.password) {
+      if (!oldPassword) throw new BadRequestException('Потрібен старий пароль');
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) throw new BadRequestException('Невірний старий пароль');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await this.userRepo.save(user);
+    return { success: true };
+  }
+
+  async verifyPassword(id: string, password?: string): Promise<boolean> {
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .getOne();
+
+    if (!user) return false;
+    if (!user.password) return true;
+    if (!password) return false;
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    return isMatch === true;
+  }
+
+  async remove(id: string, adminId?: string, lang: UserLangType = 'ua'): Promise<UsersEntity> {
     const user = await this.userRepo.findOne({ where: { id }, relations: ['profile'] });
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
 
-    // Робимо копію перед видаленням
-    const oldUserSnapshot = JSON.parse(JSON.stringify(user));
+    const oldUserSnapshot = { ...user, profile: { ...user.profile } };
 
-    const result = await this.userRepo.remove(user);
+    await this.userRepo.remove(user);
 
-    // ЗАПИСУЄМО В АУДИТ (якщо дію ініціював адмін або сам користувач)
     if (adminId) {
       await this.auditService.logAction(
         adminId,
         AuditAction.DELETE,
         'UsersEntity',
         id,
-        oldUserSnapshot, // Старий стан (щоб можна було відновити акаунт)
+        oldUserSnapshot,
         null,
       );
     }
-
-    return result;
+    return user;
   }
 
-  async findByEmail(email: string) {
+  async findByEmail(email: string): Promise<UsersEntity | null> {
     return await this.userRepo.findOne({
       where: { email },
       relations: ['profile'],
@@ -173,20 +195,31 @@ export class UsersService {
     });
   }
 
-  async findOne(id: string) {
-    return await this.userRepo.findOne({
-      where: { id },
-      relations: ['profile'],
-    });
+  async findOne(
+    id: string,
+  ): Promise<(Omit<UsersEntity, 'password'> & { hasPassword: boolean }) | null> {
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.profile', 'profile')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .getOne();
+
+    if (!user) return null;
+
+    const hasPassword = !!user.password;
+
+    const safeUser = { ...user };
+    delete safeUser.password;
+
+    return { ...safeUser, hasPassword };
   }
 
-  async findAll() {
-    return await this.userRepo.find({
-      relations: ['profile'],
-    });
+  async findAll(): Promise<UsersEntity[]> {
+    return await this.userRepo.find({ relations: ['profile'] });
   }
 
-  async findByIdentifier(identifier: string) {
+  async findByIdentifier(identifier: string): Promise<UsersEntity | null> {
     return await this.userRepo.findOne({
       where: [{ email: identifier }, { phone: identifier }],
       relations: ['profile'],

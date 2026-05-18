@@ -10,6 +10,7 @@ import {
   NotFoundException,
   UseGuards,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -43,14 +44,32 @@ export class UsersController {
     return await this.usersService.update(req.user.userId, updateData, lang);
   }
 
+  @Patch('profile/me/password')
+  async updateMyPassword(
+    @Req() req: RequestWithUser,
+    @Body() body: { oldPassword?: string; newPassword: string },
+    @Query('lang') lang: UserLangType = 'ua',
+  ) {
+    return await this.usersService.updatePassword(
+      req.user.userId,
+      body.newPassword,
+      body.oldPassword,
+      lang,
+    );
+  }
+
   @Delete('profile/me')
-  async deleteMyAccount(@Req() req: RequestWithUser, @Query('lang') lang: UserLangType = 'ua') {
-    // Передаємо userId як adminId, щоб зафіксувати, що користувач сам видалив свій акаунт
+  async deleteMyAccount(
+    @Req() req: RequestWithUser,
+    @Body() body: { password?: string },
+    @Query('lang') lang: UserLangType = 'ua',
+  ) {
+    const isValid = await this.usersService.verifyPassword(req.user.userId, body.password);
+    if (!isValid) throw new BadRequestException('Невірний пароль для підтвердження');
+
     await this.usersService.remove(req.user.userId, req.user.userId, lang);
     return { success: true, message: USERS_I18N[lang].accountDeleted };
   }
-
-  // Адмінські та модераторські методи
 
   @Get()
   @Roles(UserRole.ADMIN)
@@ -65,9 +84,7 @@ export class UsersController {
     @Query('lang') lang: UserLangType = 'ua',
   ) {
     const user = await this.usersService.findOne(id);
-    if (!user) {
-      throw new NotFoundException(USERS_I18N[lang].notFound);
-    }
+    if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
     return user;
   }
 
