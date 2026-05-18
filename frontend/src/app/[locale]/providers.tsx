@@ -8,7 +8,6 @@ import {
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter'
 import CssBaseline from '@mui/material/CssBaseline'
 
-// Використовуємо useLayoutEffect для клієнта, щоб перехопити DOM до рендеру кадру
 const useIsomorphicLayoutEffect =
 	typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
@@ -35,7 +34,6 @@ function MUIWrapper({ children }: { children: React.ReactNode }) {
 
 	useIsomorphicLayoutEffect(() => {
 		if (typeof window !== 'undefined') {
-			// Перевіряємо, чи Next.js не видалив атрибут теми під час зміни мови
 			const currentAttr = document.documentElement.getAttribute('data-theme')
 			if (!currentAttr) {
 				try {
@@ -52,14 +50,12 @@ function MUIWrapper({ children }: { children: React.ReactNode }) {
 				} catch (e) {}
 			}
 
-			// Жорстко вимикаємо CSS-транзиції на момент маунту
 			document.documentElement.style.setProperty('--theme-transition', '0s')
 		}
 
 		globalHasMounted = true
 		setMounted(true)
 
-		// Повертаємо транзиції, коли все вже точно відрендерилось
 		const timer = setTimeout(() => {
 			document.documentElement.style.setProperty('--theme-transition', '0.3s')
 		}, 50)
@@ -114,6 +110,13 @@ function MUIWrapper({ children }: { children: React.ReactNode }) {
 							color: 'var(--theme-text) !important',
 							backgroundColor: 'var(--page-bg) !important',
 						},
+						'input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active':
+							{
+								WebkitBoxShadow:
+									'0 0 0 1000px var(--color-block-bg) inset !important',
+								WebkitTextFillColor: '#6D28D9 !important',
+								transition: 'background-color 5000s ease-in-out 0s',
+							},
 					},
 				},
 				MuiPaper: {
