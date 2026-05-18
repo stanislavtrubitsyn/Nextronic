@@ -5,6 +5,13 @@ export interface User {
 	id: string
 	email: string
 	role: string
+	firstName?: string
+	lastName?: string
+	patronymic?: string
+	phone?: string
+	gender?: string
+	birthday?: string
+	hasPassword?: boolean
 }
 
 interface AuthState {
