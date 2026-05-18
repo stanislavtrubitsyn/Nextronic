@@ -25,6 +25,7 @@
   --color-success: #14E914;
   --color-error: #FF090B;
   --color-old-price: #4E4E4E;
+  --color-icon-grey: #4E525C;
 }
 
 :root {
@@ -55,7 +56,6 @@
   --block-bg: #15171C;
   --card-bg: #15171C;
   --card-border: #23262F;
-  
   /* Текстові кольори для темної теми */
   --theme-text: #FFFFFF; /* Білий текст для заголовків */
   --theme-icon-dim: #9CA3AF; /* Світло-сірий текст для опису */
