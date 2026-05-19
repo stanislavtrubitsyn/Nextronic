@@ -199,6 +199,59 @@
 			"deleteStep2Text": "To confirm your identity, please enter your current password:",
 			"deleteStep3Text": "FINAL WARNING! Do you understand that your account, bonuses, order history and all other data will be permanently deleted with no possibility of recovery?",
 			"deleteForeverBtn": "Yes, delete forever"
+		},
+		"notifications": {
+			"pageTitle": "Notifications",
+			"filters": {
+				"all": "All",
+				"orders": "Orders",
+				"bonuses": "Bonuses",
+				"other": "Other"
+			},
+			"viewBtn": "View",
+			"emptyState": "You don't have any notifications in this category yet.",
+			"messages": {
+				"purchaseTitle": "Bonus Accrual",
+				"purchaseBody": "You have been credited with {amount} bonuses{product}. Valid until: {date}.",
+				"birthdayTitle": "Happy Birthday!",
+				"birthdayBody": "We are giving you {amount} bonuses for your holiday! Use them until {date}.",
+				"adminAddTitle": "Gift Bonuses",
+				"adminAddBody": "The administrator has credited you with {amount} bonuses. Valid until: {date}.",
+				"adminSubTitle": "Bonus Deduction",
+				"adminSubBody": "The administrator has deducted {amount} bonuses from your account.",
+				"spendTitle": "Bonus Usage",
+				"spendBody": "{amount} bonuses have been deducted for your order payment.",
+				"refundTitle": "Bonus Refund",
+				"refundBody": "{amount} bonuses have been refunded for your cancelled order.",
+				"orderCreatedTitle": "Order Accepted",
+				"orderCreatedBody": "Your order #{num} for {amount} UAH has been successfully created.",
+				"orderCancelledTitle": "Order Cancelled",
+				"orderCancelledBody": "Order #{num} has been cancelled. Bonuses refunded (if any were used).",
+				"replyTitle": "New Reply",
+				"replyBody": "Someone replied to your review of the product «{product}»."
+			}
+		},
+		"bonusHistory": {
+			"pageTitle": "Bonus History",
+			"errorLoading": "Failed to load bonus history. Please try again later.",
+			"emptyHistory": "You have no bonus transactions yet.",
+			"titleAccrual": "Bonus accrual",
+			"titleExpense": "Bonus deduction",
+			"expandedAccrual": "Accrual",
+			"expandedExpense": "Deduction",
+			"labelActivation": "Activation",
+			"labelValidUntil": "Valid until",
+			"purchaseText": "Accrued for completed order",
+			"purchaseWithOrder": "Accrued for order #{orderNumber}",
+			"birthdayText": "Birthday bonus",
+			"adminText": "Admin accrual",
+			"refundText": "Refund for cancelled order",
+			"accrualText": "Bonus accrual",
+			"spentText": "Used for order payment",
+			"spentWithOrder": "Used for order #{orderNumber}",
+			"adminSubtractText": "Administrator deducted bonuses",
+			"expiredText": "Bonus validity period has expired",
+			"viewOrder": "View order"
 		}
 	}
 }
