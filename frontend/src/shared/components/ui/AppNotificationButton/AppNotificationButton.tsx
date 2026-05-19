@@ -54,7 +54,7 @@ export const AppNotificationButton = () => {
 		if (!token) {
 			router.push('/login')
 		} else {
-			router.push('/notifications')
+			router.push('/profile/notifications')
 		}
 	}
 
