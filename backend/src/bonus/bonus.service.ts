@@ -1,5 +1,3 @@
-// E:\Nextronic\backend\src\bonus\bonus.service.ts
-
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, EntityManager, IsNull, LessThanOrEqual } from 'typeorm';
@@ -20,8 +18,6 @@ export class BonusService {
     private readonly profileRepo: Repository<ProfilesEntity>,
     private readonly notificationsService: NotificationsService,
   ) {}
-
-  // АВТОМАТИЗАЦІЯ
 
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async checkBirthdays() {
@@ -56,8 +52,6 @@ export class BonusService {
     );
   }
 
-  // ДОПОМІЖНІ МЕТОДИ
-
   private formatDate(date: Date | null): string {
     if (!date) return 'unlimited';
     return date.toLocaleDateString('uk-UA');
@@ -73,8 +67,6 @@ export class BonusService {
     return bonuses.reduce((sum, b) => sum + Number(b.amount), 0);
   }
 
-  // ЛОГІКА НАРАХУВАННЯ ТА СПИСАННЯ
-
   async addBonuses(userId: string, orderAmount: number, productName?: string) {
     const amount = Math.round(orderAmount * 0.1);
     const expiresAt = new Date();
@@ -89,11 +81,11 @@ export class BonusService {
       }),
     );
 
-    // Створюємо сповіщення через ключі шаблонів
     await this.notificationsService.createNotification(userId, 'purchaseTitle', 'purchaseBody', {
       amount,
-      product: productName || '', // Логіка forProduct тепер може бути на фронті або тут як параметр
+      product: productName || '',
       date: this.formatDate(expiresAt),
+      bonusId: bonus.id,
     });
     return bonus;
   }
@@ -114,6 +106,7 @@ export class BonusService {
     await this.notificationsService.createNotification(userId, 'birthdayTitle', 'birthdayBody', {
       amount,
       date: this.formatDate(expiresAt),
+      bonusId: bonus.id,
     });
     return bonus;
   }
@@ -135,7 +128,7 @@ export class BonusService {
       dto.userId,
       'adminAddTitle',
       'adminAddBody',
-      { amount: dto.amount, date: this.formatDate(expiresAt) },
+      { amount: dto.amount, date: this.formatDate(expiresAt), bonusId: bonus.id },
     );
     return bonus;
   }
@@ -153,7 +146,7 @@ export class BonusService {
       dto.userId,
       'adminSubTitle',
       'adminSubBody',
-      { amount: dto.amount },
+      { amount: dto.amount, bonusId: bonus.id },
     );
     return bonus;
   }
@@ -166,6 +159,7 @@ export class BonusService {
 
     await this.notificationsService.createNotification(userId, 'spendTitle', 'spendBody', {
       amount,
+      bonusId: bonus.id,
     });
     return bonus;
   }
@@ -177,6 +171,7 @@ export class BonusService {
 
     await this.notificationsService.createNotification(userId, 'refundTitle', 'refundBody', {
       amount,
+      bonusId: bonus.id,
     });
     return bonus;
   }
