@@ -7,7 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { USERS_I18N, UserLangType } from './users.i18n';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
-
+import { CreateUserAdminDto } from './users.dto';
 @Injectable()
 export class UsersService {
   constructor(
@@ -225,5 +225,60 @@ export class UsersService {
       relations: ['profile'],
       select: ['id', 'email', 'phone', 'password', 'role'],
     });
+  }
+
+  // Додаємо метод для блокування/розблокування
+  async toggleBlock(id: string, adminId: string, lang: UserLangType = 'ua'): Promise<UsersEntity> {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
+    const oldSnapshot = { ...user };
+    user.isBlocked = !user.isBlocked;
+    const saved = await this.userRepo.save(user);
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.UPDATE,
+      'UsersEntity',
+      saved.id,
+      oldSnapshot,
+      saved,
+    );
+    return saved;
+  }
+
+  // Метод для створення користувача адміністратором
+  async createByAdmin(
+    dto: CreateUserAdminDto,
+    adminId: string,
+    lang: UserLangType = 'ua',
+  ): Promise<UsersEntity> {
+    const { email, password, role, firstName, lastName, middleName, birthday, phone } = dto;
+    const existing = await this.userRepo.findOne({ where: { email } });
+    if (existing) throw new BadRequestException(USERS_I18N[lang].exists);
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = this.userRepo.create({
+      email,
+      password: hashedPassword,
+      phone,
+      role,
+      profile: {
+        firstName,
+        lastName,
+        middleName,
+        birthday,
+        email,
+        phone,
+      },
+    });
+    const saved = await this.userRepo.save(user);
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.CREATE,
+      'UsersEntity',
+      saved.id,
+      null,
+      saved,
+    );
+    return saved;
   }
 }

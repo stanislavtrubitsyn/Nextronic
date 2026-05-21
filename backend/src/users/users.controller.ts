@@ -1,5 +1,6 @@
 import {
   Controller,
+  Post,
   Get,
   Param,
   Patch,
@@ -20,6 +21,7 @@ import { UserRole, UsersEntity } from './users.entity';
 import { ProfilesEntity } from './profiles.entity';
 import { UserLangType, USERS_I18N } from './users.i18n';
 import { Request } from 'express';
+import { CreateUserAdminDto } from './users.dto';
 
 interface RequestWithUser extends Request {
   user: { userId: string };
@@ -97,6 +99,28 @@ export class UsersController {
     @Query('lang') lang: UserLangType = 'ua',
   ): Promise<UsersEntity> {
     return await this.usersService.adminUpdate(id, updateData, req.user.userId, lang);
+  }
+
+  // Блокування/розблокування
+  @Patch(':id/block')
+  @Roles(UserRole.ADMIN)
+  async blockUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: RequestWithUser,
+    @Query('lang') lang: UserLangType = 'ua',
+  ) {
+    return this.usersService.toggleBlock(id, req.user.userId, lang);
+  }
+
+  // Створення користувача адміном
+  @Post()
+  @Roles(UserRole.ADMIN)
+  async createUser(
+    @Body() dto: CreateUserAdminDto,
+    @Req() req: RequestWithUser,
+    @Query('lang') lang: UserLangType = 'ua',
+  ) {
+    return this.usersService.createByAdmin(dto, req.user.userId, lang);
   }
 
   @Delete(':id')

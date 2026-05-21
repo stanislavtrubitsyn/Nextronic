@@ -41,6 +41,9 @@ export class UsersEntity {
   })
   role!: UserRole;
 
+  @Column({ default: false })
+  isBlocked!: boolean;
+
   @OneToOne(() => ProfilesEntity, (profile) => profile.user, { cascade: true })
   profile!: ProfilesEntity;
 
