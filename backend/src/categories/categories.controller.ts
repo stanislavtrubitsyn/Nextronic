@@ -33,8 +33,8 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Get()
-  findAll(): Promise<CategoriesEntity[]> {
-    return this.categoriesService.findAll();
+  async getAllCategories(): Promise<any[]> {
+    return await this.categoriesService.findAll();
   }
 
   @Get(':id')
@@ -66,6 +66,17 @@ export class CategoriesController {
     @Query('lang') lang: CategoryLangType = 'ua',
   ): Promise<CategoriesEntity> {
     return this.categoriesService.update(id, body, req.user!.userId, lang);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  toggleStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: RequestWithUser,
+    @Query('lang') lang: CategoryLangType = 'ua',
+  ): Promise<CategoriesEntity> {
+    return this.categoriesService.toggleStatus(id, req.user!.userId, lang);
   }
 
   @Delete(':id')

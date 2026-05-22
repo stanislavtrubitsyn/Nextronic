@@ -15,7 +15,6 @@ export class CategoriesService {
     private readonly auditService: AuditService,
   ) {}
 
-  // Додали adminId
   async create(
     dto: CreateCategoriesDto,
     adminId: string,
@@ -26,29 +25,29 @@ export class CategoriesService {
 
     const newCategory = this.categoryRepo.create({
       ...dto,
+      isActive: dto.isActive ?? true,
       catalog: { id: dto.catalogId },
     });
-
     const savedCategory = await this.categoryRepo.save(newCategory);
 
-    // ЗАПИСУЄМО В АУДИТ
     await this.auditService.logAction(
       adminId,
       AuditAction.CREATE,
       'CategoriesEntity',
       savedCategory.id,
-      null, // Старого стану немає
-      savedCategory, // Новий стан
+      null,
+      savedCategory,
     );
-
     return savedCategory;
   }
 
-  async findAll(): Promise<CategoriesEntity[]> {
-    return await this.categoryRepo.find({
-      relations: ['catalog'],
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(): Promise<any[]> {
+    return await this.categoryRepo
+      .createQueryBuilder('category')
+      .leftJoinAndSelect('category.catalog', 'catalog')
+      .loadRelationCountAndMap('category.productCount', 'category.products')
+      .orderBy('category.createdAt', 'DESC')
+      .getMany();
   }
 
   async findOne(id: string, lang: CategoryLangType = 'ua'): Promise<CategoriesEntity> {
@@ -60,14 +59,13 @@ export class CategoriesService {
     return category;
   }
 
-  // Додали adminId
   async update(
     id: string,
     dto: UpdateCategoriesDto,
     adminId: string,
     lang: CategoryLangType = 'ua',
   ): Promise<CategoriesEntity> {
-    const oldCategory = await this.findOne(id, lang); // Зберігаємо старий стан для відкату
+    const oldCategory = await this.findOne(id, lang);
 
     if (dto.slug) {
       const conflict = await this.categoryRepo.findOne({ where: { slug: dto.slug, id: Not(id) } });
@@ -75,48 +73,62 @@ export class CategoriesService {
     }
 
     const { catalogId, ...rest } = dto;
-
     const updated = this.categoryRepo.merge(oldCategory, {
       ...rest,
+      isActive: dto.isActive !== undefined ? dto.isActive : oldCategory.isActive,
       catalog: catalogId ? { id: catalogId } : oldCategory.catalog,
     });
-
     const savedCategory = await this.categoryRepo.save(updated);
 
-    // ЗАПИСУЄМО В АУДИТ
     await this.auditService.logAction(
       adminId,
       AuditAction.UPDATE,
       'CategoriesEntity',
       savedCategory.id,
-      oldCategory, // Старий стан
-      savedCategory, // Новий стан
+      oldCategory,
+      savedCategory,
     );
-
     return savedCategory;
   }
 
-  // Додали adminId
+  async toggleStatus(
+    id: string,
+    adminId: string,
+    lang: CategoryLangType = 'ua',
+  ): Promise<CategoriesEntity> {
+    const category = await this.findOne(id, lang);
+    const oldSnapshot = { ...category };
+    category.isActive = !category.isActive;
+    const saved = await this.categoryRepo.save(category);
+
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.UPDATE,
+      'CategoriesEntity',
+      saved.id,
+      oldSnapshot,
+      saved,
+    );
+    return saved;
+  }
+
   async remove(
     id: string,
     adminId: string,
     lang: CategoryLangType = 'ua',
   ): Promise<{ success: boolean }> {
-    const oldCategory = await this.findOne(id, lang); // Зберігаємо старий стан перед видаленням
-
+    const oldCategory = await this.findOne(id, lang);
     const result = await this.categoryRepo.delete(id);
     if (result.affected === 0) throw new NotFoundException(CATEGORIES_I18N[lang].notFound);
 
-    //ЗАПИСУЄМО В АУДИТ
     await this.auditService.logAction(
       adminId,
       AuditAction.DELETE,
       'CategoriesEntity',
       id,
-      oldCategory, // Старий стан для можливості відновлення
+      oldCategory,
       null,
     );
-
     return { success: true };
   }
 }

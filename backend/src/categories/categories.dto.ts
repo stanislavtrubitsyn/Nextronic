@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsObject,
   ValidateNested,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/mapped-types';
@@ -43,6 +44,10 @@ export class CreateCategoriesDto {
   @ValidateNested()
   @Type(() => LocalizationDto)
   description?: LocalizationDto;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateCategoriesDto extends PartialType(CreateCategoriesDto) {}
