@@ -386,6 +386,66 @@
 				"userUnblocked": "Administrator unblocked",
 				"userDeleted": "Administrator deleted"
 			}
+		},
+		"moderators": {
+			"title": "Moderators",
+			"searchPlaceholder": "Search moderators",
+			"createBtn": "Create moderator",
+			"sort": {
+				"button": "Sort",
+				"nameAsc": "Alphabetical (A-Z)",
+				"nameDesc": "Alphabetical (Z-A)",
+				"statusDesc": "Active first",
+				"statusAsc": "Blocked first",
+				"dateDesc": "Newest first",
+				"dateAsc": "Oldest first",
+				"assignedDesc": "Recently assigned",
+				"assignedAsc": "Oldest assigned"
+			},
+			"errors": {
+				"load": "Error loading moderators",
+				"update": "Error updating",
+				"delete": "Error deleting",
+				"generic": "Error"
+			},
+			"notFound": "Nothing found",
+			"columns": {
+				"index": "No.",
+				"user": "Moderator",
+				"registrationDate": "Registration date",
+				"assignedDate": "Assigned date",
+				"status": "Status",
+				"actions": "Actions"
+			},
+			"roles": {
+				"admin": "Administrator",
+				"moderator": "Moderator",
+				"user": "User"
+			},
+			"status": {
+				"active": "Active",
+				"blocked": "Blocked"
+			},
+			"modals": {
+				"createTitle": "Create moderator",
+				"editTitle": "Edit moderator",
+				"blockConfirm": "Confirm block",
+				"unblockConfirm": "Confirm unblock",
+				"deleteConfirm": "Confirm deletion",
+				"blockMessage": "Are you sure you want to block moderator {name}?",
+				"unblockMessage": "Are you sure you want to unblock moderator {name}?",
+				"deleteMessage": "Are you sure you want to delete moderator {name}? This action cannot be undone.",
+				"cancel": "Cancel",
+				"confirm": "Confirm",
+				"save": "Save"
+			},
+			"notifications": {
+				"userCreated": "Moderator created successfully",
+				"userUpdated": "Data updated",
+				"userBlocked": "Moderator blocked",
+				"userUnblocked": "Moderator unblocked",
+				"userDeleted": "Moderator deleted"
+			}
 		}
 	},
 	"UserForm": {
