@@ -25,6 +25,9 @@ export class CatalogsEntity {
   @Column({ type: 'jsonb', nullable: true })
   description?: { ua: string; en: string };
 
+  @Column({ default: true })
+  isActive!: boolean;
+
   @OneToMany(() => CategoriesEntity, (category) => category.catalog)
   categories!: CategoriesEntity[];
 

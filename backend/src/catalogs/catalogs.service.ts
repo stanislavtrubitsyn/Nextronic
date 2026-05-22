@@ -26,7 +26,10 @@ export class CatalogsService {
     const existing = await this.catalogRepo.findOne({ where: { slug: dto.slug } });
     if (existing) throw new BadRequestException(CATALOGS_I18N[lang].slugExists);
 
-    const newCatalog = this.catalogRepo.create(dto);
+    const newCatalog = this.catalogRepo.create({
+      ...dto,
+      isActive: dto.isActive ?? true,
+    });
     const savedCatalog = await this.catalogRepo.save(newCatalog);
 
     //ЗАПИСУЄМО В АУДИТ
