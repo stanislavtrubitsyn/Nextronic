@@ -8,6 +8,7 @@ import { USERS_I18N, UserLangType } from './users.i18n';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
 import { CreateUserAdminDto } from './users.dto';
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -92,7 +93,16 @@ export class UsersService {
 
     const oldUserSnapshot = { ...user, profile: { ...user.profile } };
 
-    if (data.role) user.role = data.role;
+    // Оновлена логіка зміни ролі та дати призначення
+    if (data.role && data.role !== user.role) {
+      user.role = data.role;
+      if (data.role === UserRole.ADMIN || data.role === UserRole.MODERATOR) {
+        user.assignedAt = new Date();
+      } else {
+        user.assignedAt = null as any; // Очищаємо, якщо це більше не адмін/модератор
+      }
+    }
+
     if (data.profile) {
       Object.assign(user.profile, data.profile);
       if (data.profile.email) user.email = data.profile.email;
@@ -227,7 +237,6 @@ export class UsersService {
     });
   }
 
-  // Додаємо метод для блокування/розблокування
   async toggleBlock(id: string, adminId: string, lang: UserLangType = 'ua'): Promise<UsersEntity> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
@@ -245,7 +254,7 @@ export class UsersService {
     return saved;
   }
 
-  // Метод для створення користувача адміністратором
+  // Оновлений метод для створення користувача адміністратором
   async createByAdmin(
     dto: CreateUserAdminDto,
     adminId: string,
@@ -261,6 +270,8 @@ export class UsersService {
       password: hashedPassword,
       phone,
       role,
+      // Встановлюємо дату, якщо створюють адміна або модератора
+      assignedAt: role === UserRole.ADMIN || role === UserRole.MODERATOR ? new Date() : undefined,
       profile: {
         firstName,
         lastName,

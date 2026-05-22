@@ -44,6 +44,10 @@ export class UsersEntity {
   @Column({ default: false })
   isBlocked!: boolean;
 
+  // ДОДАНО: Поле для дати призначення
+  @Column({ type: 'timestamp', nullable: true })
+  assignedAt?: Date;
+
   @OneToOne(() => ProfilesEntity, (profile) => profile.user, { cascade: true })
   profile!: ProfilesEntity;
 
