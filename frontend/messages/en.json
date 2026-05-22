@@ -446,8 +446,65 @@
 				"userUnblocked": "Moderator unblocked",
 				"userDeleted": "Moderator deleted"
 			}
+		},
+		"catalogs": {
+			"title": "Catalogs",
+			"searchPlaceholder": "Search catalog",
+			"createBtn": "Create catalog",
+			"sort": {
+				"button": "Sort",
+				"nameAsc": "Name (A-Z)",
+				"nameDesc": "Name (Z-A)",
+				"categoriesAsc": "Categories count (low to high)",
+				"categoriesDesc": "Categories count (high to low)",
+				"dateDesc": "Newest first",
+				"dateAsc": "Oldest first",
+				"updatedDesc": "Recently updated",
+				"updatedAsc": "Least recently updated"
+			},
+			"errors": {
+				"load": "Error loading catalogs",
+				"update": "Update error",
+				"delete": "Delete error",
+				"generic": "Error"
+			},
+			"notFound": "Nothing found",
+			"columns": {
+				"index": "No.",
+				"catalog": "Catalog",
+				"createdAt": "Created at",
+				"updatedAt": "Updated at",
+				"status": "Status",
+				"actions": "Actions"
+			},
+			"categoriesCount": "Categories: {count}",
+			"status": {
+				"active": "Active",
+				"inactive": "Inactive"
+			},
+			"modals": {
+				"createTitle": "Create catalog",
+				"editTitle": "Edit catalog",
+				"deleteConfirm": "Confirm deletion",
+				"cancel": "Cancel",
+				"save": "Save",
+				"confirm": "Confirm",
+				"deleteMessage": "Are you sure you want to delete the catalog «{name}»? This action cannot be undone.",
+				"activateConfirm": "Activate catalog",
+				"deactivateConfirm": "Deactivate catalog",
+				"activateMessage": "Are you sure you want to activate the catalog «{name}»?",
+				"deactivateMessage": "Are you sure you want to deactivate the catalog «{name}»?"
+			},
+			"notifications": {
+				"catalogCreated": "Catalog successfully created",
+				"catalogUpdated": "Catalog updated",
+				"catalogDeleted": "Catalog deleted",
+				"catalogActivated": "Catalog activated",
+				"catalogDeactivated": "Catalog deactivated"
+			}
 		}
 	},
+
 	"UserForm": {
 		"email": "Email",
 		"password": "Password",
@@ -466,5 +523,17 @@
 			"moderator": "Moderator",
 			"admin": "Administrator"
 		}
+	},
+
+	"CatalogForm": {
+		"nameUa": "Name (UA)",
+		"nameEn": "Name (EN)",
+		"slug": "Slug",
+		"slugHelper": "Unique identifier for URL (e.g., 'laptops')",
+		"icon": "Icon",
+		"noIcon": "No icon",
+		"descriptionUa": "Description (UA)",
+		"descriptionEn": "Description (EN)",
+		"isActive": "Catalog is active"
 	}
 }

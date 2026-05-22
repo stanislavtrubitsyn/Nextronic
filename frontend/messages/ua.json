@@ -449,8 +449,65 @@
 				"userUnblocked": "Модератора розблоковано",
 				"userDeleted": "Модератора видалено"
 			}
+		},
+		"catalogs": {
+			"title": "Каталоги",
+			"searchPlaceholder": "Пошук каталогу",
+			"createBtn": "Створити каталог",
+			"sort": {
+				"button": "Сортування",
+				"nameAsc": "За назвою (А-Я)",
+				"nameDesc": "За назвою (Я-А)",
+				"categoriesAsc": "За кількістю категорій (спочатку менше)",
+				"categoriesDesc": "За кількістю категорій (спочатку більше)",
+				"dateDesc": "Спочатку нові",
+				"dateAsc": "Спочатку старі",
+				"updatedDesc": "Спочатку змінені",
+				"updatedAsc": "Спочатку незмінні"
+			},
+			"errors": {
+				"load": "Помилка завантаження каталогів",
+				"update": "Помилка оновлення",
+				"delete": "Помилка видалення",
+				"generic": "Помилка"
+			},
+			"notFound": "Нічого не знайдено",
+			"columns": {
+				"index": "№ п/п",
+				"catalog": "Каталог",
+				"createdAt": "Дата створення",
+				"updatedAt": "Дата зміни",
+				"status": "Статус",
+				"actions": "Дії"
+			},
+			"categoriesCount": "Категорій: {count}",
+			"status": {
+				"active": "Активний",
+				"inactive": "Неактивний"
+			},
+			"modals": {
+				"createTitle": "Створити каталог",
+				"editTitle": "Редагувати каталог",
+				"deleteConfirm": "Підтвердження видалення",
+				"cancel": "Скасувати",
+				"save": "Зберегти",
+				"confirm": "Підтвердити",
+				"deleteMessage": "Ви впевнені, що хочете видалити каталог «{name}»? Цю дію не можна скасувати.",
+				"activateConfirm": "Активувати каталог",
+				"deactivateConfirm": "Деактивувати каталог",
+				"activateMessage": "Ви впевнені, що хочете активувати каталог «{name}»?",
+				"deactivateMessage": "Ви впевнені, що хочете деактивувати каталог «{name}»?"
+			},
+			"notifications": {
+				"catalogCreated": "Каталог успішно створено",
+				"catalogUpdated": "Каталог оновлено",
+				"catalogDeleted": "Каталог видалено",
+				"catalogActivated": "Каталог активовано",
+				"catalogDeactivated": "Каталог деактивовано"
+			}
 		}
 	},
+
 	"UserForm": {
 		"email": "Email",
 		"password": "Пароль",
@@ -469,5 +526,16 @@
 			"moderator": "Модератор",
 			"admin": "Адміністратор"
 		}
+	},
+
+	"CatalogForm": {
+		"nameUa": "Назва (укр.)",
+		"nameEn": "Назва (англ.)",
+		"slug": "Slug (посилання)",
+		"slugHelper": "Унікальний ідентифікатор для URL (наприклад, 'laptops')",
+		"icon": "Іконка",
+		"noIcon": "Без іконки",
+		"descriptionUa": "Опис (укр.)",
+		"descriptionEn": "Опис (англ.)"
 	}
 }
