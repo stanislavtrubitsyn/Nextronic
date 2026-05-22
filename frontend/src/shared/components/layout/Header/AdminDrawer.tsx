@@ -55,7 +55,7 @@ export const AdminDrawer = ({ onClose }: AdminDrawerProps) => {
 			id: 'catalog',
 			label: t('catalog'),
 			icon: <StoreMallDirectoryRoundedIcon />,
-			path: '/admin/catalog',
+			path: '/admin/catalogs',
 		},
 		{
 			id: 'categories',
