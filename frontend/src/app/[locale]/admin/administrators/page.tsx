@@ -602,7 +602,7 @@ export default function AdminAdministratorsPage() {
 										bgcolor: 'var(--color-header-bg)',
 										color: 'var(--theme-text)',
 										fontWeight: 700,
-										fontSize: '18px',
+										fontSize: '20px',
 										border: '1px solid var(--color-card-border)',
 									}}
 								>
@@ -616,7 +616,7 @@ export default function AdminAdministratorsPage() {
 							<TableRow key={user.id}>
 								<TableCell
 									sx={{
-										fontSize: '16px',
+										fontSize: '20px',
 										fontWeight: 500,
 										border: '1px solid var(--color-card-border)',
 									}}
@@ -629,10 +629,11 @@ export default function AdminAdministratorsPage() {
 									<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
 										<Box
 											sx={{
-												width: 40,
-												height: 40,
+												width: '50px',
+												height: '50px',
 												borderRadius: '50%',
 												bgcolor: '#6D28D9',
+												border: '2px solid #23262F',
 												display: 'flex',
 												alignItems: 'center',
 												justifyContent: 'center',
@@ -643,7 +644,7 @@ export default function AdminAdministratorsPage() {
 											{getUserInitials(user)}
 										</Box>
 										<Box>
-											<Typography sx={{ fontWeight: 500, fontSize: '14px' }}>
+											<Typography sx={{ fontWeight: 500, fontSize: '16px' }}>
 												{getUserFullName(user)}
 											</Typography>
 											<Typography
@@ -685,8 +686,8 @@ export default function AdminAdministratorsPage() {
 											bgcolor: user.isBlocked ? '#FF090B33' : '#14E91433',
 											color: user.isBlocked ? '#FF090B' : '#14E914',
 											fontWeight: 500,
-											fontSize: '14px',
-											transition: 'all 0.2s ease-in-out',
+											fontSize: '16px',
+											transition: 'all 0.3s ease-in-out',
 											'&:hover': {
 												transform: 'translateY(-1px)',
 												filter: 'brightness(0.95)',
@@ -717,7 +718,7 @@ export default function AdminAdministratorsPage() {
 										}}
 										disableRipple
 										sx={{
-											transition: 'color 0.2s',
+											transition: 'color 0.3s ease-in-out',
 											'&:hover': {
 												backgroundColor: 'transparent',
 												color: '#5B21B6',
@@ -729,7 +730,7 @@ export default function AdminAdministratorsPage() {
 												color: '#6D28D9',
 												width: '25px',
 												height: '25px',
-												transition: 'color 0.2s',
+												transition: 'color 0.3s ease-in-out',
 											}}
 										/>
 									</IconButton>
@@ -743,7 +744,7 @@ export default function AdminAdministratorsPage() {
 										}
 										disableRipple
 										sx={{
-											transition: 'color 0.2s',
+											transition: 'color 0.3s ease-in-out',
 											'&:hover': { backgroundColor: 'transparent' },
 										}}
 									>
@@ -753,7 +754,7 @@ export default function AdminAdministratorsPage() {
 													color: '#14E914',
 													width: '25px',
 													height: '25px',
-													transition: 'color 0.2s',
+													transition: 'color 0.3s ease-in-out',
 												}}
 											/>
 										) : (
@@ -762,7 +763,7 @@ export default function AdminAdministratorsPage() {
 													color: '#FF090B',
 													width: '25px',
 													height: '25px',
-													transition: 'color 0.2s',
+													transition: 'color 0.3s ease-in-out',
 												}}
 											/>
 										)}
