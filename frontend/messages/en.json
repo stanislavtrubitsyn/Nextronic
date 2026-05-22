@@ -502,6 +502,59 @@
 				"catalogActivated": "Catalog activated",
 				"catalogDeactivated": "Catalog deactivated"
 			}
+		},
+		"categories": {
+			"title": "Categories",
+			"searchPlaceholder": "Search categories",
+			"createBtn": "Create category",
+			"sort": {
+				"button": "Sort",
+				"nameAsc": "Alphabetical (A-Z)",
+				"nameDesc": "Alphabetical (Z-A)",
+				"statusDesc": "Active first",
+				"statusAsc": "Inactive first",
+				"dateDesc": "Newest by creation",
+				"dateAsc": "Oldest by creation",
+				"updatedDesc": "Recently updated"
+			},
+			"errors": {
+				"load": "Error loading categories",
+				"update": "Update error",
+				"delete": "Delete error",
+				"generic": "Error"
+			},
+			"notFound": "Nothing found",
+			"columns": {
+				"index": "No.",
+				"category": "Category",
+				"creationDate": "Creation date",
+				"updateDate": "Update date",
+				"status": "Status",
+				"actions": "Actions"
+			},
+			"status": {
+				"active": "Active",
+				"inactive": "Inactive"
+			},
+			"modals": {
+				"createTitle": "Create category",
+				"editTitle": "Edit category",
+				"blockConfirm": "Confirm status change",
+				"unblockConfirm": "Confirm status change",
+				"deleteConfirm": "Confirm deletion",
+				"blockMessage": "Are you sure you want to deactivate the category {name}?",
+				"unblockMessage": "Are you sure you want to activate the category {name}?",
+				"deleteMessage": "Are you sure you want to delete the category {name}? All related products will remain without a category.",
+				"cancel": "Cancel",
+				"confirm": "Confirm",
+				"save": "Save"
+			},
+			"notifications": {
+				"created": "Category successfully created",
+				"updated": "Category updated",
+				"statusChanged": "Category status changed",
+				"deleted": "Category deleted"
+			}
 		}
 	},
 
@@ -535,5 +588,17 @@
 		"descriptionUa": "Description (UA)",
 		"descriptionEn": "Description (EN)",
 		"isActive": "Catalog is active"
+	},
+
+	"CategoryForm": {
+		"nameUa": "Name (Ukrainian)",
+		"nameEn": "Name (English)",
+		"slug": "Slug",
+		"catalog": "Catalog",
+		"selectCatalog": "Select catalog",
+		"icon": "Icon (URL)",
+		"descriptionUa": "Description (Ukrainian)",
+		"descriptionEn": "Description (English)",
+		"isActive": "Category is active"
 	}
 }

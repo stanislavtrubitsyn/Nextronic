@@ -505,6 +505,59 @@
 				"catalogActivated": "Каталог активовано",
 				"catalogDeactivated": "Каталог деактивовано"
 			}
+		},
+		"categories": {
+			"title": "Категорії",
+			"searchPlaceholder": "Пошук категорій",
+			"createBtn": "Створити категорію",
+			"sort": {
+				"button": "Сортування",
+				"nameAsc": "За алфавітом (А-Я)",
+				"nameDesc": "За алфавітом (Я-А)",
+				"statusDesc": "Спочатку активні",
+				"statusAsc": "Спочатку неактивні",
+				"dateDesc": "Нові за створенням",
+				"dateAsc": "Старі за створенням",
+				"updatedDesc": "Останні змінені"
+			},
+			"errors": {
+				"load": "Помилка завантаження категорій",
+				"update": "Помилка оновлення",
+				"delete": "Помилка видалення",
+				"generic": "Помилка"
+			},
+			"notFound": "Нічого не знайдено",
+			"columns": {
+				"index": "№ п/п",
+				"category": "Категорія",
+				"creationDate": "Дата створення",
+				"updateDate": "Дата зміни",
+				"status": "Статус",
+				"actions": "Дії"
+			},
+			"status": {
+				"active": "Активна",
+				"inactive": "Неактивна"
+			},
+			"modals": {
+				"createTitle": "Створити категорію",
+				"editTitle": "Редагувати категорію",
+				"blockConfirm": "Підтвердження зміни статусу",
+				"unblockConfirm": "Підтвердження зміни статусу",
+				"deleteConfirm": "Підтвердження видалення",
+				"blockMessage": "Ви впевнені, що хочете деактивувати категорію {name}?",
+				"unblockMessage": "Ви впевнені, що хочете активувати категорію {name}?",
+				"deleteMessage": "Ви впевнені, що хочете видалити категорію {name}? Усі прив'язані товари залишаться без категорії.",
+				"cancel": "Скасувати",
+				"confirm": "Підтвердити",
+				"save": "Зберегти"
+			},
+			"notifications": {
+				"created": "Категорію успішно створено",
+				"updated": "Категорію оновлено",
+				"statusChanged": "Статус категорії змінено",
+				"deleted": "Категорію видалено"
+			}
 		}
 	},
 
@@ -537,5 +590,17 @@
 		"noIcon": "Без іконки",
 		"descriptionUa": "Опис (укр.)",
 		"descriptionEn": "Опис (англ.)"
+	},
+
+	"CategoryForm": {
+		"nameUa": "Назва (Українська)",
+		"nameEn": "Назва (English)",
+		"slug": "Посилання (Slug)",
+		"catalog": "Каталог",
+		"selectCatalog": "Оберіть каталог",
+		"icon": "Іконка (URL)",
+		"descriptionUa": "Опис (Українська)",
+		"descriptionEn": "Опис (English)",
+		"isActive": "Активна категорія"
 	}
 }
