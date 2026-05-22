@@ -271,19 +271,19 @@
 			"searchPlaceholder": "Search",
 			"createBtn": "Create user",
 			"sort": {
-				"button": "Sort",
+				"button": "Sorting",
 				"nameAsc": "Alphabetical (A-Z)",
 				"nameDesc": "Alphabetical (Z-A)",
 				"roleAsc": "By role",
-				"statusDesc": "Blocked first",
-				"statusAsc": "Active first",
+				"statusDesc": "Active first",
+				"statusAsc": "Blocked first",
 				"dateDesc": "Newest first",
 				"dateAsc": "Oldest first"
 			},
 			"errors": {
 				"load": "Error loading users",
-				"update": "Error updating",
-				"delete": "Error deleting",
+				"update": "Update error",
+				"delete": "Delete error",
 				"generic": "Error"
 			},
 			"notFound": "Nothing found",
@@ -307,9 +307,9 @@
 			"modals": {
 				"createTitle": "Create user",
 				"editTitle": "Edit user",
-				"blockConfirm": "Confirm block",
-				"unblockConfirm": "Confirm unblock",
-				"deleteConfirm": "Confirm deletion",
+				"blockConfirm": "Confirmation of blocking",
+				"unblockConfirm": "Confirmation of unblocking",
+				"deleteConfirm": "Confirmation of deletion",
 				"blockMessage": "Are you sure you want to block user {name}?",
 				"unblockMessage": "Are you sure you want to unblock user {name}?",
 				"deleteMessage": "Are you sure you want to delete user {name}? This action cannot be undone.",
@@ -320,11 +320,71 @@
 				"editProfile": "Edit profile"
 			},
 			"notifications": {
-				"userCreated": "User created successfully",
+				"userCreated": "User successfully created",
 				"userUpdated": "User data updated",
 				"userBlocked": "User blocked",
 				"userUnblocked": "User unblocked",
 				"userDeleted": "User deleted"
+			}
+		},
+		"administrators": {
+			"title": "Administrators",
+			"searchPlaceholder": "Search administrators",
+			"createBtn": "Create administrator",
+			"sort": {
+				"button": "Sorting",
+				"nameAsc": "Alphabetical (A-Z)",
+				"nameDesc": "Alphabetical (Z-A)",
+				"statusDesc": "Active first",
+				"statusAsc": "Blocked first",
+				"dateDesc": "Newest by registration",
+				"dateAsc": "Oldest by registration",
+				"assignedDesc": "Latest assignments",
+				"assignedAsc": "Earliest assignments"
+			},
+			"errors": {
+				"load": "Error loading administrators",
+				"update": "Update error",
+				"delete": "Delete error",
+				"generic": "Error"
+			},
+			"notFound": "Nothing found",
+			"columns": {
+				"index": "No.",
+				"user": "Administrator",
+				"registrationDate": "Registration date",
+				"assignedDate": "Date of assignment",
+				"status": "Status",
+				"actions": "Actions"
+			},
+			"roles": {
+				"admin": "Administrator",
+				"moderator": "Moderator",
+				"user": "User"
+			},
+			"status": {
+				"active": "Active",
+				"blocked": "Blocked"
+			},
+			"modals": {
+				"createTitle": "Create administrator",
+				"editTitle": "Edit administrator",
+				"blockConfirm": "Confirmation of blocking",
+				"unblockConfirm": "Confirmation of unblocking",
+				"deleteConfirm": "Confirmation of deletion",
+				"blockMessage": "Are you sure you want to block administrator {name}?",
+				"unblockMessage": "Are you sure you want to unblock administrator {name}?",
+				"deleteMessage": "Are you sure you want to delete administrator {name}? This action cannot be undone.",
+				"cancel": "Cancel",
+				"confirm": "Confirm",
+				"save": "Save"
+			},
+			"notifications": {
+				"userCreated": "Administrator successfully created",
+				"userUpdated": "Data updated",
+				"userBlocked": "Administrator blocked",
+				"userUnblocked": "Administrator unblocked",
+				"userDeleted": "Administrator deleted"
 			}
 		}
 	},
@@ -335,8 +395,8 @@
 		"lastName": "Last name",
 		"middleName": "Middle name",
 		"noPatronymic": "No middle name",
-		"phone": "Phone number",
-		"birthday": "Date of birth",
+		"phone": "Phone",
+		"birthday": "Birthday",
 		"day": "Day",
 		"month": "Month",
 		"year": "Year",
