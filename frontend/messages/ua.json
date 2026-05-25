@@ -558,6 +558,62 @@
 				"statusChanged": "Статус категорії змінено",
 				"deleted": "Категорію видалено"
 			}
+		},
+		"products": {
+			"title": "Товари",
+			"searchPlaceholder": "Пошук товарів...",
+			"createBtn": "Створити товар",
+			"sort": {
+				"button": "Сортування",
+				"nameAsc": "Назва (А-Я)",
+				"nameDesc": "Назва (Я-А)",
+				"priceAsc": "Дешеві спочатку",
+				"priceDesc": "Дорогі спочатку",
+				"dateDesc": "Нові спочатку",
+				"dateAsc": "Старі спочатку"
+			},
+			"columns": {
+				"index": "№",
+				"product": "Товар",
+				"price": "Ціна",
+				"stock": "Залишок",
+				"creationDate": "Дата створення",
+				"updateDate": "Дата зміни",
+				"status": "Статус",
+				"actions": "Дії"
+			},
+			"status": {
+				"active": "Активний",
+				"inactive": "Неактивний"
+			},
+			"notFound": "Немає даних",
+			"modals": {
+				"createTitle": "Додати новий товар",
+				"editTitle": "Редагувати товар",
+				"blockConfirm": "Деактивувати товар?",
+				"unblockConfirm": "Активувати товар?",
+				"deleteConfirm": "Видалити товар?",
+				"blockMessage": "Змінити статус відображення товару?",
+				"unblockMessage": "Змінити статус відображення товару?",
+				"deleteMessage": "Видалити цей товар назавжди? Відновити його буде неможливо.",
+				"cancel": "Скасувати",
+				"confirm": "Підтвердити",
+				"save": "Зберегти",
+				"delete": "Видалити"
+			},
+			"notifications": {
+				"created": "Товар успішно створено",
+				"updated": "Товар оновлено",
+				"statusChanged": "Статус товару змінено",
+				"deleted": "Товар видалено назавжди",
+				"errorLoad": "Помилка завантаження даних",
+				"errorServer": "Помилка з'єднання з сервером",
+				"errorCreate": "Помилка створення товару",
+				"errorUpdate": "Помилка оновлення",
+				"errorStatus": "Помилка зміни статусу",
+				"errorDelete": "Помилка видалення",
+				"errorNetwork": "Мережева помилка"
+			}
 		}
 	},
 
@@ -602,5 +658,32 @@
 		"descriptionUa": "Опис (Українська)",
 		"descriptionEn": "Опис (English)",
 		"isActive": "Активна категорія"
+	},
+
+	"ProductForm": {
+		"basicInfo": "Основна інформація",
+		"nameUa": "Назва (Укр)",
+		"nameEn": "Назва (Англ)",
+		"slug": "Slug посилання",
+		"oldPrice": "Стара ціна (ГРН)",
+		"noDiscountHint": "Залиште пустим, якщо немає знижки",
+		"price": "Ціна (ГРН)",
+		"stock": "Кількість на складі",
+		"category": "Категорія",
+		"selectCategory": "Оберіть категорію",
+		"descriptionUa": "Опис (Укр)",
+		"descriptionEn": "Опис (Англ)",
+		"characteristics": "Характеристики",
+		"addGroup": "Додати групу",
+		"groupNameUa": "Назва групи (Укр)",
+		"groupNameEn": "Назва групи (Eng)",
+		"addItem": "+ Додати властивість",
+		"keyUa": "Властивість (Укр)",
+		"keyEn": "Властивість (Англ)",
+		"valueUa": "Значення (Укр)",
+		"valueEn": "Значення (Англ)",
+		"images": "Фотографії товару",
+		"addImage": "Додати URL фотографії",
+		"imageUrl": "URL фото"
 	}
 }

@@ -555,6 +555,62 @@
 				"statusChanged": "Category status changed",
 				"deleted": "Category deleted"
 			}
+		},
+		"products": {
+			"title": "Products",
+			"searchPlaceholder": "Search products...",
+			"createBtn": "Create product",
+			"sort": {
+				"button": "Sort",
+				"nameAsc": "Name (A-Z)",
+				"nameDesc": "Name (Z-A)",
+				"priceAsc": "Cheapest first",
+				"priceDesc": "Most expensive first",
+				"dateDesc": "Newest first",
+				"dateAsc": "Oldest first"
+			},
+			"columns": {
+				"index": "#",
+				"product": "Product",
+				"price": "Price",
+				"stock": "Stock",
+				"creationDate": "Creation date",
+				"updateDate": "Update date",
+				"status": "Status",
+				"actions": "Actions"
+			},
+			"status": {
+				"active": "Active",
+				"inactive": "Inactive"
+			},
+			"notFound": "No data",
+			"modals": {
+				"createTitle": "Add new product",
+				"editTitle": "Edit product",
+				"blockConfirm": "Deactivate product?",
+				"unblockConfirm": "Activate product?",
+				"deleteConfirm": "Delete product?",
+				"blockMessage": "Change product display status?",
+				"unblockMessage": "Change product display status?",
+				"deleteMessage": "Delete this product permanently? It cannot be restored.",
+				"cancel": "Cancel",
+				"confirm": "Confirm",
+				"save": "Save",
+				"delete": "Delete"
+			},
+			"notifications": {
+				"created": "Product successfully created",
+				"updated": "Product updated",
+				"statusChanged": "Product status changed",
+				"deleted": "Product permanently deleted",
+				"errorLoad": "Error loading data",
+				"errorServer": "Server connection error",
+				"errorCreate": "Error creating product",
+				"errorUpdate": "Error updating product",
+				"errorStatus": "Error changing status",
+				"errorDelete": "Error deleting product",
+				"errorNetwork": "Network error"
+			}
 		}
 	},
 
@@ -600,5 +656,32 @@
 		"descriptionUa": "Description (Ukrainian)",
 		"descriptionEn": "Description (English)",
 		"isActive": "Category is active"
+	},
+
+	"ProductForm": {
+		"basicInfo": "Basic information",
+		"nameUa": "Name (Ukr)",
+		"nameEn": "Name (Eng)",
+		"slug": "Slug link",
+		"oldPrice": "Old price (UAH)",
+		"noDiscountHint": "Leave empty if no discount",
+		"price": "Price (UAH)",
+		"stock": "Stock quantity",
+		"category": "Category",
+		"selectCategory": "Select a category",
+		"descriptionUa": "Description (Ukr)",
+		"descriptionEn": "Description (Eng)",
+		"characteristics": "Characteristics",
+		"addGroup": "Add group",
+		"groupNameUa": "Group name (Ukr)",
+		"groupNameEn": "Group name (Eng)",
+		"addItem": "+ Add property",
+		"keyUa": "Property (Ukr)",
+		"keyEn": "Property (Eng)",
+		"valueUa": "Value (Ukr)",
+		"valueEn": "Value (Eng)",
+		"images": "Product images",
+		"addImage": "Add image URL",
+		"imageUrl": "Image URL"
 	}
 }
