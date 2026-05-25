@@ -18,7 +18,7 @@ export class ProductsService {
     @InjectRepository(CategoriesEntity)
     private readonly categoryRepo: Repository<CategoriesEntity>,
     private readonly recommendationsService: RecommendationsService,
-    private readonly auditService: AuditService, //ДОДАЛИ AUDIT SERVICE В ІНЖЕКЦІЮ
+    private readonly auditService: AuditService,
   ) {}
 
   private generateSKU(): string {
@@ -26,7 +26,6 @@ export class ProductsService {
     return `NX-${randomDigits}`;
   }
 
-  // ДОДАНО adminId
   async create(
     dto: CreateProductDto,
     adminId: string,
@@ -67,14 +66,13 @@ export class ProductsService {
 
     const savedProduct = await this.productRepo.save(product);
 
-    //ЗАПИСУЄМО В АУДИТ
     await this.auditService.logAction(
       adminId,
       AuditAction.CREATE,
       'ProductsEntity',
       savedProduct.id,
-      null, // Старого стану немає
-      savedProduct, // Новий стан
+      null,
+      savedProduct,
     );
 
     return savedProduct;
@@ -89,7 +87,6 @@ export class ProductsService {
     return product;
   }
 
-  // ДОДАНО adminId
   async update(
     id: string,
     dto: UpdateProductDto,
@@ -97,7 +94,7 @@ export class ProductsService {
     lang: ProductLangType = 'ua',
   ): Promise<ProductsEntity> {
     const t = PRODUCTS_I18N[lang];
-    const oldProduct = await this.findOne(id, lang); //ЗБЕРІГАЄМО СТАРИЙ СТАН ДЛЯ ВІДКАТУ
+    const oldProduct = await this.findOne(id, lang);
 
     if (dto.slug) {
       const conflict = await this.productRepo.findOne({ where: { slug: dto.slug, id: Not(id) } });
@@ -123,37 +120,56 @@ export class ProductsService {
 
     const savedProduct = await this.productRepo.save(updated);
 
-    // <-- ЗАПИСУЄМО В АУДИТ
     await this.auditService.logAction(
       adminId,
       AuditAction.UPDATE,
       'ProductsEntity',
       savedProduct.id,
-      oldProduct, // Старий стан
-      savedProduct, // Новий стан
+      oldProduct,
+      savedProduct,
     );
 
     return savedProduct;
   }
 
-  // ДОДАНО adminId
+  // ДОДАНО: Метод перемикання статусу
+  async toggleStatus(
+    id: string,
+    adminId: string,
+    lang: ProductLangType = 'ua',
+  ): Promise<ProductsEntity> {
+    const product = await this.findOne(id, lang);
+    const oldSnapshot = { ...product };
+    product.isActive = !product.isActive;
+    const saved = await this.productRepo.save(product);
+
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.UPDATE,
+      'ProductsEntity',
+      saved.id,
+      oldSnapshot,
+      saved,
+    );
+    return saved;
+  }
+
   async remove(
     id: string,
     adminId: string,
     lang: ProductLangType = 'ua',
   ): Promise<{ success: boolean }> {
-    const oldProduct = await this.findOne(id, lang); //ЗБЕРІГАЄМО ПЕРЕД ВИДАЛЕННЯМ
+    const oldProduct = await this.findOne(id, lang);
 
     const result = await this.productRepo.delete(id);
     if (result.affected === 0) throw new NotFoundException(PRODUCTS_I18N[lang].productNotFound);
 
-    //ЗАПИСУЄМО В АУДИТ
     await this.auditService.logAction(
       adminId,
       AuditAction.DELETE,
       'ProductsEntity',
       id,
-      oldProduct, // Старий стан (для можливості відновлення)
+      oldProduct,
       null,
     );
 

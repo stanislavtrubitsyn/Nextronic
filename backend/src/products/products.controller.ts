@@ -102,6 +102,16 @@ export class ProductsController {
     return this.productsService.update(id, body, req.user!.userId);
   }
 
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  toggleStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<ProductsEntity> {
+    return this.productsService.toggleStatus(id, req.user!.userId);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
