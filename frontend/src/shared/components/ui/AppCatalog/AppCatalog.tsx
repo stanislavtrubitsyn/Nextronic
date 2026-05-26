@@ -1,5 +1,6 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+
+import React, { useEffect, useState } from 'react'
 import {
 	Box,
 	Button,
@@ -12,18 +13,17 @@ import { DynamicMuiIcon } from '../DynamicMuiIcon/DynamicMuiIcon'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/routing'
 
-// Описуємо структуру товару для TypeScript
-interface TopProduct {
-	id: string
-	name: { ua: string; en: string }
-	slug: string
+interface MenuLink {
+	label: string
+	filterKey?: string
+	filterValue?: string
 }
 
 interface Category {
 	id: string
 	name: { ua: string; en: string }
 	slug: string
-	topProducts?: TopProduct[] // Додали масив товарів сюди
+	menuLinks?: MenuLink[]
 }
 
 interface Catalog {
@@ -34,6 +34,13 @@ interface Catalog {
 	categories: Category[]
 }
 
+const getLocalizedName = (
+	value: { ua?: string; en?: string } | undefined,
+	locale: 'ua' | 'en',
+) => {
+	return value?.[locale] || value?.ua || value?.en || ''
+}
+
 export const AppCatalog = () => {
 	const t = useTranslations('AppCatalog')
 	const locale = useLocale() as 'ua' | 'en'
@@ -41,7 +48,6 @@ export const AppCatalog = () => {
 
 	const [catalogs, setCatalogs] = useState<Catalog[]>([])
 	const [loading, setLoading] = useState(false)
-
 	const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
 	const [activeCatalog, setActiveCatalog] = useState<Catalog | null>(null)
 
@@ -51,8 +57,9 @@ export const AppCatalog = () => {
 			try {
 				const apiUrl = process.env.NEXT_PUBLIC_API_URL
 				const response = await fetch(`${apiUrl}/catalogs/menu`)
+
 				if (response.ok) {
-					const data = await response.json()
+					const data = (await response.json()) as Catalog[]
 					setCatalogs(data)
 					if (data.length > 0) setActiveCatalog(data[0])
 				}
@@ -74,19 +81,35 @@ export const AppCatalog = () => {
 		setAnchorEl(null)
 	}
 
-	const handleCategoryClick = (catalogSlug: string, categorySlug?: string) => {
+	const navigateToCatalog = (catalogSlug: string) => {
 		handleClose()
-		const url = categorySlug
-			? `/search?catalog=${catalogSlug}&category=${categorySlug}`
-			: `/search?catalog=${catalogSlug}`
-		router.push(url)
+		router.push(`/search?catalog=${encodeURIComponent(catalogSlug)}`)
 	}
 
-	// Обробник кліку на конкретний товар
-	const handleProductClick = (productSlug: string, e: React.MouseEvent) => {
-		e.stopPropagation() // Щоб клік не пішов на категорію
+	const navigateToCategory = (catalogSlug: string, categorySlug: string) => {
 		handleClose()
-		router.push(`/product/${productSlug}`)
+		router.push(
+			`/search?catalog=${encodeURIComponent(catalogSlug)}&category=${encodeURIComponent(categorySlug)}`,
+		)
+	}
+
+	const navigateToMenuLink = (
+		catalogSlug: string,
+		categorySlug: string,
+		link: MenuLink,
+	) => {
+		handleClose()
+
+		const params = new URLSearchParams()
+		params.set('catalog', catalogSlug)
+		params.set('category', categorySlug)
+		params.set('q', link.label)
+
+		if (link.filterKey && link.filterValue) {
+			params.set(link.filterKey, link.filterValue)
+		}
+
+		router.push(`/search?${params.toString()}`)
 	}
 
 	const open = Boolean(anchorEl)
@@ -110,7 +133,7 @@ export const AppCatalog = () => {
 					fontFamily: 'var(--font-inter)',
 					fontWeight: 700,
 					fontSize: { xs: '12px', md: '14px' },
-					transition: 'all 0.3s ease', // ДОДАНО: Плавна анімація кнопки
+					transition: 'background-color 0.3s ease',
 					'&:hover': {
 						backgroundColor: '#5B21B6',
 						boxShadow: 'none',
@@ -125,27 +148,23 @@ export const AppCatalog = () => {
 				open={open}
 				anchorEl={anchorEl}
 				onClose={handleClose}
-				anchorOrigin={{
-					vertical: 'bottom',
-					horizontal: 'center', // Змінено для кращого позиціонування
-				}}
-				transformOrigin={{
-					vertical: 'top',
-					horizontal: 'center',
-				}}
+				anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+				transformOrigin={{ vertical: 'top', horizontal: 'center' }}
 				slotProps={{
 					paper: {
 						sx: {
 							mt: 3,
 							px: '50px',
 							py: '20px',
-							gap: '50px',
 							borderRadius: '20px',
 							backgroundColor: 'var(--color-block-bg)',
 							boxShadow: '0px 10px 40px rgba(0,0,0,0.2)',
 							display: 'flex',
 							flexDirection: 'row',
+							gap: '50px',
 							width: '1125px',
+							height: '520px',
+							maxHeight: 'calc(100vh - 120px)',
 							overflow: 'hidden',
 							left: '50% !important',
 							transform: 'translateX(-50%) !important',
@@ -156,8 +175,8 @@ export const AppCatalog = () => {
 				{loading ? (
 					<Box
 						sx={{
-							display: 'flex',
 							width: '100%',
+							display: 'flex',
 							alignItems: 'center',
 							justifyContent: 'center',
 						}}
@@ -166,164 +185,220 @@ export const AppCatalog = () => {
 					</Box>
 				) : (
 					<>
-						{/* ЛІВА КОЛОНКА */}
-						<Box sx={{ display: 'flex', flexDirection: 'column' }}>
-							{catalogs.map(catalog => (
-								<Box
-									key={catalog.id}
-									onMouseEnter={() => setActiveCatalog(catalog)}
-									onClick={() => handleCategoryClick(catalog.slug)}
-									sx={{
-										p: '5px',
-										borderRadius: '5px',
-										width: '275px',
-										height: '30px',
-										display: 'flex',
-										alignItems: 'center',
-										justifyContent: 'space-between',
-										cursor: 'pointer',
-										transition: 'all 0.3s ease',
-										backgroundColor:
-											activeCatalog?.id === catalog.id
-												? 'rgba(109, 40, 217, 0.1)'
-												: 'transparent',
-										color:
-											activeCatalog?.id === catalog.id
-												? '#6D28D9'
-												: 'var(--theme-text)',
-										'&:hover': {
-											backgroundColor: 'rgba(109, 40, 217, 0.1)',
-											color: '#6D28D9',
-										},
-									}}
-								>
-									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-										<DynamicMuiIcon
-											iconName={catalog.icon}
-											sx={{
-												width: '20px',
-												height: '20px',
-												transition: 'color 0.3s ease',
-												color:
-													activeCatalog?.id === catalog.id
-														? '#6D28D9'
-														: 'var(--theme-icon-dim)',
-											}}
-										/>
-										<Typography
-											sx={{
-												fontFamily: 'var(--font-inter)',
-												fontWeight: 600,
-												fontSize: '15px',
-											}}
-										>
-											{catalog.name[locale] || catalog.name.ua}
-										</Typography>
-									</Box>
-								</Box>
-							))}
-						</Box>
+						{/* Ліва колонка: список каталогів */}
+						<Box
+							sx={{
+								width: '285px',
+								flex: '0 0 285px',
+								display: 'flex',
+								flexDirection: 'column',
+								overflow: 'hidden',
+							}}
+						>
+							{catalogs.map(catalog => {
+								const isActive = activeCatalog?.id === catalog.id
 
-						{/* ПРАВА КОЛОНКА */}
-						<Box sx={{ display: 'flex', flexDirection: 'column' }}>
-							{activeCatalog && (
-								<Box
-									sx={{
-										display: 'grid',
-										gridTemplateColumns:
-											'repeat(auto-fill, minmax(220px, 1fr))',
-										gap: 4,
-									}}
-								>
-									{activeCatalog.categories.map(category => (
+								return (
+									<Box
+										key={catalog.id}
+										onMouseEnter={() => setActiveCatalog(catalog)}
+										onClick={() => navigateToCatalog(catalog.slug)}
+										sx={{
+											px: '8px',
+											py: '5px',
+											borderRadius: '5px',
+											width: '100%',
+											height: '30px',
+											display: 'flex',
+											alignItems: 'center',
+											cursor: 'pointer',
+											transition: 'background-color 0.2s ease, color 0.2s ease',
+											backgroundColor: isActive
+												? 'rgba(109, 40, 217, 0.12)'
+												: 'transparent',
+											color: isActive ? '#6D28D9' : '#4E525C',
+											'&:hover': {
+												backgroundColor: 'rgba(109, 40, 217, 0.12)',
+												color: '#6D28D9',
+											},
+										}}
+									>
 										<Box
-											key={category.id}
 											sx={{
 												display: 'flex',
-												flexDirection: 'column',
+												alignItems: 'center',
 												gap: 1.5,
+												minWidth: 0,
 											}}
 										>
-											{/* НАЗВА КАТЕГОРІЇ */}
+											<DynamicMuiIcon
+												iconName={catalog.icon}
+												sx={{
+													width: '20px',
+													height: '20px',
+													flexShrink: 0,
+													transition: 'color 0.2s ease',
+													color: isActive ? '#6D28D9' : '#4E525C',
+												}}
+											/>
+
 											<Typography
-												onClick={() =>
-													handleCategoryClick(activeCatalog.slug, category.slug)
-												}
 												sx={{
 													fontFamily: 'var(--font-inter)',
-													fontWeight: 700,
-													fontSize: '16px',
-													color: '#6D28D9',
-													cursor: 'pointer',
-													textDecoration: 'underline',
-													textDecorationColor: 'transparent',
-													transition:
-														'color 0.3s ease, text-decoration-color 0.3s ease',
-													'&:hover': { textDecoration: 'underline' },
+													fontWeight: 600,
+													fontSize: '15px',
+													whiteSpace: 'nowrap',
+													overflow: 'hidden',
+													textOverflow: 'ellipsis',
 												}}
 											>
-												{category.name[locale] || category.name.ua}
-											</Typography>
-
-											{/* СПИСОК ТОП ТОВАРІВ */}
-											<Box
-												sx={{
-													display: 'flex',
-													flexDirection: 'column',
-													gap: 1,
-												}}
-											>
-												{category.topProducts?.map(product => (
-													<Typography
-														key={product.id}
-														onClick={e => handleProductClick(product.slug, e)}
-														sx={{
-															fontFamily: 'var(--font-inter)',
-															fontWeight: 500,
-															fontSize: '14px',
-															lineHeight: 1.3,
-															color: 'var(--theme-text)',
-															cursor: 'pointer',
-															display: '-webkit-box',
-															WebkitLineClamp: 2,
-															WebkitBoxOrient: 'vertical',
-															overflow: 'hidden',
-															textDecoration: 'underline',
-															textDecorationColor: 'transparent',
-															transition:
-																'color 0.3s ease, text-decoration-color 0.3s ease',
-															'&:hover': {
-																color: '#6D28D9',
-																textDecoration: 'underline',
-															},
-														}}
-													>
-														{product.name[locale] || product.name.ua}
-													</Typography>
-												))}
-											</Box>
-
-											{/* КНОПКА "ДИВИТИСЬ ВСІ" */}
-											<Typography
-												onClick={() =>
-													handleCategoryClick(activeCatalog.slug, category.slug)
-												}
-												sx={{
-													fontFamily: 'var(--font-inter)',
-													fontWeight: 700,
-													fontSize: '14px',
-													color: 'var(--theme-text)',
-													cursor: 'pointer',
-													mt: 'auto',
-													transition: 'color 0.3s ease',
-													'&:hover': { color: '#6D28D9' },
-												}}
-											>
-												{t('viewAll')}
+												{getLocalizedName(catalog.name, locale)}
 											</Typography>
 										</Box>
-									))}
-								</Box>
+									</Box>
+								)
+							})}
+						</Box>
+
+						{/* Права частина: категорії активного каталогу у 3 колонки */}
+						<Box
+							sx={{
+								width: '690px',
+								flex: '0 0 690px',
+								height: '100%',
+								display: 'flex',
+								flexDirection: 'column',
+								overflow: 'hidden',
+							}}
+						>
+							{activeCatalog && (
+								<>
+									<Box
+										sx={{
+											flex: 1,
+											display: 'grid',
+											gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+											columnGap: '70px',
+											rowGap: '22px',
+											alignContent: 'start',
+											overflow: 'hidden',
+										}}
+									>
+										{activeCatalog.categories.map(category => (
+											<Box
+												key={category.id}
+												sx={{
+													minWidth: 0,
+													display: 'flex',
+													flexDirection: 'column',
+													gap: '6px',
+												}}
+											>
+												<Typography
+													onClick={() =>
+														navigateToCategory(
+															activeCatalog.slug,
+															category.slug,
+														)
+													}
+													sx={{
+														fontFamily: 'var(--font-inter)',
+														fontWeight: 700,
+														fontSize: '16px',
+														lineHeight: 1.2,
+														color: '#6D28D9',
+														cursor: 'pointer',
+														whiteSpace: 'nowrap',
+														overflow: 'hidden',
+														textOverflow: 'ellipsis',
+														transition: 'text-decoration-color 0.2s ease',
+														textDecoration: 'underline',
+														textDecorationColor: 'transparent',
+														'&:hover': { textDecorationColor: '#6D28D9' },
+													}}
+												>
+													{getLocalizedName(category.name, locale)}
+												</Typography>
+
+												<Box
+													sx={{
+														display: 'flex',
+														flexDirection: 'column',
+														gap: '3px',
+													}}
+												>
+													{category.menuLinks?.slice(0, 5).map(link => (
+														<Typography
+															key={`${category.id}-${link.filterKey}-${link.filterValue}-${link.label}`}
+															onClick={() =>
+																navigateToMenuLink(
+																	activeCatalog.slug,
+																	category.slug,
+																	link,
+																)
+															}
+															sx={{
+																fontFamily: 'var(--font-inter)',
+																fontWeight: 500,
+																fontSize: '15px',
+																lineHeight: 1.25,
+																color: 'var(--theme-text)',
+																cursor: 'pointer',
+																whiteSpace: 'nowrap',
+																overflow: 'hidden',
+																textOverflow: 'ellipsis',
+																transition: 'color 0.2s ease',
+																'&:hover': { color: '#6D28D9' },
+															}}
+														>
+															{link.label}
+														</Typography>
+													))}
+												</Box>
+
+												<Typography
+													onClick={() =>
+														navigateToCategory(
+															activeCatalog.slug,
+															category.slug,
+														)
+													}
+													sx={{
+														fontFamily: 'var(--font-inter)',
+														fontWeight: 700,
+														fontSize: '15px',
+														lineHeight: 1.2,
+														color: 'var(--theme-text)',
+														cursor: 'pointer',
+														transition: 'color 0.2s ease',
+														'&:hover': { color: '#6D28D9' },
+													}}
+												>
+													{t('viewAll')}
+												</Typography>
+											</Box>
+										))}
+									</Box>
+
+									<Typography
+										onClick={() => navigateToCatalog(activeCatalog.slug)}
+										sx={{
+											mt: 'auto',
+											pt: '12px',
+											fontFamily: 'var(--font-inter)',
+											fontWeight: 700,
+											fontSize: '16px',
+											lineHeight: 1.2,
+											color: '#6D28D9',
+											cursor: 'pointer',
+											alignSelf: 'flex-start',
+											transition: 'color 0.2s ease',
+											'&:hover': { color: '#5B21B6' },
+										}}
+									>
+										{t('allCategories')}
+									</Typography>
+								</>
 							)}
 						</Box>
 					</>

@@ -30,11 +30,20 @@ interface CatalogFormProps {
 }
 
 const availableIcons = [
-	{ value: 'LaptopRounded', label: 'Laptop' },
 	{ value: 'SmartphoneRounded', label: 'Smartphone' },
+	{ value: 'TabletRounded', label: 'Tablet' },
+	{ value: 'LaptopRounded', label: 'Laptop' },
 	{ value: 'TvRounded', label: 'TV' },
-	{ value: 'WatchRounded', label: 'Watch' },
+	{ value: 'LiveTvRounded', label: 'Live TV' },
+	{ value: 'SportsEsportsRounded', label: 'eSports' },
 	{ value: 'HeadsetRounded', label: 'Headset' },
+	{ value: 'CameraAltRounded', label: 'Camera' },
+	{ value: 'CableRounded', label: 'Cable' },
+	{ value: 'WatchRounded', label: 'Watch' },
+	{ value: 'KitchenRounded', label: 'Kitchen' },
+	{ value: 'BedRounded', label: 'Bed' },
+	{ value: 'SpaRounded', label: 'Spa' },
+	{ value: 'RouterRounded', label: 'Router' },
 	{ value: 'GridViewRounded', label: 'Default' },
 ]
 
