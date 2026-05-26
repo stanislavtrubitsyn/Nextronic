@@ -68,7 +68,7 @@ export class BonusService {
   }
 
   async addBonuses(userId: string, orderAmount: number, productName?: string) {
-    const amount = Math.round(orderAmount * 0.1);
+    const amount = Math.round(orderAmount * 0.01);
     const expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
