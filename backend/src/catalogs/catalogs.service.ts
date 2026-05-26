@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, DataSource } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { CatalogsEntity } from './catalogs.entity';
 import { CreateCatalogDto, UpdateCatalogDto } from './catalogs.dto';
 import { CATALOGS_I18N, CatalogLangType } from './catalogs.i18n';
@@ -8,10 +8,23 @@ import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
 import { ProductsEntity } from '../products/products.entity';
 
+interface LocalizedString {
+  ua: string;
+  en: string;
+}
+
 interface MenuLink {
-  label: string;
-  filterKey: string;
-  filterValue: string;
+  label: LocalizedString;
+  filters: Record<string, string>;
+}
+
+interface MenuGroup {
+  id: string;
+  label: LocalizedString;
+  categorySlug: string;
+  categoryId: string;
+  filters: Record<string, string>;
+  links: MenuLink[];
 }
 
 @Injectable()
@@ -19,8 +32,9 @@ export class CatalogsService {
   constructor(
     @InjectRepository(CatalogsEntity)
     private readonly catalogRepo: Repository<CatalogsEntity>,
+    @InjectRepository(ProductsEntity)
+    private readonly productRepo: Repository<ProductsEntity>,
     private readonly auditService: AuditService,
-    private readonly dataSource: DataSource,
   ) {}
 
   async create(
@@ -69,30 +83,126 @@ export class CatalogsService {
       order: { createdAt: 'ASC' },
     });
 
-    const productRepo = this.dataSource.getRepository(ProductsEntity);
-
     for (const catalog of catalogs) {
       catalog.categories = (catalog.categories || [])
         .filter((category) => category.isActive)
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-      for (const category of catalog.categories) {
-        const products = await productRepo
-          .createQueryBuilder('product')
-          .leftJoin('product.category', 'category')
-          .where('category.id = :categoryId', { categoryId: category.id })
-          .andWhere('product.isActive = :isActive', { isActive: true })
-          .select(['product.id', 'product.filters'])
-          .getMany();
+      const menuGroups: MenuGroup[] = [];
 
-        (category as any).menuLinks = this.buildMenuLinksFromFilters(products);
+      for (const category of catalog.categories) {
+        const products = await this.productRepo.find({
+          where: {
+            catalog: { id: catalog.id },
+            category: { id: category.id },
+            isActive: true,
+          },
+          select: ['id', 'name', 'filters', 'createdAt'],
+          order: { createdAt: 'DESC' },
+          take: 200,
+        });
+
+        const groups = this.buildVirtualGroupsForCategory(
+          category.id,
+          category.slug,
+          category.name,
+          products,
+        );
+
+        menuGroups.push(...groups);
+        (category as any).menuLinks = this.buildCategoryFallbackLinks(products);
       }
+
+      (catalog as any).menuGroups = menuGroups.slice(0, 24);
     }
 
     return catalogs;
   }
 
-  private buildMenuLinksFromFilters(products: ProductsEntity[]): MenuLink[] {
+  private buildVirtualGroupsForCategory(
+    categoryId: string,
+    categorySlug: string,
+    categoryName: LocalizedString,
+    products: ProductsEntity[],
+  ): MenuGroup[] {
+    const groupKeys = ['brand', 'manufacturer', 'compatible_brand', 'accessory_type'];
+    const modelKeys = ['model', 'series', 'line', 'compatible_model'];
+
+    const selectedGroupKey = groupKeys.find((key) =>
+      products.some((product) => this.getFilterValue(product, key)),
+    );
+
+    if (!selectedGroupKey) {
+      return [
+        {
+          id: `${categoryId}:all`,
+          label: categoryName,
+          categoryId,
+          categorySlug,
+          filters: {},
+          links: this.buildCategoryFallbackLinks(products),
+        },
+      ];
+    }
+
+    const byGroup = new Map<string, ProductsEntity[]>();
+    for (const product of products) {
+      const value = this.getFilterValue(product, selectedGroupKey);
+      if (!value) continue;
+      if (!byGroup.has(value)) byGroup.set(value, []);
+      byGroup.get(value)!.push(product);
+    }
+
+    return Array.from(byGroup.entries())
+      .slice(0, 12)
+      .map(([groupValue, groupedProducts]) => {
+        const labelValue = this.formatMenuLinkLabel(groupValue);
+        const filters = { [selectedGroupKey]: groupValue };
+
+        return {
+          id: `${categoryId}:${selectedGroupKey}:${groupValue}`,
+          label: {
+            ua: `${categoryName.ua} ${labelValue}`,
+            en: `${categoryName.en} ${labelValue}`,
+          },
+          categoryId,
+          categorySlug,
+          filters,
+          links: this.buildModelLinks(groupedProducts, modelKeys, filters),
+        };
+      });
+  }
+
+  private buildModelLinks(
+    products: ProductsEntity[],
+    modelKeys: string[],
+    baseFilters: Record<string, string>,
+  ): MenuLink[] {
+    const result: MenuLink[] = [];
+    const added = new Set<string>();
+
+    for (const key of modelKeys) {
+      for (const product of products) {
+        if (result.length >= 5) return result;
+
+        const value = this.getFilterValue(product, key);
+        if (!value) continue;
+
+        const uniqueKey = `${key}:${value}`.toLowerCase();
+        if (added.has(uniqueKey)) continue;
+
+        added.add(uniqueKey);
+        result.push({
+          label: { ua: this.formatMenuLinkLabel(value), en: this.formatMenuLinkLabel(value) },
+          filters: { ...baseFilters, [key]: value },
+        });
+      }
+    }
+
+    return result;
+  }
+
+  private buildCategoryFallbackLinks(products: ProductsEntity[]): MenuLink[] {
     const preferredKeys = [
       'model',
       'series',
@@ -100,73 +210,54 @@ export class CatalogsService {
       'brand',
       'manufacturer',
       'type',
-      'formFactor',
+      'accessory_type',
     ];
-
     const result: MenuLink[] = [];
     const added = new Set<string>();
-
-    const addValue = (filterKey: string, rawValue: unknown) => {
-      const values = Array.isArray(rawValue) ? rawValue : [rawValue];
-
-      for (const value of values) {
-        if (typeof value !== 'string') continue;
-
-        const normalizedValue = value.trim();
-        if (!normalizedValue) continue;
-
-        const label = this.formatMenuLinkLabel(normalizedValue);
-        const uniqueKey = `${filterKey}:${normalizedValue}`.toLowerCase();
-
-        if (added.has(uniqueKey)) continue;
-
-        added.add(uniqueKey);
-        result.push({
-          label,
-          filterKey,
-          filterValue: normalizedValue,
-        });
-
-        if (result.length >= 5) return;
-      }
-    };
 
     for (const key of preferredKeys) {
       for (const product of products) {
         if (result.length >= 5) return result;
-        addValue(key, product.filters?.[key]);
-      }
-    }
+        const value = this.getFilterValue(product, key);
+        if (!value) continue;
 
-    for (const product of products) {
-      if (result.length >= 5) return result;
-      const filters = product.filters || {};
+        const uniqueKey = `${key}:${value}`.toLowerCase();
+        if (added.has(uniqueKey)) continue;
 
-      for (const [key, value] of Object.entries(filters)) {
-        if (result.length >= 5) return result;
-        if (preferredKeys.includes(key)) continue;
-        addValue(key, value);
+        added.add(uniqueKey);
+        result.push({
+          label: { ua: this.formatMenuLinkLabel(value), en: this.formatMenuLinkLabel(value) },
+          filters: { [key]: value },
+        });
       }
     }
 
     return result;
   }
 
+  private getFilterValue(product: ProductsEntity, key: string): string | null {
+    const value = product.filters?.[key];
+    if (Array.isArray(value)) return value[0] ? String(value[0]) : null;
+    if (value === undefined || value === null) return null;
+    const normalized = String(value).trim();
+    return normalized || null;
+  }
+
   private formatMenuLinkLabel(value: string): string {
     const cleaned = value.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
-
     if (!cleaned) return value;
-
-    const hasLowerCase = /[a-zа-яіїєґ]/.test(cleaned);
-    const hasUpperCase = /[A-ZА-ЯІЇЄҐ]/.test(cleaned);
-
-    if (hasLowerCase && hasUpperCase) {
-      return cleaned;
-    }
 
     return cleaned
       .split(' ')
-      .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
+      .map((word) => {
+        const lowerWord = word.toLowerCase();
+        if (
+          ['iphone', 'ipad', 'macbook', 'oled', 'amoled', 'ips', 'ssd', 'hdd'].includes(lowerWord)
+        ) {
+          return lowerWord === 'iphone' ? 'iPhone' : lowerWord.toUpperCase();
+        }
+        return word ? word[0].toUpperCase() + word.slice(1) : word;
+      })
       .join(' ');
   }
 

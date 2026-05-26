@@ -43,32 +43,44 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
-  // ЕНДПОІНТ ПОШУКУ ТА ФІЛЬТРАЦІЇ
   @Get('search')
   async search(
     @Query('q') query?: string,
+    @Query('catalog') catalogSlug?: string,
+    @Query('category') categorySlug?: string,
     @Query('categoryId') categoryId?: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
     @Query('inStock') inStock?: string,
     @Query('sort') sort?: string,
-    @Query() allQueryParams?: Record<string, any>,
+    @Query() allQueryParams?: Record<string, unknown>,
     @Req() req?: RequestWithUser,
   ) {
     const userId = req?.user?.userId;
 
-    const filters: Record<string, any> = {};
-    if (allQueryParams) {
-      const systemKeys = ['q', 'categoryId', 'lang', 'minPrice', 'maxPrice', 'inStock', 'sort'];
-      for (const [key, value] of Object.entries(allQueryParams)) {
-        if (!systemKeys.includes(key)) {
-          filters[key] = value;
-        }
+    const filters: Record<string, unknown> = {};
+    const systemKeys = [
+      'q',
+      'catalog',
+      'category',
+      'categoryId',
+      'lang',
+      'minPrice',
+      'maxPrice',
+      'inStock',
+      'sort',
+    ];
+
+    for (const [key, value] of Object.entries(allQueryParams || {})) {
+      if (!systemKeys.includes(key)) {
+        filters[key] = value;
       }
     }
 
     return await this.productsService.searchProducts({
       query,
+      catalogSlug,
+      categorySlug,
       categoryId,
       filters,
       userId,

@@ -10,6 +10,8 @@ import {
 import { CategoriesEntity } from '../categories/categories.entity';
 import { CatalogsEntity } from '../catalogs/catalogs.entity';
 import { ReviewsEntity } from '../reviews/reviews.entity';
+import { ProductAttributeValueEntity } from '../attributes/product-attribute-value.entity';
+import type { ProductCharacteristicGroup, ProductFilters } from '../attributes/attributes.service';
 
 @Entity('products')
 export class ProductsEntity {
@@ -41,17 +43,14 @@ export class ProductsEntity {
   images!: string[];
 
   @Column({ type: 'jsonb', default: [] })
-  characteristics!: any[];
-  // Зберігає масив груп: [{ group: {ua, en}, items: [{name: {ua, en}, value: {ua, en}}] }]
+  characteristics!: ProductCharacteristicGroup[];
 
-  @Column({ type: 'jsonb', nullable: true })
-  filters?: Record<string, string | string[]>;
-  // Плоский об'єкт для швидкого пошуку: { "diagonal": "6.3", "ram": "256", "brand": "apple" }
+  @Column({ type: 'jsonb', default: {} })
+  filters!: ProductFilters;
 
   @Column({ default: true })
   isActive!: boolean;
 
-  // Зв'язки
   @ManyToOne(() => CatalogsEntity, { onDelete: 'CASCADE', nullable: false })
   catalog!: CatalogsEntity;
 
@@ -60,6 +59,9 @@ export class ProductsEntity {
 
   @OneToMany(() => ReviewsEntity, (review) => review.product)
   reviews!: ReviewsEntity[];
+
+  @OneToMany(() => ProductAttributeValueEntity, (value) => value.product)
+  attributeValues!: ProductAttributeValueEntity[];
 
   @CreateDateColumn()
   createdAt!: Date;

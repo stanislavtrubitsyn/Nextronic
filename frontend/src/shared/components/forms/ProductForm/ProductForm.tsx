@@ -1,5 +1,6 @@
 'use client'
-import React, { useState } from 'react'
+
+import React, { useEffect, useMemo, useState } from 'react'
 import {
 	Box,
 	TextField,
@@ -10,20 +11,60 @@ import {
 	MenuItem,
 	IconButton,
 	Button,
+	CircularProgress,
+	Chip,
 } from '@mui/material'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
-import AddCircleOutlineRoundedIcon from '@mui/icons-material/AddCircleOutlineRounded'
 import { useTranslations } from 'next-intl'
+import Image from 'next/image'
 
 interface LocalizedString {
 	ua: string
 	en: string
 }
 
+export type AttributeType =
+	| 'string'
+	| 'number'
+	| 'boolean'
+	| 'enum'
+	| 'multi_enum'
+
+export interface AttributeOption {
+	label: LocalizedString
+	value: string
+}
+
+export interface CategoryAttributeSchemaItem {
+	id: string
+	code: string
+	name: LocalizedString
+	group: LocalizedString
+	type: AttributeType
+	unit?: string
+	options?: AttributeOption[]
+	required: boolean
+	filterable: boolean
+	comparable: boolean
+	visibleInProduct: boolean
+	sortOrder: number
+}
+
+export interface ProductAttributeValueInput {
+	code: string
+	value: string | number | boolean | string[] | null
+	displayValue?: LocalizedString
+}
+
 export interface CharacteristicItem {
+	code?: string
 	name: LocalizedString
 	value: LocalizedString
+	type?: AttributeType
+	unit?: string
+	filterable?: boolean
+	comparable?: boolean
 }
 
 export interface CharacteristicGroup {
@@ -40,6 +81,7 @@ export interface ProductFormData {
 	images: string[]
 	description: LocalizedString
 	categoryId: string
+	attributeValues: ProductAttributeValueInput[]
 	characteristics: CharacteristicGroup[]
 	isActive: boolean
 }
@@ -47,6 +89,7 @@ export interface ProductFormData {
 interface CategoryOption {
 	id: string
 	name: LocalizedString
+	slug?: string
 }
 
 interface ProductFormProps {
@@ -76,6 +119,49 @@ const inputStyles = {
 	'& .MuiSelect-icon': { color: '#6D28D9' },
 }
 
+const getAttributeValue = (
+	values: ProductAttributeValueInput[],
+	code: string,
+): ProductAttributeValueInput => {
+	return values.find(item => item.code === code) || { code, value: '' }
+}
+
+const toDisplayValue = (
+	attribute: CategoryAttributeSchemaItem,
+	value: string | number | boolean | string[] | null,
+): LocalizedString | undefined => {
+	if (value === null || value === '') return undefined
+
+	if (attribute.type === 'boolean') {
+		const normalized = String(value).toLowerCase()
+		const boolValue =
+			value === true ||
+			normalized === 'true' ||
+			normalized === '1' ||
+			normalized === 'так' ||
+			normalized === 'є'
+		return boolValue ? { ua: 'Так', en: 'Yes' } : { ua: 'Ні', en: 'No' }
+	}
+
+	if (attribute.type === 'multi_enum' && Array.isArray(value)) {
+		const labels = value.map(item => {
+			const option = attribute.options?.find(opt => opt.value === item)
+			return option?.label || { ua: String(item), en: String(item) }
+		})
+
+		return {
+			ua: labels.map(item => item.ua).join(', '),
+			en: labels.map(item => item.en).join(', '),
+		}
+	}
+
+	const option = attribute.options?.find(opt => opt.value === String(value))
+	if (option) return option.label
+
+	const text = `${value}${attribute.unit ? ` ${attribute.unit}` : ''}`
+	return { ua: text, en: text }
+}
+
 export const ProductForm: React.FC<ProductFormProps> = ({
 	formData,
 	setFormData,
@@ -83,6 +169,81 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 }) => {
 	const t = useTranslations('ProductForm')
 	const [newImageUrl, setNewImageUrl] = useState('')
+	const [schema, setSchema] = useState<CategoryAttributeSchemaItem[]>([])
+	const [schemaLoading, setSchemaLoading] = useState(false)
+	const [schemaError, setSchemaError] = useState('')
+
+	useEffect(() => {
+		const fetchSchema = async () => {
+			if (!formData.categoryId) {
+				setSchema([])
+				return
+			}
+
+			setSchemaLoading(true)
+			setSchemaError('')
+
+			try {
+				const apiUrl = process.env.NEXT_PUBLIC_API_URL
+				const response = await fetch(
+					`${apiUrl}/attributes/category/${formData.categoryId}/form-schema`,
+				)
+
+				if (!response.ok) {
+					throw new Error('Schema loading failed')
+				}
+
+				const data = await response.json()
+				const attributes = (data.attributes ||
+					[]) as CategoryAttributeSchemaItem[]
+				setSchema(attributes)
+
+				setFormData(prev => {
+					const currentValues = prev.attributeValues || []
+					const nextValues = attributes.map(attribute => {
+						const current = getAttributeValue(currentValues, attribute.code)
+						return {
+							code: attribute.code,
+							value: current.value ?? '',
+							displayValue: current.displayValue,
+						}
+					})
+
+					return {
+						...prev,
+						attributeValues: nextValues,
+					}
+				})
+			} catch (error) {
+				console.error('Помилка завантаження схеми характеристик:', error)
+				setSchemaError(
+					'Не вдалося завантажити характеристики для цієї категорії',
+				)
+			} finally {
+				setSchemaLoading(false)
+			}
+		}
+
+		fetchSchema()
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [formData.categoryId])
+
+	const groupedSchema = useMemo(() => {
+		const groups = new Map<
+			string,
+			{ group: LocalizedString; items: CategoryAttributeSchemaItem[] }
+		>()
+
+		for (const attribute of schema) {
+			const key = `${attribute.group.ua}|${attribute.group.en}`
+			if (!groups.has(key)) {
+				groups.set(key, { group: attribute.group, items: [] })
+			}
+			groups.get(key)!.items.push(attribute)
+		}
+
+		return Array.from(groups.values())
+	}, [schema])
 
 	const addImage = () => {
 		if (newImageUrl.trim()) {
@@ -101,64 +262,168 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 		}))
 	}
 
-	const addGroup = () => {
-		setFormData(prev => ({
-			...prev,
-			characteristics: [
-				...prev.characteristics,
-				{ group: { ua: '', en: '' }, items: [] },
-			],
-		}))
-	}
-
-	const removeGroup = (gIndex: number) => {
-		setFormData(prev => ({
-			...prev,
-			characteristics: prev.characteristics.filter((_, i) => i !== gIndex),
-		}))
-	}
-
-	const updateGroupTitle = (gIndex: number, lang: 'ua' | 'en', val: string) => {
-		setFormData(prev => {
-			const updated = [...prev.characteristics]
-			updated[gIndex].group[lang] = val
-			return { ...prev, characteristics: updated }
-		})
-	}
-
-	const addItemToGroup = (gIndex: number) => {
-		setFormData(prev => {
-			const updated = [...prev.characteristics]
-			updated[gIndex].items.push({
-				name: { ua: '', en: '' },
-				value: { ua: '', en: '' },
-			})
-			return { ...prev, characteristics: updated }
-		})
-	}
-
-	const removeItemFromGroup = (gIndex: number, iIndex: number) => {
-		setFormData(prev => {
-			const updated = [...prev.characteristics]
-			updated[gIndex].items = updated[gIndex].items.filter(
-				(_, i) => i !== iIndex,
-			)
-			return { ...prev, characteristics: updated }
-		})
-	}
-
-	const updateItem = (
-		gIndex: number,
-		iIndex: number,
-		field: 'name' | 'value',
-		lang: 'ua' | 'en',
-		val: string,
+	const updateAttributeValue = (
+		attribute: CategoryAttributeSchemaItem,
+		value: string | number | boolean | string[] | null,
 	) => {
 		setFormData(prev => {
-			const updated = [...prev.characteristics]
-			updated[gIndex].items[iIndex][field][lang] = val
-			return { ...prev, characteristics: updated }
+			const currentValues = prev.attributeValues || []
+			const exists = currentValues.some(item => item.code === attribute.code)
+			const nextValue = {
+				code: attribute.code,
+				value,
+				displayValue: toDisplayValue(attribute, value),
+			}
+
+			return {
+				...prev,
+				attributeValues: exists
+					? currentValues.map(item =>
+							item.code === attribute.code ? nextValue : item,
+						)
+					: [...currentValues, nextValue],
+			}
 		})
+	}
+
+	const renderAttributeField = (attribute: CategoryAttributeSchemaItem) => {
+		const current = getAttributeValue(
+			formData.attributeValues || [],
+			attribute.code,
+		)
+		const label = `${attribute.name.ua}${attribute.required ? ' *' : ''}${attribute.unit ? ` (${attribute.unit})` : ''}`
+
+		if (attribute.type === 'boolean') {
+			return (
+				<FormControl fullWidth sx={inputStyles} key={attribute.code}>
+					<InputLabel>{label}</InputLabel>
+					<Select
+						value={String(current.value ?? '')}
+						label={label}
+						onChange={e =>
+							updateAttributeValue(attribute, e.target.value === 'true')
+						}
+						IconComponent={KeyboardArrowDownRoundedIcon}
+					>
+						<MenuItem value='true'>Так</MenuItem>
+						<MenuItem value='false'>Ні</MenuItem>
+					</Select>
+				</FormControl>
+			)
+		}
+
+		if (
+			attribute.type === 'enum' &&
+			attribute.options &&
+			attribute.options.length > 0
+		) {
+			return (
+				<FormControl fullWidth sx={inputStyles} key={attribute.code}>
+					<InputLabel>{label}</InputLabel>
+					<Select
+						value={String(current.value ?? '')}
+						label={label}
+						onChange={e => updateAttributeValue(attribute, e.target.value)}
+						IconComponent={KeyboardArrowDownRoundedIcon}
+					>
+						{attribute.options.map(option => (
+							<MenuItem key={option.value} value={option.value}>
+								{option.label.ua}
+							</MenuItem>
+						))}
+					</Select>
+				</FormControl>
+			)
+		}
+
+		if (attribute.type === 'multi_enum') {
+			const selectedValues = Array.isArray(current.value)
+				? current.value.map(String)
+				: String(current.value ?? '')
+						.split(',')
+						.map(item => item.trim())
+						.filter(Boolean)
+
+			if (attribute.options && attribute.options.length > 0) {
+				return (
+					<FormControl fullWidth sx={inputStyles} key={attribute.code}>
+						<InputLabel>{label}</InputLabel>
+						<Select
+							multiple
+							value={selectedValues}
+							label={label}
+							onChange={e => {
+								const value = e.target.value
+								updateAttributeValue(
+									attribute,
+									typeof value === 'string' ? value.split(',') : value,
+								)
+							}}
+							renderValue={selected => (
+								<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+									{(selected as string[]).map(value => {
+										const option = attribute.options?.find(
+											item => item.value === value,
+										)
+										return (
+											<Chip
+												key={value}
+												label={option?.label.ua || value}
+												size='small'
+											/>
+										)
+									})}
+								</Box>
+							)}
+							IconComponent={KeyboardArrowDownRoundedIcon}
+						>
+							{attribute.options.map(option => (
+								<MenuItem key={option.value} value={option.value}>
+									{option.label.ua}
+								</MenuItem>
+							))}
+						</Select>
+					</FormControl>
+				)
+			}
+
+			return (
+				<TextField
+					key={attribute.code}
+					label={label}
+					fullWidth
+					value={selectedValues.join(', ')}
+					onChange={e =>
+						updateAttributeValue(
+							attribute,
+							e.target.value
+								.split(',')
+								.map(item => item.trim())
+								.filter(Boolean),
+						)
+					}
+					helperText='Можна ввести кілька значень через кому'
+					sx={inputStyles}
+				/>
+			)
+		}
+
+		return (
+			<TextField
+				key={attribute.code}
+				label={label}
+				type='text'
+				slotProps={
+					attribute.type === 'number'
+						? { htmlInput: { inputMode: 'decimal' as const } }
+						: undefined
+				}
+				fullWidth
+				value={String(current.value ?? '')}
+				onChange={e => updateAttributeValue(attribute, e.target.value)}
+				sx={inputStyles}
+			/>
+		)
 	}
 
 	return (
@@ -232,7 +497,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 						value={formData.categoryId}
 						label={t('category')}
 						onChange={e =>
-							setFormData({ ...formData, categoryId: e.target.value as string })
+							setFormData({
+								...formData,
+								categoryId: e.target.value as string,
+								attributeValues: [],
+								characteristics: [],
+							})
 						}
 						IconComponent={KeyboardArrowDownRoundedIcon}
 						MenuProps={{
@@ -340,7 +610,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 				/>
 			</Box>
 
-			{/* СЕКЦІЯ ФОТО */}
 			<Box
 				sx={{
 					border: '1px solid var(--color-card-border)',
@@ -389,10 +658,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 								overflow: 'hidden',
 							}}
 						>
-							<img
+							<Image
 								src={img}
 								alt='preview'
-								style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+								fill
+								sizes='70px'
+								unoptimized
+								style={{ objectFit: 'cover' }}
 							/>
 							<IconButton
 								onClick={() => removeImage(index)}
@@ -414,7 +686,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 				</Box>
 			</Box>
 
-			{/* СЕКЦІЯ ХАРАКТЕРИСТИК */}
 			<Box
 				sx={{
 					border: '1px solid var(--color-card-border)',
@@ -436,107 +707,59 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 					>
 						{t('characteristics')}
 					</Typography>
-					<Button
-						startIcon={<AddCircleOutlineRoundedIcon />}
-						onClick={addGroup}
-						sx={{ color: '#6D28D9', textTransform: 'none', fontWeight: 600 }}
-					>
-						{t('addGroup')}
-					</Button>
+					{schema.length > 0 && (
+						<Chip
+							label='Автоматична схема категорії'
+							size='small'
+							sx={{ color: '#6D28D9', borderColor: '#6D28D9' }}
+							variant='outlined'
+						/>
+					)}
 				</Box>
 
-				{formData.characteristics.map((group, gIndex) => (
-					<Box
-						key={gIndex}
-						sx={{
-							mb: 3,
-							p: 2,
-							border: '1px dashed var(--color-card-border)',
-							borderRadius: '8px',
-						}}
-					>
-						<Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-							<TextField
-								label={t('groupNameUa')}
-								size='small'
-								value={group.group.ua}
-								onChange={e => updateGroupTitle(gIndex, 'ua', e.target.value)}
-								sx={inputStyles}
-							/>
-							<TextField
-								label={t('groupNameEn')}
-								size='small'
-								value={group.group.en}
-								onChange={e => updateGroupTitle(gIndex, 'en', e.target.value)}
-								sx={inputStyles}
-							/>
-							<IconButton
-								onClick={() => removeGroup(gIndex)}
-								sx={{ color: '#FF090B' }}
-							>
-								<DeleteRoundedIcon />
-							</IconButton>
-						</Box>
+				{!formData.categoryId && (
+					<Typography sx={{ color: 'var(--theme-icon-dim)' }}>
+						Оберіть категорію — після цього система автоматично покаже потрібні
+						поля характеристик.
+					</Typography>
+				)}
 
-						{group.items.map((item, iIndex) => (
-							<Box
-								key={iIndex}
-								sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}
-							>
-								<TextField
-									label={t('keyUa')}
-									size='small'
-									value={item.name.ua}
-									onChange={e =>
-										updateItem(gIndex, iIndex, 'name', 'ua', e.target.value)
-									}
-									sx={inputStyles}
-								/>
-								<TextField
-									label={t('keyEn')}
-									size='small'
-									value={item.name.en}
-									onChange={e =>
-										updateItem(gIndex, iIndex, 'name', 'en', e.target.value)
-									}
-									sx={inputStyles}
-								/>
-								<TextField
-									label={t('valueUa')}
-									size='small'
-									value={item.value.ua}
-									onChange={e =>
-										updateItem(gIndex, iIndex, 'value', 'ua', e.target.value)
-									}
-									sx={inputStyles}
-								/>
-								<TextField
-									label={t('valueEn')}
-									size='small'
-									value={item.value.en}
-									onChange={e =>
-										updateItem(gIndex, iIndex, 'value', 'en', e.target.value)
-									}
-									sx={inputStyles}
-								/>
-								<IconButton
-									onClick={() => removeItemFromGroup(gIndex, iIndex)}
-									sx={{ color: '#FF090B' }}
-								>
-									<DeleteRoundedIcon fontSize='small' />
-								</IconButton>
-							</Box>
-						))}
-
-						<Button
-							size='small'
-							onClick={() => addItemToGroup(gIndex)}
-							sx={{ mt: 1, color: '#6D28D9', textTransform: 'none' }}
-						>
-							{t('addItem')}
-						</Button>
+				{schemaLoading && (
+					<Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+						<CircularProgress sx={{ color: '#6D28D9' }} />
 					</Box>
-				))}
+				)}
+
+				{schemaError && (
+					<Typography sx={{ color: '#FF090B' }}>{schemaError}</Typography>
+				)}
+
+				{!schemaLoading &&
+					groupedSchema.map(group => (
+						<Box key={`${group.group.ua}-${group.group.en}`} sx={{ mb: 3 }}>
+							<Typography
+								sx={{
+									color: 'var(--theme-text)',
+									fontWeight: 700,
+									mb: 1.5,
+								}}
+							>
+								{group.group.ua}
+							</Typography>
+							<Box
+								sx={{
+									display: 'grid',
+									gridTemplateColumns: {
+										xs: '1fr',
+										md: 'repeat(2, minmax(0, 1fr))',
+									},
+									gap: 2,
+								}}
+							>
+								{group.items.map(attribute => renderAttributeField(attribute))}
+							</Box>
+						</Box>
+					))}
 			</Box>
 		</Box>
 	)

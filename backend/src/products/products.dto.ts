@@ -12,13 +12,25 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/mapped-types';
+import { ProductAttributeInputDto } from '../attributes/attributes.dto';
+import { ProductFilters } from '../attributes/attributes.service';
+import { AttributeType } from '../attributes/attribute-definition.entity';
 
 class LocalizationDto {
-  @IsString() @IsNotEmpty() ua!: string;
-  @IsString() @IsNotEmpty() en!: string;
+  @IsString()
+  @IsNotEmpty()
+  ua!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  en!: string;
 }
 
 class CharacteristicItemDto {
+  @IsString()
+  @IsOptional()
+  code?: string;
+
   @IsObject()
   @ValidateNested()
   @Type(() => LocalizationDto)
@@ -28,6 +40,22 @@ class CharacteristicItemDto {
   @ValidateNested()
   @Type(() => LocalizationDto)
   value!: LocalizationDto;
+
+  @IsOptional()
+  @IsString()
+  type?: AttributeType;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  filterable?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  comparable?: boolean;
 }
 
 class CharacteristicGroupDto {
@@ -75,19 +103,28 @@ export class CreateProductDto {
   @IsString({ each: true })
   images!: string[];
 
+  // Генерується бекендом із attributeValues. Залишено для сумісності зі старими товарами.
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CharacteristicGroupDto)
   characteristics?: CharacteristicGroupDto[];
 
+  // Генерується бекендом із attributeValues. Не треба дублювати вручну на фронтенді.
   @IsOptional()
   @IsObject()
-  filters?: Record<string, string | string[]>;
+  filters?: ProductFilters;
+
+  // Новий правильний формат заповнення товару.
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductAttributeInputDto)
+  attributeValues?: ProductAttributeInputDto[];
 
   @IsOptional()
-  @IsNotEmpty()
-  catalogId!: string;
+  @IsUUID()
+  catalogId?: string;
 
   @IsUUID()
   @IsNotEmpty()

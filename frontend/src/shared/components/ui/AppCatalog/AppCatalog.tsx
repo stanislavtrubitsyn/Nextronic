@@ -13,25 +13,39 @@ import { DynamicMuiIcon } from '../DynamicMuiIcon/DynamicMuiIcon'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/routing'
 
+interface LocalizedString {
+	ua: string
+	en: string
+}
+
 interface MenuLink {
-	label: string
-	filterKey?: string
-	filterValue?: string
+	label: LocalizedString
+	filters: Record<string, string>
+}
+
+interface MenuGroup {
+	id: string
+	label: LocalizedString
+	categorySlug: string
+	categoryId: string
+	filters: Record<string, string>
+	links: MenuLink[]
 }
 
 interface Category {
 	id: string
-	name: { ua: string; en: string }
+	name: LocalizedString
 	slug: string
 	menuLinks?: MenuLink[]
 }
 
 interface Catalog {
 	id: string
-	name: { ua: string; en: string }
+	name: LocalizedString
 	slug: string
 	icon?: string
 	categories: Category[]
+	menuGroups?: MenuGroup[]
 }
 
 const getLocalizedName = (
@@ -81,32 +95,19 @@ export const AppCatalog = () => {
 		setAnchorEl(null)
 	}
 
-	const navigateToCatalog = (catalogSlug: string) => {
-		handleClose()
-		router.push(`/search?catalog=${encodeURIComponent(catalogSlug)}`)
-	}
-
-	const navigateToCategory = (catalogSlug: string, categorySlug: string) => {
-		handleClose()
-		router.push(
-			`/search?catalog=${encodeURIComponent(catalogSlug)}&category=${encodeURIComponent(categorySlug)}`,
-		)
-	}
-
-	const navigateToMenuLink = (
+	const navigateWithFilters = (
 		catalogSlug: string,
-		categorySlug: string,
-		link: MenuLink,
+		categorySlug?: string,
+		filters: Record<string, string> = {},
 	) => {
 		handleClose()
 
 		const params = new URLSearchParams()
 		params.set('catalog', catalogSlug)
-		params.set('category', categorySlug)
-		params.set('q', link.label)
+		if (categorySlug) params.set('category', categorySlug)
 
-		if (link.filterKey && link.filterValue) {
-			params.set(link.filterKey, link.filterValue)
+		for (const [key, value] of Object.entries(filters)) {
+			if (value) params.set(key, value)
 		}
 
 		router.push(`/search?${params.toString()}`)
@@ -114,6 +115,16 @@ export const AppCatalog = () => {
 
 	const open = Boolean(anchorEl)
 	const id = open ? 'catalog-popover' : undefined
+	const groupsToRender = activeCatalog?.menuGroups?.length
+		? activeCatalog.menuGroups
+		: activeCatalog?.categories.map(category => ({
+				id: category.id,
+				label: category.name,
+				categorySlug: category.slug,
+				categoryId: category.id,
+				filters: {},
+				links: category.menuLinks || [],
+			})) || []
 
 	return (
 		<>
@@ -185,7 +196,6 @@ export const AppCatalog = () => {
 					</Box>
 				) : (
 					<>
-						{/* Ліва колонка: список каталогів */}
 						<Box
 							sx={{
 								width: '285px',
@@ -202,7 +212,7 @@ export const AppCatalog = () => {
 									<Box
 										key={catalog.id}
 										onMouseEnter={() => setActiveCatalog(catalog)}
-										onClick={() => navigateToCatalog(catalog.slug)}
+										onClick={() => navigateWithFilters(catalog.slug)}
 										sx={{
 											px: '8px',
 											py: '5px',
@@ -260,7 +270,6 @@ export const AppCatalog = () => {
 							})}
 						</Box>
 
-						{/* Права частина: категорії активного каталогу у 3 колонки */}
 						<Box
 							sx={{
 								width: '690px',
@@ -284,9 +293,9 @@ export const AppCatalog = () => {
 											overflow: 'hidden',
 										}}
 									>
-										{activeCatalog.categories.map(category => (
+										{groupsToRender.map(group => (
 											<Box
-												key={category.id}
+												key={group.id}
 												sx={{
 													minWidth: 0,
 													display: 'flex',
@@ -296,9 +305,10 @@ export const AppCatalog = () => {
 											>
 												<Typography
 													onClick={() =>
-														navigateToCategory(
+														navigateWithFilters(
 															activeCatalog.slug,
-															category.slug,
+															group.categorySlug,
+															group.filters,
 														)
 													}
 													sx={{
@@ -317,7 +327,7 @@ export const AppCatalog = () => {
 														'&:hover': { textDecorationColor: '#6D28D9' },
 													}}
 												>
-													{getLocalizedName(category.name, locale)}
+													{getLocalizedName(group.label, locale)}
 												</Typography>
 
 												<Box
@@ -327,14 +337,14 @@ export const AppCatalog = () => {
 														gap: '3px',
 													}}
 												>
-													{category.menuLinks?.slice(0, 5).map(link => (
+													{group.links?.slice(0, 5).map(link => (
 														<Typography
-															key={`${category.id}-${link.filterKey}-${link.filterValue}-${link.label}`}
+															key={`${group.id}-${JSON.stringify(link.filters)}`}
 															onClick={() =>
-																navigateToMenuLink(
+																navigateWithFilters(
 																	activeCatalog.slug,
-																	category.slug,
-																	link,
+																	group.categorySlug,
+																	link.filters,
 																)
 															}
 															sx={{
@@ -351,16 +361,17 @@ export const AppCatalog = () => {
 																'&:hover': { color: '#6D28D9' },
 															}}
 														>
-															{link.label}
+															{getLocalizedName(link.label, locale)}
 														</Typography>
 													))}
 												</Box>
 
 												<Typography
 													onClick={() =>
-														navigateToCategory(
+														navigateWithFilters(
 															activeCatalog.slug,
-															category.slug,
+															group.categorySlug,
+															group.filters,
 														)
 													}
 													sx={{
@@ -381,7 +392,7 @@ export const AppCatalog = () => {
 									</Box>
 
 									<Typography
-										onClick={() => navigateToCatalog(activeCatalog.slug)}
+										onClick={() => navigateWithFilters(activeCatalog.slug)}
 										sx={{
 											mt: 'auto',
 											pt: '12px',

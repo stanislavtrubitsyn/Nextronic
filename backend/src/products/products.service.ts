@@ -9,6 +9,10 @@ import { RecommendationsService } from '../recommendations/recommendations.servi
 import { ActivityAction } from '../recommendations/user-activity.entity';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
+import {
+  AttributesService,
+  PreparedProductAttributesResult,
+} from '../attributes/attributes.service';
 
 @Injectable()
 export class ProductsService {
@@ -19,6 +23,7 @@ export class ProductsService {
     private readonly categoryRepo: Repository<CategoriesEntity>,
     private readonly recommendationsService: RecommendationsService,
     private readonly auditService: AuditService,
+    private readonly attributesService: AttributesService,
   ) {}
 
   private generateSKU(): string {
@@ -40,31 +45,56 @@ export class ProductsService {
       where: { id: dto.categoryId },
       relations: ['catalog'],
     });
-
     if (!category) throw new NotFoundException(t.categoryNotFound);
 
-    const finalCatalogId = dto.catalogId || (category.catalog ? category.catalog.id : null);
+    const finalCatalogId = dto.catalogId || category.catalog?.id;
     if (!finalCatalogId) throw new BadRequestException(t.catalogError);
 
     let sku = this.generateSKU();
-    let isSkuUnique = false;
-    while (!isSkuUnique) {
-      const existingSku = await this.productRepo.findOne({ where: { sku } });
-      if (!existingSku) {
-        isSkuUnique = true;
-      } else {
-        sku = this.generateSKU();
-      }
+    while (await this.productRepo.findOne({ where: { sku } })) {
+      sku = this.generateSKU();
     }
 
+    const preparedAttributes = await this.attributesService.prepareProductAttributes(
+      category.id,
+      dto.attributeValues || [],
+    );
+
     const product = this.productRepo.create({
-      ...dto,
+      name: dto.name,
+      slug: dto.slug,
+      description: dto.description,
+      price: dto.price,
+      oldPrice: dto.oldPrice,
+      stock: dto.stock,
+      images: dto.images || [],
+      isActive: dto.isActive ?? true,
+      characteristics:
+        dto.attributeValues !== undefined
+          ? preparedAttributes.characteristics
+          : dto.characteristics || [],
+      filters:
+        dto.attributeValues !== undefined
+          ? preparedAttributes.filters
+          : {
+              category: category.slug,
+              product_type: category.slug,
+              ...(dto.filters || {}),
+            },
       sku,
       catalog: { id: finalCatalogId },
-      category: { id: dto.categoryId },
+      category: { id: category.id },
     });
 
     const savedProduct = await this.productRepo.save(product);
+
+    if (dto.attributeValues !== undefined) {
+      await this.attributesService.replaceProductAttributeValues(
+        savedProduct,
+        category,
+        preparedAttributes.values,
+      );
+    }
 
     await this.auditService.logAction(
       adminId,
@@ -75,13 +105,13 @@ export class ProductsService {
       savedProduct,
     );
 
-    return savedProduct;
+    return await this.findOne(savedProduct.id);
   }
 
   async findOne(id: string, lang: ProductLangType = 'ua'): Promise<ProductsEntity> {
     const product = await this.productRepo.findOne({
       where: { id },
-      relations: ['catalog', 'category'],
+      relations: ['catalog', 'category', 'attributeValues', 'attributeValues.attribute'],
     });
     if (!product) throw new NotFoundException(PRODUCTS_I18N[lang].productNotFound);
     return product;
@@ -101,24 +131,61 @@ export class ProductsService {
       if (conflict) throw new BadRequestException(t.slugExists);
     }
 
-    const { catalogId, categoryId, ...rest } = dto;
+    const targetCategoryId = dto.categoryId || oldProduct.category.id;
+    const category = await this.categoryRepo.findOne({
+      where: { id: targetCategoryId },
+      relations: ['catalog'],
+    });
+    if (!category) throw new NotFoundException(t.categoryNotFound);
 
-    let finalCatalogId = catalogId;
-    if (categoryId && !catalogId) {
-      const category = await this.categoryRepo.findOne({
-        where: { id: categoryId },
-        relations: ['catalog'],
-      });
-      if (category && category.catalog) finalCatalogId = category.catalog.id;
+    const finalCatalogId = dto.catalogId || category.catalog?.id || oldProduct.catalog.id;
+
+    let generatedCharacteristics = oldProduct.characteristics;
+    let generatedFilters = oldProduct.filters;
+    let preparedValues: PreparedProductAttributesResult | null = null;
+
+    if (dto.attributeValues !== undefined) {
+      preparedValues = await this.attributesService.prepareProductAttributes(
+        category.id,
+        dto.attributeValues,
+      );
+      generatedCharacteristics = preparedValues.characteristics;
+      generatedFilters = preparedValues.filters;
+    } else if (dto.characteristics !== undefined || dto.filters !== undefined) {
+      // Backward compatibility for старі форми. Для нової форми це не використовується.
+      generatedCharacteristics = (dto.characteristics as any) || oldProduct.characteristics || [];
+      generatedFilters = {
+        category: category.slug,
+        product_type: category.slug,
+        ...(oldProduct.filters || {}),
+        ...(dto.filters || {}),
+      };
     }
 
     const updated = this.productRepo.merge(oldProduct, {
-      ...rest,
-      catalog: finalCatalogId ? { id: finalCatalogId } : oldProduct.catalog,
-      category: categoryId ? { id: categoryId } : oldProduct.category,
+      name: dto.name ?? oldProduct.name,
+      slug: dto.slug ?? oldProduct.slug,
+      description: dto.description ?? oldProduct.description,
+      price: dto.price ?? oldProduct.price,
+      oldPrice: dto.oldPrice !== undefined ? dto.oldPrice : oldProduct.oldPrice,
+      stock: dto.stock ?? oldProduct.stock,
+      images: dto.images ?? oldProduct.images,
+      isActive: dto.isActive !== undefined ? dto.isActive : oldProduct.isActive,
+      characteristics: generatedCharacteristics,
+      filters: generatedFilters,
+      catalog: { id: finalCatalogId },
+      category: { id: category.id },
     });
 
     const savedProduct = await this.productRepo.save(updated);
+
+    if (preparedValues) {
+      await this.attributesService.replaceProductAttributeValues(
+        savedProduct,
+        category,
+        preparedValues.values,
+      );
+    }
 
     await this.auditService.logAction(
       adminId,
@@ -129,10 +196,9 @@ export class ProductsService {
       savedProduct,
     );
 
-    return savedProduct;
+    return await this.findOne(savedProduct.id);
   }
 
-  // ДОДАНО: Метод перемикання статусу
   async toggleStatus(
     id: string,
     adminId: string,
@@ -204,25 +270,48 @@ export class ProductsService {
 
   async findAll(): Promise<ProductsEntity[]> {
     return await this.productRepo.find({
-      relations: ['catalog', 'category'],
+      relations: ['catalog', 'category', 'attributeValues', 'attributeValues.attribute'],
       order: { createdAt: 'DESC' },
     });
   }
 
   async searchProducts(params: {
     query?: string;
+    catalogSlug?: string;
+    categorySlug?: string;
     categoryId?: string;
-    filters?: Record<string, any>;
+    filters?: Record<string, unknown>;
     userId?: string;
     minPrice?: number;
     maxPrice?: number;
     inStock?: boolean;
     sort?: string;
   }) {
-    const { query, categoryId, filters, userId, minPrice, maxPrice, inStock, sort } = params;
+    const {
+      query,
+      catalogSlug,
+      categorySlug,
+      categoryId,
+      filters,
+      userId,
+      minPrice,
+      maxPrice,
+      inStock,
+      sort,
+    } = params;
 
-    if (userId && categoryId) {
-      await this.recommendationsService.logActivity(userId, categoryId, ActivityAction.SEARCH);
+    let activityCategoryId = categoryId;
+    if (!activityCategoryId && categorySlug) {
+      const category = await this.categoryRepo.findOne({ where: { slug: categorySlug } });
+      activityCategoryId = category?.id;
+    }
+
+    if (userId && activityCategoryId) {
+      await this.recommendationsService.logActivity(
+        userId,
+        activityCategoryId,
+        ActivityAction.SEARCH,
+      );
     }
 
     const qb = this.productRepo
@@ -231,20 +320,28 @@ export class ProductsService {
       .leftJoinAndSelect('product.catalog', 'catalog')
       .where('product.isActive = :isActive', { isActive: true });
 
-    if (query) {
+    if (query?.trim()) {
       qb.andWhere("(product.name->>'ua' ILIKE :query OR product.name->>'en' ILIKE :query)", {
-        query: `%${query}%`,
+        query: `%${query.trim()}%`,
       });
+    }
+
+    if (catalogSlug) {
+      qb.andWhere('catalog.slug = :catalogSlug', { catalogSlug });
+    }
+
+    if (categorySlug) {
+      qb.andWhere('category.slug = :categorySlug', { categorySlug });
     }
 
     if (categoryId) {
       qb.andWhere('category.id = :categoryId', { categoryId });
     }
 
-    if (minPrice !== undefined) {
+    if (minPrice !== undefined && !Number.isNaN(minPrice)) {
       qb.andWhere('product.price >= :minPrice', { minPrice });
     }
-    if (maxPrice !== undefined) {
+    if (maxPrice !== undefined && !Number.isNaN(maxPrice)) {
       qb.andWhere('product.price <= :maxPrice', { maxPrice });
     }
 
@@ -252,20 +349,35 @@ export class ProductsService {
       qb.andWhere('product.stock > 0');
     }
 
-    if (filters && Object.keys(filters).length > 0) {
-      for (const [key, value] of Object.entries(filters)) {
-        if (Array.isArray(value)) {
-          qb.andWhere(`product.filters ->> :key${key} IN (:...values${key})`, {
-            [`key${key}`]: key,
-            [`values${key}`]: value,
-          });
-        } else {
-          qb.andWhere(`product.filters ->> :key${key} = :value${key}`, {
-            [`key${key}`]: key,
-            [`value${key}`]: value,
-          });
-        }
-      }
+    const allowedFilterCodes = await this.attributesService.getFilterableCodes(
+      categoryId,
+      categorySlug,
+    );
+
+    let filterIndex = 0;
+    for (const [rawKey, rawValue] of Object.entries(filters || {})) {
+      const key = this.normalizeFilterKey(rawKey);
+      if (!key || !allowedFilterCodes.has(key)) continue;
+
+      const values = Array.isArray(rawValue) ? rawValue : String(rawValue).split(',');
+      const normalizedValues = values
+        .map((value) => this.attributesService.normalizeFilterValue(value))
+        .filter(Boolean);
+
+      if (normalizedValues.length === 0) continue;
+
+      const paramName = `filter_${filterIndex}`;
+      const clauses = normalizedValues.map(
+        (_value, valueIndex) =>
+          `CONCAT(',', COALESCE(product.filters ->> '${key}', ''), ',') ILIKE :${paramName}_${valueIndex}`,
+      );
+      const params = normalizedValues.reduce<Record<string, string>>((acc, value, valueIndex) => {
+        acc[`${paramName}_${valueIndex}`] = `%,${value},%`;
+        return acc;
+      }, {});
+
+      qb.andWhere(`(${clauses.join(' OR ')})`, params);
+      filterIndex += 1;
     }
 
     switch (sort) {
@@ -275,11 +387,25 @@ export class ProductsService {
       case 'price_desc':
         qb.orderBy('product.price', 'DESC');
         break;
+      case 'name_asc':
+        qb.orderBy("product.name->>'ua'", 'ASC');
+        break;
+      case 'name_desc':
+        qb.orderBy("product.name->>'ua'", 'DESC');
+        break;
       default:
         qb.orderBy('product.createdAt', 'DESC');
         break;
     }
 
     return await qb.getMany();
+  }
+
+  private normalizeFilterKey(key: string) {
+    return key
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, '_')
+      .replace(/^_+|_+$/g, '');
   }
 }

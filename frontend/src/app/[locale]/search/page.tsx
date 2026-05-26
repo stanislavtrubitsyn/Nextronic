@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useState, Suspense } from 'react'
+
+import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
 	Box,
@@ -12,43 +13,69 @@ import {
 	CircularProgress,
 	Container,
 } from '@mui/material'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 interface Product {
 	id: string | number
-	title: string
-	name?: string // На випадок, якщо у базі поле називається name
+	title?: string
+	name?: string | { ua: string; en: string }
 	price: number
 	oldPrice?: number
 	images?: string[]
 	image?: string
 }
 
+const formatParamLabel = (value: string) =>
+	value
+		.replace(/[_-]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.split(' ')
+		.map(word => (word ? word[0].toUpperCase() + word.slice(1) : word))
+		.join(' ')
+
 function SearchResultsContent() {
 	const searchParams = useSearchParams()
 	const query = searchParams.get('q') || ''
+	const requestQueryString = searchParams.toString()
 	const t = useTranslations('SearchPage')
+	const locale = useLocale() as 'ua' | 'en'
 
 	const [products, setProducts] = useState<Product[]>([])
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState(false)
 
+	const title = useMemo(() => {
+		if (query.trim()) return `${t('resultsFor')} «${query}»`
+
+		const category = searchParams.get('category')
+		const brand = searchParams.get('brand')
+		const model = searchParams.get('model')
+		const catalog = searchParams.get('catalog')
+
+		const parts = [category, brand, model]
+			.filter(Boolean)
+			.map(item => formatParamLabel(item!))
+		if (parts.length > 0) return parts.join(' / ')
+		if (catalog) return formatParamLabel(catalog)
+
+		return t('resultsFor')
+	}, [query, searchParams, t])
+
 	useEffect(() => {
 		const fetchSearchResults = async () => {
-			if (!query.trim()) return
-
 			setLoading(true)
 			setError(false)
+
 			try {
 				const apiUrl = process.env.NEXT_PUBLIC_API_URL
 				const response = await fetch(
-					`${apiUrl}/products/search?q=${encodeURIComponent(query)}`,
+					`${apiUrl}/products/search?${requestQueryString}`,
 				)
 
 				if (response.ok) {
 					const data = await response.json()
 
-					// Обробка різних форматів відповіді бекенду (масив або об'єкт з масивом)
 					if (Array.isArray(data)) {
 						setProducts(data)
 					} else if (data.products && Array.isArray(data.products)) {
@@ -70,11 +97,10 @@ function SearchResultsContent() {
 		}
 
 		fetchSearchResults()
-	}, [query])
+	}, [requestQueryString])
 
 	return (
 		<Container maxWidth='lg' sx={{ py: 4 }}>
-			{/* Заголовок запиту */}
 			<Typography
 				variant='h4'
 				component='h1'
@@ -86,17 +112,15 @@ function SearchResultsContent() {
 					fontSize: { xs: '20px', sm: '24px', md: '32px' },
 				}}
 			>
-				{t('resultsFor')} «{query}»
+				{title}
 			</Typography>
 
-			{/* Спінер завантаження */}
 			{loading && (
 				<Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
 					<CircularProgress sx={{ color: '#6D28D9' }} />
 				</Box>
 			)}
 
-			{/* Помилка */}
 			{!loading && error && (
 				<Typography
 					sx={{
@@ -109,7 +133,6 @@ function SearchResultsContent() {
 				</Typography>
 			)}
 
-			{/* Порожній результат */}
 			{!loading && !error && products.length === 0 && (
 				<Box sx={{ py: 6, textAlign: 'center' }}>
 					<Typography
@@ -124,11 +147,15 @@ function SearchResultsContent() {
 				</Box>
 			)}
 
-			{/* Сітка з картками товарів */}
 			{!loading && !error && products.length > 0 && (
 				<Grid container spacing={3}>
 					{products.map(product => {
-						const productTitle = product.title || product.name || ''
+						const productTitle =
+							product.title ||
+							(typeof product.name === 'object'
+								? product.name[locale] || product.name.ua
+								: product.name) ||
+							''
 						const productImage =
 							product.image ||
 							(product.images && product.images[0]) ||
@@ -148,7 +175,6 @@ function SearchResultsContent() {
 										overflow: 'hidden',
 									}}
 								>
-									{/* Зображення товару */}
 									<Box
 										sx={{
 											position: 'relative',
@@ -175,7 +201,6 @@ function SearchResultsContent() {
 										/>
 									</Box>
 
-									{/* Контент картки */}
 									<CardContent
 										sx={{
 											flexGrow: 1,
@@ -206,7 +231,6 @@ function SearchResultsContent() {
 											</Typography>
 										</Box>
 
-										{/* Блок ціни та кнопки */}
 										<Box sx={{ mt: 2 }}>
 											<Box
 												sx={{
@@ -271,7 +295,6 @@ function SearchResultsContent() {
 	)
 }
 
-// Головний експорт сторінки обов'язково обгортає вміст у Suspense
 export default function SearchPage() {
 	return (
 		<Suspense

@@ -37,7 +37,23 @@ import {
 	ProductForm,
 	ProductFormData,
 	CharacteristicGroup,
+	ProductAttributeValueInput,
 } from '@/shared/components/forms/ProductForm/ProductForm'
+
+interface ProductAttributeValueResponse {
+	code: string
+	valueString?: string | null
+	valueNumber?: number | null
+	valueBoolean?: boolean | null
+	valueJson?: unknown
+	displayValue?: { ua: string; en: string }
+}
+
+interface CategoryOption {
+	id: string
+	name: { ua: string; en: string }
+	slug?: string
+}
 
 interface Product {
 	id: string
@@ -53,6 +69,26 @@ interface Product {
 	createdAt: string
 	updatedAt: string
 	characteristics: CharacteristicGroup[]
+	attributeValues?: ProductAttributeValueResponse[]
+}
+
+const mapProductAttributeValues = (
+	values?: ProductAttributeValueResponse[],
+): ProductAttributeValueInput[] => {
+	return (values || []).map(item => ({
+		code: item.code,
+		value:
+			item.valueNumber !== null && item.valueNumber !== undefined
+				? Number(item.valueNumber)
+				: item.valueBoolean !== null && item.valueBoolean !== undefined
+					? item.valueBoolean
+					: item.valueString !== null && item.valueString !== undefined
+						? item.valueString
+						: Array.isArray(item.valueJson)
+							? (item.valueJson as string[])
+							: '',
+		displayValue: item.displayValue,
+	}))
 }
 
 export default function AdminProductsPage() {
@@ -62,7 +98,7 @@ export default function AdminProductsPage() {
 	const locale = useLocale() as 'ua' | 'en'
 
 	const [products, setProducts] = useState<Product[]>([])
-	const [categories, setCategories] = useState([])
+	const [categories, setCategories] = useState<CategoryOption[]>([])
 	const [loading, setLoading] = useState(true)
 	const [search, setSearch] = useState('')
 
@@ -84,6 +120,7 @@ export default function AdminProductsPage() {
 		images: [],
 		description: { ua: '', en: '' },
 		categoryId: '',
+		attributeValues: [],
 		characteristics: [],
 		isActive: true,
 	})
@@ -374,6 +411,7 @@ export default function AdminProductsPage() {
 								images: [],
 								description: { ua: '', en: '' },
 								categoryId: '',
+								attributeValues: [],
 								characteristics: [],
 								isActive: true,
 							})
@@ -716,6 +754,9 @@ export default function AdminProductsPage() {
 												images: prod.images || [],
 												description: prod.description || { ua: '', en: '' },
 												categoryId: prod.category?.id || '',
+												attributeValues: mapProductAttributeValues(
+													prod.attributeValues,
+												),
 												characteristics: prod.characteristics || [],
 												isActive: prod.isActive,
 											})
