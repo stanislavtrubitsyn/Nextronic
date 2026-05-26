@@ -683,5 +683,20 @@
 		"images": "Product images",
 		"addImage": "Add image URL",
 		"imageUrl": "Image URL"
+	},
+
+	"ProductCard": {
+		"inFavorite": "In favorites",
+		"addFavorite": "Add to favorites",
+		"inCompare": "In comparison",
+		"addCompare": "Add to compare",
+		"inStock": "In stock",
+		"outOfStock": "Out of stock",
+		"reviews": "reviews",
+		"personalForYou": "Personal for you",
+		"bonusAccount": "to bonus account",
+		"buy": "Buy",
+		"inCart": "In cart",
+		"productEnded": "Product is out of stock"
 	}
 }

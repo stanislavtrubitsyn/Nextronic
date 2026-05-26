@@ -685,5 +685,20 @@
 		"images": "Фотографії товару",
 		"addImage": "Додати URL фотографії",
 		"imageUrl": "URL фото"
+	},
+
+	"ProductCard": {
+		"inFavorite": "В обраному",
+		"addFavorite": "Додати в обране",
+		"inCompare": "В порівнянні",
+		"addCompare": "Додати у порівняння",
+		"inStock": "Є в наявності",
+		"outOfStock": "Немає в наявності",
+		"reviews": "відгуків",
+		"personalForYou": "Персонально для вас",
+		"bonusAccount": "на бонусний рахунок",
+		"buy": "Купити",
+		"inCart": "У кошику",
+		"productEnded": "Товар закінчився"
 	}
 }
