@@ -1,5 +1,6 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Box, Typography, Popover } from '@mui/material'
 import { LanguageOutlined } from '@mui/icons-material'
 import { useLocale, useTranslations } from 'next-intl'
@@ -11,6 +12,7 @@ export const LanguageSwitcher = () => {
 	const locale = useLocale()
 	const router = useRouter()
 	const pathname = usePathname()
+	const searchParams = useSearchParams()
 
 	const [isPending, startTransition] = useTransition()
 	const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null)
@@ -24,8 +26,16 @@ export const LanguageSwitcher = () => {
 	}
 
 	const handleSwitch = (newLocale: string) => {
+		if (newLocale === locale) {
+			handleClose()
+			return
+		}
+
+		const queryString = searchParams.toString()
+		const href = queryString ? `${pathname}?${queryString}` : pathname
+
 		startTransition(() => {
-			router.replace(pathname, { locale: newLocale })
+			router.replace(href, { locale: newLocale })
 		})
 		handleClose()
 	}
