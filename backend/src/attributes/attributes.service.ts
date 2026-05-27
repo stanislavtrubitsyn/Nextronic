@@ -15,6 +15,7 @@ import { AttributeDefinitionInputDto, ProductAttributeInputDto } from './attribu
 import {
   AttributeTemplate,
   getDefaultTemplatesForCategory,
+  shouldSyncExactDefaultTemplateForCategory,
 } from './default-category-attribute-templates';
 
 export type ProductFilterValue = string | string[] | number | boolean;
@@ -300,9 +301,18 @@ export class AttributesService {
   }
 
   normalizeFilterValue(value: unknown): string {
-    if (Array.isArray(value)) return value.map((item) => this.normalizeFilterValue(item)).join(',');
-    if (typeof value === 'boolean') return value ? 'true' : 'false';
-    if (typeof value === 'number') return String(value);
+    if (Array.isArray(value)) {
+      return value.map((item) => this.normalizeFilterValue(item)).join(',');
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+
+    if (typeof value === 'number') {
+      return String(value);
+    }
+
     return this.toSlug(this.valueToString(value));
   }
 
@@ -314,8 +324,23 @@ export class AttributesService {
       where: { category: { id: category.id } },
       relations: ['attribute'],
     });
+
+    const templateCodes = new Set(templates.map((template) => this.normalizeCode(template.code)));
+
+    if (shouldSyncExactDefaultTemplateForCategory(category.slug)) {
+      const staleCategoryAttributeIds = existingCategoryAttributes
+        .filter((item) => !templateCodes.has(item.attribute.code))
+        .map((item) => item.id);
+
+      if (staleCategoryAttributeIds.length > 0) {
+        await this.categoryAttributeRepo.delete({ id: In(staleCategoryAttributeIds) });
+      }
+    }
+
     const existingByCode = new Map(
-      existingCategoryAttributes.map((item) => [item.attribute.code, item]),
+      existingCategoryAttributes
+        .filter((item) => templateCodes.has(item.attribute.code))
+        .map((item) => [item.attribute.code, item]),
     );
 
     const categoryAttributesToSave: CategoryAttributeEntity[] = [];

@@ -59,6 +59,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
   const camera = group('Камера', 'Camera');
   const interfaces = group("Інтерфейси/роз'єми", 'Interfaces/Ports');
   const battery = group('Акумулятор', 'Battery');
+  const features = group('Додаткові можливості', 'Additional features');
   const body = group('Корпус', 'Body');
 
   return [
@@ -106,6 +107,24 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       comparable: true,
       sortOrder: 40,
     },
+    {
+      code: 'release_year',
+      name: loc('Рік випуску', 'Release year'),
+      group: main,
+      type: AttributeType.NUMBER,
+      filterable: true,
+      comparable: true,
+      sortOrder: 50,
+    },
+    {
+      code: 'product_line',
+      name: loc('Лінійка', 'Product line'),
+      group: main,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 60,
+    },
 
     {
       code: 'screen_size',
@@ -135,9 +154,14 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
         option('OLED', 'OLED', 'oled'),
         option('AMOLED', 'AMOLED', 'amoled'),
         option('Dynamic AMOLED', 'Dynamic AMOLED', 'dynamic-amoled'),
+        option('Dynamic AMOLED 2X', 'Dynamic AMOLED 2X', 'dynamic-amoled-2x'),
+        option('Super AMOLED', 'Super AMOLED', 'super-amoled'),
         option('Super Retina XDR', 'Super Retina XDR', 'super-retina-xdr'),
+        option('LTPO OLED', 'LTPO OLED', 'ltpo-oled'),
         option('IPS', 'IPS', 'ips'),
         option('LCD', 'LCD', 'lcd'),
+        option('PLS', 'PLS', 'pls'),
+        option('TFT', 'TFT', 'tft'),
       ],
       filterable: true,
       comparable: true,
@@ -154,13 +178,51 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       sortOrder: 130,
     },
     {
+      code: 'touch_sampling_rate',
+      name: loc('Частота дискретизації сенсора', 'Touch sampling rate'),
+      group: display,
+      type: AttributeType.NUMBER,
+      unit: 'Гц',
+      filterable: false,
+      comparable: true,
+      sortOrder: 140,
+    },
+    {
+      code: 'brightness',
+      name: loc('Пікова яскравість', 'Peak brightness'),
+      group: display,
+      type: AttributeType.STRING,
+      filterable: false,
+      comparable: true,
+      sortOrder: 150,
+    },
+    {
+      code: 'hdr_support',
+      name: loc('Підтримка HDR', 'HDR support'),
+      group: display,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 160,
+    },
+    {
       code: 'protective_glass',
       name: loc('Технологія захисного скла', 'Protective glass technology'),
       group: display,
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 140,
+      sortOrder: 170,
+    },
+    {
+      code: 'always_on_display',
+      name: loc('Always-On Display', 'Always-On Display'),
+      group: display,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 180,
     },
 
     {
@@ -187,6 +249,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
         option('1 SIM', '1 SIM', '1-sim'),
         option('2 SIM', '2 SIM', '2-sim'),
         option('1 SIM + e-SIM', '1 SIM + eSIM', '1-sim-e-sim'),
+        option('2 SIM + e-SIM', '2 SIM + eSIM', '2-sim-e-sim'),
         option('2 e-SIM', '2 eSIM', '2-e-sim'),
       ],
       filterable: true,
@@ -217,6 +280,31 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       comparable: true,
       sortOrder: 230,
     },
+    {
+      code: 'volte_support',
+      name: loc('Підтримка VoLTE', 'VoLTE support'),
+      group: connectivity,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 240,
+    },
+    {
+      code: 'network_features',
+      name: loc('Мережеві технології', 'Network features'),
+      group: connectivity,
+      type: AttributeType.MULTI_ENUM,
+      options: [
+        option('VoLTE', 'VoLTE', 'volte'),
+        option('VoWiFi', 'VoWiFi', 'vowifi'),
+        option('LTE-A', 'LTE-A', 'lte-a'),
+        option('5G mmWave', '5G mmWave', '5g-mmwave'),
+      ],
+      filterable: true,
+      comparable: true,
+      sortOrder: 250,
+    },
 
     {
       code: 'operating_system',
@@ -226,6 +314,24 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       filterable: true,
       comparable: true,
       sortOrder: 300,
+    },
+    {
+      code: 'ui_shell',
+      name: loc('Фірмова оболонка', 'User interface shell'),
+      group: os,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 310,
+    },
+    {
+      code: 'update_support',
+      name: loc('Підтримка оновлень', 'Update support'),
+      group: os,
+      type: AttributeType.STRING,
+      filterable: false,
+      comparable: true,
+      sortOrder: 320,
     },
 
     {
@@ -247,17 +353,34 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       comparable: true,
       sortOrder: 410,
     },
-
     {
-      code: 'storage',
-      name: loc("Вбудована пам'ять", 'Built-in storage'),
-      group: memory,
-      type: AttributeType.NUMBER,
-      unit: 'ГБ',
+      code: 'cpu_frequency',
+      name: loc('Частота процесора', 'CPU frequency'),
+      group: processor,
+      type: AttributeType.STRING,
+      filterable: false,
+      comparable: true,
+      sortOrder: 420,
+    },
+    {
+      code: 'gpu_model',
+      name: loc('Модель графічного процесора', 'GPU model'),
+      group: processor,
+      type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 500,
+      sortOrder: 430,
     },
+    {
+      code: 'chipset_process',
+      name: loc('Техпроцес процесора', 'Chipset process'),
+      group: processor,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 440,
+    },
+
     {
       code: 'ram',
       name: loc("Оперативна пам'ять", 'RAM'),
@@ -266,7 +389,35 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       unit: 'ГБ',
       filterable: true,
       comparable: true,
+      sortOrder: 500,
+    },
+    {
+      code: 'storage',
+      name: loc("Вбудована пам'ять", 'Built-in storage'),
+      group: memory,
+      type: AttributeType.NUMBER,
+      unit: 'ГБ',
+      filterable: true,
+      comparable: true,
       sortOrder: 510,
+    },
+    {
+      code: 'ram_type',
+      name: loc("Тип оперативної пам'яті", 'RAM type'),
+      group: memory,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 520,
+    },
+    {
+      code: 'storage_type',
+      name: loc('Тип накопичувача', 'Storage type'),
+      group: memory,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 530,
     },
     {
       code: 'memory_expansion',
@@ -276,7 +427,16 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       options: yesNoOptions,
       filterable: true,
       comparable: true,
-      sortOrder: 520,
+      sortOrder: 540,
+    },
+    {
+      code: 'memory_card_type',
+      name: loc("Тип карти пам'яті", 'Memory card type'),
+      group: memory,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 550,
     },
 
     {
@@ -289,13 +449,22 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       sortOrder: 600,
     },
     {
+      code: 'main_camera_features',
+      name: loc('Особливості основної камери', 'Main camera features'),
+      group: camera,
+      type: AttributeType.STRING,
+      filterable: false,
+      comparable: true,
+      sortOrder: 610,
+    },
+    {
       code: 'max_video_resolution',
       name: loc('Максимальна роздільна здатність відео', 'Maximum video resolution'),
       group: camera,
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 610,
+      sortOrder: 620,
     },
     {
       code: 'front_camera',
@@ -304,7 +473,16 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 620,
+      sortOrder: 630,
+    },
+    {
+      code: 'front_camera_features',
+      name: loc('Особливості фронтальної камери', 'Front camera features'),
+      group: camera,
+      type: AttributeType.STRING,
+      filterable: false,
+      comparable: true,
+      sortOrder: 640,
     },
     {
       code: 'flash',
@@ -314,7 +492,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       options: yesNoOptions,
       filterable: true,
       comparable: true,
-      sortOrder: 630,
+      sortOrder: 650,
     },
     {
       code: 'stabilization',
@@ -323,7 +501,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 640,
+      sortOrder: 660,
     },
     {
       code: 'zoom',
@@ -332,7 +510,25 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 650,
+      sortOrder: 670,
+    },
+    {
+      code: 'camera_modes',
+      name: loc('Режими камери', 'Camera modes'),
+      group: camera,
+      type: AttributeType.MULTI_ENUM,
+      options: [
+        option('Нічний режим', 'Night mode', 'night-mode'),
+        option('Портретний режим', 'Portrait mode', 'portrait-mode'),
+        option('Макро', 'Macro', 'macro'),
+        option('Панорама', 'Panorama', 'panorama'),
+        option('Slow Motion', 'Slow Motion', 'slow-motion'),
+        option('ProRes', 'ProRes', 'prores'),
+        option('RAW', 'RAW', 'raw'),
+      ],
+      filterable: false,
+      comparable: true,
+      sortOrder: 680,
     },
 
     {
@@ -364,6 +560,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
         option('Galileo', 'Galileo', 'galileo'),
         option('QZSS', 'QZSS', 'qzss'),
         option('ГЛОНАСС', 'GLONASS', 'glonass'),
+        option('NavIC', 'NavIC', 'navic'),
       ],
       filterable: true,
       comparable: true,
@@ -384,6 +581,25 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       sortOrder: 730,
     },
     {
+      code: 'usb_version',
+      name: loc('Версія USB', 'USB version'),
+      group: interfaces,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 740,
+    },
+    {
+      code: 'audio_jack',
+      name: loc('Розʼєм 3.5 мм', '3.5 mm jack'),
+      group: interfaces,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 750,
+    },
+    {
       code: 'wireless_technologies',
       name: loc('Бездротові технології', 'Wireless technologies'),
       group: interfaces,
@@ -393,12 +609,32 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
         option('Бездротова зарядка', 'Wireless charging', 'wireless-charging'),
         option('MagSafe', 'MagSafe', 'magsafe'),
         option('UWB', 'UWB', 'uwb'),
+        option('ІЧ-порт', 'IR blaster', 'ir-blaster'),
       ],
       filterable: true,
       comparable: true,
-      sortOrder: 740,
+      sortOrder: 760,
     },
 
+    {
+      code: 'battery_capacity',
+      name: loc('Ємність акумулятора', 'Battery capacity'),
+      group: battery,
+      type: AttributeType.NUMBER,
+      unit: 'мАг',
+      filterable: true,
+      comparable: true,
+      sortOrder: 800,
+    },
+    {
+      code: 'battery_type',
+      name: loc('Тип акумулятора', 'Battery type'),
+      group: battery,
+      type: AttributeType.STRING,
+      filterable: true,
+      comparable: true,
+      sortOrder: 810,
+    },
     {
       code: 'fast_charging',
       name: loc('Швидка зарядка', 'Fast charging'),
@@ -407,7 +643,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       options: yesNoOptions,
       filterable: true,
       comparable: true,
-      sortOrder: 800,
+      sortOrder: 820,
     },
     {
       code: 'charging_power',
@@ -417,7 +653,77 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       unit: 'Вт',
       filterable: true,
       comparable: true,
-      sortOrder: 810,
+      sortOrder: 830,
+    },
+    {
+      code: 'wireless_charging_power',
+      name: loc('Потужність бездротової зарядки', 'Wireless charging power'),
+      group: battery,
+      type: AttributeType.NUMBER,
+      unit: 'Вт',
+      filterable: true,
+      comparable: true,
+      sortOrder: 840,
+    },
+    {
+      code: 'reverse_charging',
+      name: loc('Реверсивна зарядка', 'Reverse charging'),
+      group: battery,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 850,
+    },
+
+    {
+      code: 'ai_integrated',
+      name: loc('Інтегровано AI', 'Integrated AI'),
+      group: features,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 900,
+    },
+    {
+      code: 'dex_support',
+      name: loc('Підтримка режиму робочого столу', 'Desktop mode support'),
+      group: features,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 910,
+    },
+    {
+      code: 'stylus_support',
+      name: loc('Підтримка стилуса', 'Stylus support'),
+      group: features,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 920,
+    },
+    {
+      code: 'stereo_speakers',
+      name: loc('Стереодинаміки', 'Stereo speakers'),
+      group: features,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 930,
+    },
+    {
+      code: 'ai_features',
+      name: loc('AI-функції', 'AI features'),
+      group: features,
+      type: AttributeType.STRING,
+      filterable: false,
+      comparable: true,
+      sortOrder: 940,
     },
 
     {
@@ -427,7 +733,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 900,
+      sortOrder: 1000,
     },
     {
       code: 'protection_class',
@@ -436,7 +742,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 910,
+      sortOrder: 1010,
     },
     {
       code: 'biometric_security',
@@ -445,7 +751,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 920,
+      sortOrder: 1020,
     },
     {
       code: 'package_contents',
@@ -455,14 +761,17 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       options: [
         option('Смартфон', 'Smartphone', 'smartphone'),
         option('Кабель Type-C', 'Type-C cable', 'type-c-cable'),
+        option('Кабель Lightning', 'Lightning cable', 'lightning-cable'),
         option('Інструкція', 'Manual', 'manual'),
         option('Гарантійний талон', 'Warranty card', 'warranty-card'),
         option('Зарядний пристрій', 'Charger', 'charger'),
         option('Скріпка для SIM', 'SIM eject tool', 'sim-eject-tool'),
+        option('Стилус', 'Stylus', 'stylus'),
+        option('Чохол', 'Case', 'case'),
       ],
       filterable: false,
       comparable: true,
-      sortOrder: 930,
+      sortOrder: 1030,
     },
     {
       code: 'body_material',
@@ -476,10 +785,35 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
         option('Титан', 'Titanium', 'titanium'),
         option('Пластик', 'Plastic', 'plastic'),
         option('Сталь', 'Steel', 'steel'),
+        option('Еко-шкіра', 'Eco leather', 'eco-leather'),
       ],
       filterable: true,
       comparable: true,
-      sortOrder: 940,
+      sortOrder: 1040,
+    },
+    {
+      code: 'form_factor',
+      name: loc('Форм-фактор', 'Form factor'),
+      group: body,
+      type: AttributeType.ENUM,
+      options: [
+        option('Моноблок', 'Bar', 'bar'),
+        option('Складаний', 'Foldable', 'foldable'),
+        option('Розкладачка', 'Flip', 'flip'),
+      ],
+      filterable: true,
+      comparable: true,
+      sortOrder: 1050,
+    },
+    {
+      code: 'foldable',
+      name: loc('Складаний корпус', 'Foldable body'),
+      group: body,
+      type: AttributeType.BOOLEAN,
+      options: yesNoOptions,
+      filterable: true,
+      comparable: true,
+      sortOrder: 1060,
     },
     {
       code: 'height_mm',
@@ -489,7 +823,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       unit: 'мм',
       filterable: true,
       comparable: true,
-      sortOrder: 950,
+      sortOrder: 1070,
     },
     {
       code: 'width_mm',
@@ -499,7 +833,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       unit: 'мм',
       filterable: true,
       comparable: true,
-      sortOrder: 960,
+      sortOrder: 1080,
     },
     {
       code: 'depth_mm',
@@ -509,7 +843,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       unit: 'мм',
       filterable: true,
       comparable: true,
-      sortOrder: 970,
+      sortOrder: 1090,
     },
     {
       code: 'weight_g',
@@ -519,7 +853,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       unit: 'г',
       filterable: true,
       comparable: true,
-      sortOrder: 980,
+      sortOrder: 1100,
     },
     {
       code: 'color',
@@ -528,7 +862,32 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 990,
+      sortOrder: 1110,
+    },
+    {
+      code: 'color_family',
+      name: loc('Основний колір', 'Main color'),
+      group: body,
+      type: AttributeType.ENUM,
+      options: [
+        option('Чорний', 'Black', 'black'),
+        option('Білий', 'White', 'white'),
+        option('Сірий', 'Gray', 'gray'),
+        option('Сріблястий', 'Silver', 'silver'),
+        option('Синій', 'Blue', 'blue'),
+        option('Блакитний', 'Light blue', 'light-blue'),
+        option('Зелений', 'Green', 'green'),
+        option('Червоний', 'Red', 'red'),
+        option('Рожевий', 'Pink', 'pink'),
+        option('Фіолетовий', 'Purple', 'purple'),
+        option('Жовтий', 'Yellow', 'yellow'),
+        option('Золотистий', 'Gold', 'gold'),
+        option('Помаранчевий', 'Orange', 'orange'),
+        option('Бежевий', 'Beige', 'beige'),
+      ],
+      filterable: true,
+      comparable: true,
+      sortOrder: 1120,
     },
     {
       code: 'warranty_period',
@@ -537,7 +896,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 1000,
+      sortOrder: 1130,
     },
     {
       code: 'country_of_origin',
@@ -546,7 +905,7 @@ export const smartphoneAttributeTemplates = (): AttributeTemplate[] => {
       type: AttributeType.STRING,
       filterable: true,
       comparable: true,
-      sortOrder: 1010,
+      sortOrder: 1140,
     },
   ];
 };
@@ -820,7 +1179,17 @@ export const accessoryAttributeTemplates = (): AttributeTemplate[] => {
   ];
 };
 
-export const getDefaultTemplatesForCategory = (categorySlug: string): AttributeTemplate[] => {
+export type DefaultCategoryTemplateKind =
+  | 'smartphones'
+  | 'laptops'
+  | 'refrigerators'
+  | 'tv'
+  | 'accessories'
+  | 'common';
+
+export const getDefaultTemplateKindForCategory = (
+  categorySlug: string,
+): DefaultCategoryTemplateKind => {
   const slug = categorySlug.toLowerCase();
 
   const isHeadphones =
@@ -838,24 +1207,39 @@ export const getDefaultTemplatesForCategory = (categorySlug: string): AttributeT
       slug.includes('мартфон') ||
       slug.includes('телефон'))
   ) {
-    return smartphoneAttributeTemplates();
+    return 'smartphones';
   }
 
   if (slug.includes('laptop') || slug.includes('notebook') || slug.includes('noutbuk')) {
-    return laptopAttributeTemplates();
+    return 'laptops';
   }
 
   if (slug.includes('refrigerator') || slug.includes('fridge') || slug.includes('holodil')) {
-    return refrigeratorAttributeTemplates();
+    return 'refrigerators';
   }
 
   if (slug.includes('tv') || slug.includes('television') || slug.includes('televizor')) {
-    return tvAttributeTemplates();
+    return 'tv';
   }
 
   if (slug.includes('accessor') || slug.includes('case') || slug.includes('charger')) {
-    return accessoryAttributeTemplates();
+    return 'accessories';
   }
+
+  return 'common';
+};
+
+export const shouldSyncExactDefaultTemplateForCategory = (categorySlug: string): boolean =>
+  getDefaultTemplateKindForCategory(categorySlug) !== 'common';
+
+export const getDefaultTemplatesForCategory = (categorySlug: string): AttributeTemplate[] => {
+  const kind = getDefaultTemplateKindForCategory(categorySlug);
+
+  if (kind === 'smartphones') return smartphoneAttributeTemplates();
+  if (kind === 'laptops') return laptopAttributeTemplates();
+  if (kind === 'refrigerators') return refrigeratorAttributeTemplates();
+  if (kind === 'tv') return tvAttributeTemplates();
+  if (kind === 'accessories') return accessoryAttributeTemplates();
 
   return commonAttributeTemplates();
 };

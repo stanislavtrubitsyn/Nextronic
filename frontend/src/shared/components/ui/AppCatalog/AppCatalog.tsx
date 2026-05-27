@@ -55,6 +55,18 @@ const getLocalizedName = (
 	return value?.[locale] || value?.ua || value?.en || ''
 }
 
+const compareByLocalizedLabel = <T extends { label: LocalizedString }>(
+	a: T,
+	b: T,
+	locale: 'ua' | 'en',
+) => {
+	return getLocalizedName(a.label, locale).localeCompare(
+		getLocalizedName(b.label, locale),
+		locale === 'ua' ? 'uk' : 'en',
+		{ sensitivity: 'base', numeric: true },
+	)
+}
+
 export const AppCatalog = () => {
 	const t = useTranslations('AppCatalog')
 	const locale = useLocale() as 'ua' | 'en'
@@ -115,16 +127,20 @@ export const AppCatalog = () => {
 
 	const open = Boolean(anchorEl)
 	const id = open ? 'catalog-popover' : undefined
-	const groupsToRender = activeCatalog?.menuGroups?.length
-		? activeCatalog.menuGroups
-		: activeCatalog?.categories.map(category => ({
-				id: category.id,
-				label: category.name,
-				categorySlug: category.slug,
-				categoryId: category.id,
-				filters: {},
-				links: category.menuLinks || [],
-			})) || []
+	const groupsToRender = (
+		activeCatalog?.menuGroups?.length
+			? activeCatalog.menuGroups
+			: activeCatalog?.categories.map(category => ({
+					id: category.id,
+					label: category.name,
+					categorySlug: category.slug,
+					categoryId: category.id,
+					filters: {},
+					links: category.menuLinks || [],
+				})) || []
+	)
+		.slice()
+		.sort((a, b) => compareByLocalizedLabel(a, b, locale))
 
 	return (
 		<>

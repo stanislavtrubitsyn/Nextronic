@@ -27,6 +27,12 @@ interface MenuGroup {
   links: MenuLink[];
 }
 
+interface ModelCandidate {
+  value: string;
+  releaseYear: number;
+  createdAt: number;
+}
+
 @Injectable()
 export class CatalogsService {
   constructor(
@@ -86,7 +92,7 @@ export class CatalogsService {
     for (const catalog of catalogs) {
       catalog.categories = (catalog.categories || [])
         .filter((category) => category.isActive)
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        .sort((a, b) => this.compareLocalizedStrings(a.name, b.name));
 
       const menuGroups: MenuGroup[] = [];
 
@@ -113,7 +119,9 @@ export class CatalogsService {
         (category as any).menuLinks = this.buildCategoryFallbackLinks(products);
       }
 
-      (catalog as any).menuGroups = menuGroups.slice(0, 24);
+      (catalog as any).menuGroups = menuGroups
+        .sort((a, b) => this.compareLocalizedStrings(a.label, b.label))
+        .slice(0, 24);
     }
 
     return catalogs;
@@ -126,7 +134,6 @@ export class CatalogsService {
     products: ProductsEntity[],
   ): MenuGroup[] {
     const groupKeys = ['brand', 'manufacturer', 'compatible_brand', 'accessory_type'];
-    const modelKeys = ['model', 'series', 'line', 'compatible_model'];
 
     const selectedGroupKey = groupKeys.find((key) =>
       products.some((product) => this.getFilterValue(product, key)),
@@ -154,7 +161,6 @@ export class CatalogsService {
     }
 
     return Array.from(byGroup.entries())
-      .slice(0, 12)
       .map(([groupValue, groupedProducts]) => {
         const labelValue = this.formatMenuLinkLabel(groupValue);
         const filters = { [selectedGroupKey]: groupValue };
@@ -168,71 +174,80 @@ export class CatalogsService {
           categoryId,
           categorySlug,
           filters,
-          links: this.buildModelLinks(groupedProducts, modelKeys, filters),
+          links: this.buildModelLinks(groupedProducts, filters),
         };
-      });
+      })
+      .sort((a, b) => this.compareLocalizedStrings(a.label, b.label))
+      .slice(0, 12);
   }
 
   private buildModelLinks(
     products: ProductsEntity[],
-    modelKeys: string[],
     baseFilters: Record<string, string>,
   ): MenuLink[] {
-    const result: MenuLink[] = [];
-    const added = new Set<string>();
+    const modelsByValue = new Map<string, ModelCandidate>();
 
-    for (const key of modelKeys) {
-      for (const product of products) {
-        if (result.length >= 5) return result;
+    for (const product of products) {
+      const value = this.getFilterValue(product, 'model');
+      if (!value) continue;
 
-        const value = this.getFilterValue(product, key);
-        if (!value) continue;
+      const uniqueKey = value.toLowerCase();
+      const releaseYear = this.getNumericFilterValue(product, 'release_year');
+      const createdAt = this.getProductTimestamp(product);
+      const existing = modelsByValue.get(uniqueKey);
 
-        const uniqueKey = `${key}:${value}`.toLowerCase();
-        if (added.has(uniqueKey)) continue;
-
-        added.add(uniqueKey);
-        result.push({
-          label: { ua: this.formatMenuLinkLabel(value), en: this.formatMenuLinkLabel(value) },
-          filters: { ...baseFilters, [key]: value },
-        });
+      if (
+        !existing ||
+        releaseYear > existing.releaseYear ||
+        (releaseYear === existing.releaseYear && createdAt > existing.createdAt)
+      ) {
+        modelsByValue.set(uniqueKey, { value, releaseYear, createdAt });
       }
     }
 
-    return result;
+    return Array.from(modelsByValue.values())
+      .sort((a, b) => this.compareModelCandidates(a, b))
+      .slice(0, 5)
+      .map((model) => ({
+        label: {
+          ua: this.formatMenuLinkLabel(model.value),
+          en: this.formatMenuLinkLabel(model.value),
+        },
+        filters: { ...baseFilters, model: model.value },
+      }));
   }
 
   private buildCategoryFallbackLinks(products: ProductsEntity[]): MenuLink[] {
-    const preferredKeys = [
-      'model',
-      'series',
-      'line',
-      'brand',
-      'manufacturer',
-      'type',
-      'accessory_type',
-    ];
-    const result: MenuLink[] = [];
-    const added = new Set<string>();
+    const modelsByValue = new Map<string, ModelCandidate>();
 
-    for (const key of preferredKeys) {
-      for (const product of products) {
-        if (result.length >= 5) return result;
-        const value = this.getFilterValue(product, key);
-        if (!value) continue;
+    for (const product of products) {
+      const value = this.getFilterValue(product, 'model');
+      if (!value) continue;
 
-        const uniqueKey = `${key}:${value}`.toLowerCase();
-        if (added.has(uniqueKey)) continue;
+      const uniqueKey = value.toLowerCase();
+      const releaseYear = this.getNumericFilterValue(product, 'release_year');
+      const createdAt = this.getProductTimestamp(product);
+      const existing = modelsByValue.get(uniqueKey);
 
-        added.add(uniqueKey);
-        result.push({
-          label: { ua: this.formatMenuLinkLabel(value), en: this.formatMenuLinkLabel(value) },
-          filters: { [key]: value },
-        });
+      if (
+        !existing ||
+        releaseYear > existing.releaseYear ||
+        (releaseYear === existing.releaseYear && createdAt > existing.createdAt)
+      ) {
+        modelsByValue.set(uniqueKey, { value, releaseYear, createdAt });
       }
     }
 
-    return result;
+    return Array.from(modelsByValue.values())
+      .sort((a, b) => this.compareModelCandidates(a, b))
+      .slice(0, 5)
+      .map((model) => ({
+        label: {
+          ua: this.formatMenuLinkLabel(model.value),
+          en: this.formatMenuLinkLabel(model.value),
+        },
+        filters: { model: model.value },
+      }));
   }
 
   private getFilterValue(product: ProductsEntity, key: string): string | null {
@@ -241,6 +256,93 @@ export class CatalogsService {
     if (value === undefined || value === null) return null;
     const normalized = String(value).trim();
     return normalized || null;
+  }
+
+  private getNumericFilterValue(product: ProductsEntity, key: string): number {
+    const value = this.getFilterValue(product, key);
+    if (!value) return 0;
+
+    const parsed = Number(String(value).replace(',', '.'));
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  private getProductTimestamp(product: ProductsEntity): number {
+    const timestamp = product.createdAt ? new Date(product.createdAt).getTime() : 0;
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  }
+
+  private compareLocalizedStrings(a: LocalizedString, b: LocalizedString): number {
+    const uaCompare = (a.ua || '').localeCompare(b.ua || '', 'uk', {
+      sensitivity: 'base',
+      numeric: true,
+    });
+
+    if (uaCompare !== 0) return uaCompare;
+
+    return (a.en || '').localeCompare(b.en || '', 'en', {
+      sensitivity: 'base',
+      numeric: true,
+    });
+  }
+
+  private compareModelCandidates(a: ModelCandidate, b: ModelCandidate): number {
+    if (a.releaseYear !== b.releaseYear) {
+      return b.releaseYear - a.releaseYear;
+    }
+
+    const semanticCompare = this.compareModelValues(a.value, b.value);
+    if (semanticCompare !== 0) return semanticCompare;
+
+    if (b.createdAt !== a.createdAt) {
+      return b.createdAt - a.createdAt;
+    }
+
+    return this.formatMenuLinkLabel(a.value).localeCompare(
+      this.formatMenuLinkLabel(b.value),
+      'uk',
+      {
+        sensitivity: 'base',
+        numeric: true,
+      },
+    );
+  }
+
+  private compareModelValues(a: string, b: string): number {
+    const aScore = this.getModelSortScore(a);
+    const bScore = this.getModelSortScore(b);
+
+    if (aScore.generation !== bScore.generation) {
+      return bScore.generation - aScore.generation;
+    }
+
+    if (aScore.variant !== bScore.variant) {
+      return bScore.variant - aScore.variant;
+    }
+
+    return 0;
+  }
+
+  private getModelSortScore(value: string): { generation: number; variant: number } {
+    const normalized = this.formatMenuLinkLabel(value).toLowerCase();
+
+    const numbers = normalized
+      .match(/\d+(?:[.,]\d+)?/g)
+      ?.map((item) => Number(item.replace(',', '.')))
+      .filter((item) => !Number.isNaN(item));
+
+    const generation = numbers?.length ? Math.max(...numbers) : 0;
+
+    let variant = 0;
+    if (/pro[\s-]*max/.test(normalized)) variant = 100;
+    else if (/\bultra\b/.test(normalized)) variant = 95;
+    else if (/\bpro\b/.test(normalized)) variant = 90;
+    else if (/\bplus\b/.test(normalized)) variant = 80;
+    else if (/\bair\b/.test(normalized)) variant = 75;
+    else if (/\bmax\b/.test(normalized)) variant = 70;
+    else if (/\bmini\b/.test(normalized)) variant = 60;
+    else if (/\bfe\b/.test(normalized)) variant = 50;
+
+    return { generation, variant };
   }
 
   private formatMenuLinkLabel(value: string): string {
