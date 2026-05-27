@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
+import { Repository, Not, SelectQueryBuilder } from 'typeorm';
 import { ProductsEntity } from './products.entity';
 import { CreateProductDto, DuplicateProductDto, UpdateProductDto } from './products.dto';
 import { CategoriesEntity } from '../categories/categories.entity';
@@ -528,6 +528,556 @@ export class ProductsService {
     }
 
     return await qb.getMany();
+  }
+
+  async getCategoryPageProducts(params: {
+    categorySlug: string;
+    query?: string;
+    filters?: Record<string, unknown>;
+    minPrice?: number;
+    maxPrice?: number;
+    sort?: string;
+    page?: number;
+    limit?: number;
+    lang?: 'ua' | 'en';
+  }) {
+    const {
+      categorySlug,
+      query,
+      filters = {},
+      minPrice,
+      maxPrice,
+      sort,
+      page = 1,
+      limit = 20,
+      lang = 'ua',
+    } = params;
+
+    const category = await this.categoryRepo.findOne({
+      where: { slug: categorySlug, isActive: true },
+      relations: ['catalog'],
+    });
+
+    if (!category) {
+      throw new NotFoundException(PRODUCTS_I18N[lang].categoryNotFound);
+    }
+
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 60);
+
+    const allowedFilterCodes = await this.attributesService.getFilterableCodes(
+      category.id,
+      category.slug,
+    );
+    const schema = await this.attributesService.getCategoryFormSchema(category.id);
+
+    const baseProducts = await this.productRepo.find({
+      where: {
+        category: { id: category.id },
+        isActive: true,
+      },
+      relations: ['category', 'catalog'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const qb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.catalog', 'catalog')
+      .where('product.isActive = :isActive', { isActive: true })
+      .andWhere('category.id = :categoryId', { categoryId: category.id });
+
+    if (query?.trim()) {
+      qb.andWhere("(product.name->>'ua' ILIKE :query OR product.name->>'en' ILIKE :query)", {
+        query: `%${query.trim()}%`,
+      });
+    }
+
+    if (minPrice !== undefined && !Number.isNaN(minPrice)) {
+      qb.andWhere('product.price >= :minPrice', { minPrice });
+    }
+
+    if (maxPrice !== undefined && !Number.isNaN(maxPrice)) {
+      qb.andWhere('product.price <= :maxPrice', { maxPrice });
+    }
+
+    this.applyProductFacetFilters(qb, filters, allowedFilterCodes);
+
+    const total = await qb.clone().getCount();
+
+    this.applyCategorySort(qb, sort);
+
+    const products = await qb
+      .skip((safePage - 1) * safeLimit)
+      .take(safeLimit)
+      .getMany();
+
+    const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+
+    return {
+      category: {
+        id: category.id,
+        slug: category.slug,
+        name: category.name,
+      },
+      catalog: category.catalog
+        ? {
+            id: category.catalog.id,
+            slug: category.catalog.slug,
+            name: category.catalog.name,
+          }
+        : null,
+      products: products.map((product) => this.mapCategoryPageProduct(product)),
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages,
+        hasMore: safePage < totalPages,
+      },
+      priceRange: this.buildPriceRange(baseProducts),
+      filters: this.buildCategoryFilterGroups(schema.attributes || [], baseProducts, filters, lang),
+      appliedFilters: this.buildAppliedFilterChips(
+        schema.attributes || [],
+        filters,
+        minPrice,
+        maxPrice,
+      ),
+    };
+  }
+
+  private applyProductFacetFilters(
+    qb: SelectQueryBuilder<ProductsEntity>,
+    filters: Record<string, unknown>,
+    allowedFilterCodes: Set<string>,
+  ) {
+    let filterIndex = 0;
+
+    for (const [rawKey, rawValue] of Object.entries(filters || {})) {
+      const key = this.normalizeFilterKey(rawKey);
+      if (!key) continue;
+
+      const values = Array.isArray(rawValue) ? rawValue : String(rawValue).split(',');
+      const normalizedValues = values
+        .map((value) => this.attributesService.normalizeFilterValue(value))
+        .filter(Boolean);
+
+      if (normalizedValues.length === 0) continue;
+
+      if (key === 'availability') {
+        const hasInStock = normalizedValues.includes('in-stock');
+        const hasOutOfStock = normalizedValues.includes('out-of-stock');
+
+        if (hasInStock && !hasOutOfStock) {
+          qb.andWhere('product.stock > 0');
+        }
+
+        if (hasOutOfStock && !hasInStock) {
+          qb.andWhere('product.stock <= 0');
+        }
+
+        continue;
+      }
+
+      if (!allowedFilterCodes.has(key)) continue;
+
+      const paramName = `category_filter_${filterIndex}`;
+      const clauses = normalizedValues.map(
+        (_value, valueIndex) =>
+          `CONCAT(',', COALESCE(product.filters ->> '${key}', ''), ',') ILIKE :${paramName}_${valueIndex}`,
+      );
+      const queryParams = normalizedValues.reduce<Record<string, string>>(
+        (acc, value, valueIndex) => {
+          acc[`${paramName}_${valueIndex}`] = `%,${value},%`;
+          return acc;
+        },
+        {},
+      );
+
+      qb.andWhere(`(${clauses.join(' OR ')})`, queryParams);
+      filterIndex += 1;
+    }
+  }
+
+  private applyCategorySort(qb: SelectQueryBuilder<ProductsEntity>, sort?: string) {
+    switch (sort) {
+      case 'price_asc':
+        qb.orderBy('product.price', 'ASC');
+        break;
+      case 'price_desc':
+        qb.orderBy('product.price', 'DESC');
+        break;
+      case 'name_asc':
+        qb.orderBy("product.name->>'ua'", 'ASC');
+        break;
+      case 'name_desc':
+        qb.orderBy("product.name->>'ua'", 'DESC');
+        break;
+      case 'newest':
+        qb.orderBy('product.createdAt', 'DESC');
+        break;
+      case 'popular':
+      default:
+        qb.orderBy('product.createdAt', 'DESC');
+        break;
+    }
+  }
+
+  private mapCategoryPageProduct(product: ProductsEntity) {
+    return {
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      slug: product.slug,
+      price: Number(product.price),
+      oldPrice:
+        product.oldPrice === null || product.oldPrice === undefined
+          ? null
+          : Number(product.oldPrice),
+      stock: product.stock,
+      images: product.images || [],
+      rating: 0,
+      reviewsCount: 0,
+      category: product.category
+        ? {
+            id: product.category.id,
+            name: product.category.name,
+          }
+        : undefined,
+    };
+  }
+
+  private buildPriceRange(products: ProductsEntity[]) {
+    if (products.length === 0) {
+      return { min: 0, max: 0 };
+    }
+
+    const prices = products
+      .map((product) => Number(product.price))
+      .filter((price) => !Number.isNaN(price));
+
+    if (prices.length === 0) {
+      return { min: 0, max: 0 };
+    }
+
+    return {
+      min: Math.floor(Math.min(...prices)),
+      max: Math.ceil(Math.max(...prices)),
+    };
+  }
+
+  private buildCategoryFilterGroups(
+    schemaAttributes: Array<{
+      code: string;
+      name: { ua: string; en: string };
+      type: string;
+      unit?: string;
+      options?: Array<{ label: { ua: string; en: string }; value: string }>;
+      filterable: boolean;
+      sortOrder: number;
+    }>,
+    products: ProductsEntity[],
+    activeFilters: Record<string, unknown>,
+    lang: 'ua' | 'en',
+  ) {
+    const groups: Array<{
+      code: string;
+      label: { ua: string; en: string };
+      type: 'checkbox' | 'chip';
+      sortOrder: number;
+      options: Array<{
+        value: string;
+        label: { ua: string; en: string };
+        count: number;
+        selected: boolean;
+      }>;
+    }> = [];
+
+    const availabilityOptions = [
+      {
+        value: 'in-stock',
+        label: { ua: 'Є в наявності', en: 'In stock' },
+        count: products.filter((product) => product.stock > 0).length,
+        selected: this.getSelectedFilterValues(activeFilters.availability).includes('in-stock'),
+      },
+      {
+        value: 'out-of-stock',
+        label: { ua: 'Немає в наявності', en: 'Out of stock' },
+        count: products.filter((product) => product.stock <= 0).length,
+        selected: this.getSelectedFilterValues(activeFilters.availability).includes('out-of-stock'),
+      },
+    ].filter((option) => option.count > 0);
+
+    for (const attribute of schemaAttributes) {
+      const code = this.normalizeFilterKey(attribute.code);
+      if (!attribute.filterable || !code) continue;
+      if (['category', 'catalog', 'product_type'].includes(code)) continue;
+
+      const counts = new Map<string, number>();
+
+      for (const product of products) {
+        const values = this.getProductFilterValues(product, code);
+        for (const value of values) {
+          counts.set(value, (counts.get(value) || 0) + 1);
+        }
+      }
+
+      if (counts.size === 0) continue;
+
+      const selectedValues = this.getSelectedFilterValues(activeFilters[code]);
+      const options = Array.from(counts.entries())
+        .map(([value, count]) => ({
+          value,
+          label: this.buildFilterOptionLabel(value, attribute),
+          count,
+          selected: selectedValues.includes(value),
+        }))
+        .sort((a, b) => {
+          const selectedDiff = Number(b.selected) - Number(a.selected);
+          if (selectedDiff !== 0) return selectedDiff;
+          const countDiff = b.count - a.count;
+          if (countDiff !== 0 && ['brand', 'series', 'model'].includes(code)) return countDiff;
+          return (a.label[lang] || a.label.ua).localeCompare(
+            b.label[lang] || b.label.ua,
+            lang === 'ua' ? 'uk' : 'en',
+            {
+              sensitivity: 'base',
+              numeric: true,
+            },
+          );
+        });
+
+      groups.push({
+        code,
+        label: attribute.name,
+        type: this.getFilterDisplayType(code),
+        sortOrder: this.getFilterSortOrder(code, attribute.sortOrder),
+        options,
+      });
+    }
+
+    if (availabilityOptions.length > 0) {
+      groups.push({
+        code: 'availability',
+        label: { ua: 'Наявність', en: 'Availability' },
+        type: 'checkbox',
+        sortOrder: 35,
+        options: availabilityOptions,
+      });
+    }
+
+    return groups.sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  private buildAppliedFilterChips(
+    schemaAttributes: Array<{
+      code: string;
+      name: { ua: string; en: string };
+      unit?: string;
+      options?: Array<{ label: { ua: string; en: string }; value: string }>;
+    }>,
+    activeFilters: Record<string, unknown>,
+    minPrice?: number,
+    maxPrice?: number,
+  ) {
+    const chips: Array<{
+      code: string;
+      value: string;
+      label: { ua: string; en: string };
+    }> = [];
+
+    const attributesByCode = new Map(
+      schemaAttributes.map((attribute) => [this.normalizeFilterKey(attribute.code), attribute]),
+    );
+
+    for (const [rawCode, rawValue] of Object.entries(activeFilters || {})) {
+      const code = this.normalizeFilterKey(rawCode);
+      if (!code) continue;
+
+      const values = this.getSelectedFilterValues(rawValue);
+      if (values.length === 0) continue;
+
+      if (code === 'availability') {
+        for (const value of values) {
+          chips.push({
+            code,
+            value,
+            label:
+              value === 'in-stock'
+                ? { ua: 'Наявність: Є в наявності', en: 'Availability: In stock' }
+                : { ua: 'Наявність: Немає в наявності', en: 'Availability: Out of stock' },
+          });
+        }
+        continue;
+      }
+
+      const attribute = attributesByCode.get(code);
+      if (!attribute) continue;
+
+      for (const value of values) {
+        const optionLabel = this.buildFilterOptionLabel(value, attribute);
+        chips.push({
+          code,
+          value,
+          label: {
+            ua: `${attribute.name.ua}: ${optionLabel.ua}`,
+            en: `${attribute.name.en}: ${optionLabel.en}`,
+          },
+        });
+      }
+    }
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      const min =
+        minPrice !== undefined && !Number.isNaN(minPrice) ? this.formatNumber(minPrice) : '';
+      const max =
+        maxPrice !== undefined && !Number.isNaN(maxPrice) ? this.formatNumber(maxPrice) : '';
+      chips.push({
+        code: 'price',
+        value: 'price',
+        label: {
+          ua: `Ціна: ${min ? `від ${min} ₴` : ''}${min && max ? ' до ' : ''}${max ? `${max} ₴` : ''}`,
+          en: `Price: ${min ? `from ${min} ₴` : ''}${min && max ? ' to ' : ''}${max ? `${max} ₴` : ''}`,
+        },
+      });
+    }
+
+    return chips;
+  }
+
+  private getProductFilterValues(product: ProductsEntity, code: string): string[] {
+    const rawValue = product.filters?.[code];
+    if (rawValue === undefined || rawValue === null) return [];
+
+    const rawValues = Array.isArray(rawValue)
+      ? rawValue
+      : this.stringifyFilterInput(rawValue).split(',');
+
+    return rawValues
+      .map((value) => this.attributesService.normalizeFilterValue(value))
+      .filter(Boolean);
+  }
+
+  private getSelectedFilterValues(value: unknown): string[] {
+    if (value === undefined || value === null) return [];
+    const rawValues = Array.isArray(value) ? value : this.stringifyFilterInput(value).split(',');
+    return rawValues
+      .map((item) => this.attributesService.normalizeFilterValue(item))
+      .filter(Boolean);
+  }
+
+  private stringifyFilterInput(value: unknown): string {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return `${value}`;
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+
+    try {
+      return JSON.stringify(value) ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  private buildFilterOptionLabel(
+    value: string,
+    attribute: {
+      code: string;
+      name?: { ua: string; en: string };
+      unit?: string;
+      options?: Array<{ label: { ua: string; en: string }; value: string }>;
+    },
+  ) {
+    const normalizedValue = this.attributesService.normalizeFilterValue(value);
+    const option = (attribute.options || []).find(
+      (item) => this.attributesService.normalizeFilterValue(item.value) === normalizedValue,
+    );
+
+    if (option) return option.label;
+
+    const label = this.formatFilterValueLabel(value, attribute.unit);
+    return { ua: label, en: label };
+  }
+
+  private formatFilterValueLabel(value: string, unit?: string): string {
+    const cleaned = value.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const knownUnits: Record<string, string> = {
+      ГБ: 'ГБ',
+      МБ: 'МБ',
+      ТБ: 'ТБ',
+      Гц: 'Гц',
+      Вт: 'Вт',
+      мАг: 'мАг',
+      ядер: 'ядер',
+      г: 'г',
+      мм: 'мм',
+    };
+
+    const formatted = cleaned
+      .split(' ')
+      .map((word) => {
+        const lowerWord = word.toLowerCase();
+        if (['iphone', 'ipad', 'macbook'].includes(lowerWord))
+          return lowerWord === 'iphone' ? 'iPhone' : word;
+        if (
+          ['oled', 'amoled', 'ips', 'ssd', 'hdd', 'ram', 'usb', 'nfc', 'gps', 'ai'].includes(
+            lowerWord,
+          )
+        )
+          return word.toUpperCase();
+        return word ? word[0].toUpperCase() + word.slice(1) : word;
+      })
+      .join(' ');
+
+    const shouldAppendUnit =
+      unit &&
+      !formatted.toLowerCase().includes(unit.toLowerCase()) &&
+      /^\d+(?:[.,]\d+)?$/.test(cleaned);
+
+    return shouldAppendUnit ? `${formatted} ${knownUnits[unit] || unit}` : formatted;
+  }
+
+  private getFilterDisplayType(code: string): 'checkbox' | 'chip' {
+    if (['storage', 'ram', 'screen_size', 'refresh_rate'].includes(code)) return 'chip';
+    return 'checkbox';
+  }
+
+  private getFilterSortOrder(code: string, fallback: number): number {
+    const priority: Record<string, number> = {
+      brand: 10,
+      series: 20,
+      model: 25,
+      availability: 35,
+      storage: 40,
+      ram: 50,
+      sim_count: 60,
+      wireless_technologies: 70,
+      ai_integrated: 80,
+      body_protection: 90,
+      protection_class: 100,
+      battery_capacity: 110,
+      charging_power: 120,
+      processor_model: 130,
+      screen_size: 140,
+      sim_size: 150,
+      esim_support: 160,
+      operating_system: 170,
+      screen_type: 180,
+      refresh_rate: 190,
+      front_camera: 200,
+      stabilization: 210,
+      memory_expansion: 220,
+      color: 230,
+      main_color: 230,
+      cpu_cores: 240,
+      body_material: 250,
+    };
+
+    return priority[code] ?? fallback + 1000;
+  }
+
+  private formatNumber(value: number): string {
+    return new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format(value);
   }
 
   private normalizeFilterKey(key: string) {

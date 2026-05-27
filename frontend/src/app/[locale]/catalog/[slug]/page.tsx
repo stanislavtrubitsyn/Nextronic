@@ -167,7 +167,6 @@ const buildSearchHref = (
 	const params = new URLSearchParams()
 
 	params.set('catalog', catalogSlug)
-	params.set('category', categorySlug)
 
 	Object.entries(filters).forEach(([key, value]) => {
 		if (value !== undefined && value !== null && String(value).trim()) {
@@ -175,7 +174,8 @@ const buildSearchHref = (
 		}
 	})
 
-	return `/search?${params.toString()}`
+	const query = params.toString()
+	return `/category/${categorySlug}${query ? `?${query}` : ''}`
 }
 
 const getComparableName = (section: OverviewSection, locale: Locale) =>
@@ -916,7 +916,7 @@ export default function CatalogOverviewPage() {
 						search={sectionsSearch}
 						expandedSectionIds={expandedSectionIds}
 						onSearchChange={setSectionsSearch}
-						onSectionClick={section => scrollToSection(section.id)}
+						onSectionClick={navigateToSectionSearch}
 						onModelClick={navigateToModelSearch}
 						onToggleSection={toggleSection}
 					/>

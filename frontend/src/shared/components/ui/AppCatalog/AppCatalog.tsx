@@ -114,15 +114,20 @@ export const AppCatalog = () => {
 	) => {
 		handleClose()
 
+		if (!categorySlug) {
+			router.push(`/catalog/${catalogSlug}`)
+			return
+		}
+
 		const params = new URLSearchParams()
 		params.set('catalog', catalogSlug)
-		if (categorySlug) params.set('category', categorySlug)
 
 		for (const [key, value] of Object.entries(filters)) {
 			if (value) params.set(key, value)
 		}
 
-		router.push(`/search?${params.toString()}`)
+		const query = params.toString()
+		router.push(`/category/${categorySlug}${query ? `?${query}` : ''}`)
 	}
 
 	const open = Boolean(anchorEl)

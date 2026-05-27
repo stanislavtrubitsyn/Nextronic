@@ -735,5 +735,29 @@
 		"buy": "Buy",
 		"inCart": "In cart",
 		"productEnded": "Product is out of stock"
+	},
+
+	"CategoryPage": {
+		"home": "Home",
+		"loading": "Loading products...",
+		"loadError": "Failed to load products",
+		"page": "page",
+		"products": "products",
+		"appliedFilters": "Applied filters:",
+		"clearAll": "Clear all",
+		"search": "Search",
+		"price": "Price",
+		"apply": "Apply",
+		"showMore": "Show more",
+		"loadMore": "Show more",
+		"showLess": "Show less",
+		"previous": "Back",
+		"next": "Next",
+		"noProducts": "No products found for selected filters",
+		"sortPopular": "By popularity",
+		"sortCheap": "Price: low to high",
+		"sortExpensive": "Price: high to low",
+		"sortNewest": "Newest",
+		"sortNameAsc": "Name A-Z"
 	}
 }

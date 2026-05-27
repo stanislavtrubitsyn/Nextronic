@@ -91,6 +91,51 @@ export class ProductsController {
     });
   }
 
+  @Get('category/:slug')
+  async getCategoryProducts(
+    @Param('slug') categorySlug: string,
+    @Query('q') query?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('sort') sort?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('lang') lang?: 'ua' | 'en',
+    @Query() allQueryParams?: Record<string, unknown>,
+  ) {
+    const filters: Record<string, unknown> = {};
+    const systemKeys = [
+      'q',
+      'catalog',
+      'category',
+      'categoryId',
+      'lang',
+      'minPrice',
+      'maxPrice',
+      'sort',
+      'page',
+      'limit',
+    ];
+
+    for (const [key, value] of Object.entries(allQueryParams || {})) {
+      if (!systemKeys.includes(key)) {
+        filters[key] = value;
+      }
+    }
+
+    return await this.productsService.getCategoryPageProducts({
+      categorySlug,
+      query,
+      filters,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      sort,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      lang: lang || 'ua',
+    });
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ProductsEntity> {
     return this.productsService.findOne(id);
