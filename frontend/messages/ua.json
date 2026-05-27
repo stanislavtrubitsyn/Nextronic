@@ -626,6 +626,27 @@
 		}
 	},
 
+	"CatalogOverviewPage": {
+		"loading": "Завантаження каталогу...",
+		"loadError": "Не вдалося завантажити каталог",
+		"errorLoading": "Не вдалося завантажити каталог",
+		"home": "Головна",
+		"sections": "Розділи",
+		"sectionsTitle": "Розділи",
+		"catalogNavigationAria": "Навігація каталогу",
+		"sectionNavigationAria": "Навігація по розділах каталогу",
+		"searchPlaceholder": "Пошук",
+		"emptySections": "Розділи не знайдено",
+		"viewAll": "Дивитися всі",
+		"showAll": "Дивитися всі",
+		"showMore": "Показати ще",
+		"showMoreCount": "Показати ще {count}",
+		"showMoreProducts": "Показати ще {count}",
+		"showMoreModels": "Показати ще {count}",
+		"noProducts": "Товарів поки немає",
+		"modelPreviewImageAlt": "Зображення моделі"
+	},
+
 	"UserForm": {
 		"email": "Email",
 		"password": "Пароль",

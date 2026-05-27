@@ -408,7 +408,10 @@ export const AppCatalog = () => {
 									</Box>
 
 									<Typography
-										onClick={() => navigateWithFilters(activeCatalog.slug)}
+										onClick={() => {
+											handleClose()
+											router.push(`/catalog/${activeCatalog.slug}`)
+										}}
 										sx={{
 											mt: 'auto',
 											pt: '12px',

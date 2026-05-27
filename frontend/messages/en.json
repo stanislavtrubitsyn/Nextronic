@@ -623,6 +623,27 @@
 		}
 	},
 
+	"CatalogOverviewPage": {
+		"loading": "Loading catalog...",
+		"loadError": "Failed to load catalog",
+		"errorLoading": "Failed to load catalog",
+		"home": "Home",
+		"sections": "Sections",
+		"sectionsTitle": "Sections",
+		"catalogNavigationAria": "Catalog navigation",
+		"sectionNavigationAria": "Catalog section navigation",
+		"searchPlaceholder": "Search",
+		"emptySections": "No sections found",
+		"viewAll": "View all",
+		"showAll": "View all",
+		"showMore": "Show more",
+		"showMoreCount": "Show more {count}",
+		"showMoreProducts": "Show more {count}",
+		"showMoreModels": "Show more {count}",
+		"noProducts": "No products yet",
+		"modelPreviewImageAlt": "Model image"
+	},
+
 	"UserForm": {
 		"email": "Email",
 		"password": "Password",

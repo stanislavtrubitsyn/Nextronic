@@ -42,6 +42,11 @@ export class CatalogsController {
     return this.catalogsService.getMenuWithTopProducts();
   }
 
+  @Get('slug/:slug/overview')
+  getOverview(@Param('slug') slug: string, @Query('lang') lang: CatalogLangType = 'ua') {
+    return this.catalogsService.getCatalogOverview(slug, lang);
+  }
+
   @Get(':id')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,

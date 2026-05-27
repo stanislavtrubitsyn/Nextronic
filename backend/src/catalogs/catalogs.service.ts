@@ -33,6 +33,44 @@ interface ModelCandidate {
   createdAt: number;
 }
 
+interface OverviewProduct {
+  id: string;
+  sku: string;
+  name: LocalizedString;
+  slug: string;
+  price: number;
+  oldPrice?: number | null;
+  stock: number;
+  images: string[];
+  category: {
+    id: string;
+    name: LocalizedString;
+  };
+}
+
+interface OverviewModelCard {
+  id: string;
+  label: LocalizedString;
+  image: string | null;
+  productSlug: string;
+  filters: Record<string, string>;
+  totalProducts: number;
+  releaseYear: number;
+  createdAt: number;
+}
+
+export interface CatalogOverviewSection {
+  id: string;
+  type: 'category' | 'model_group';
+  label: LocalizedString;
+  categoryId: string;
+  categorySlug: string;
+  filters: Record<string, string>;
+  totalItems: number;
+  products?: OverviewProduct[];
+  models?: OverviewModelCard[];
+}
+
 @Injectable()
 export class CatalogsService {
   constructor(
@@ -125,6 +163,254 @@ export class CatalogsService {
     }
 
     return catalogs;
+  }
+
+  async getCatalogOverview(slug: string, lang: CatalogLangType = 'ua') {
+    const catalog = await this.catalogRepo.findOne({
+      where: { slug, isActive: true },
+      relations: ['categories'],
+    });
+
+    if (!catalog) throw new NotFoundException(CATALOGS_I18N[lang].notFound);
+
+    const categories = (catalog.categories || [])
+      .filter((category) => category.isActive)
+      .sort((a, b) => this.compareLocalizedStrings(a.name, b.name));
+
+    const products = await this.productRepo.find({
+      where: {
+        catalog: { id: catalog.id },
+        isActive: true,
+      },
+      relations: ['category'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const productsByCategory = new Map<string, ProductsEntity[]>();
+
+    for (const product of products) {
+      if (!product.category?.id) continue;
+      if (!product.category.isActive) continue;
+
+      if (!productsByCategory.has(product.category.id)) {
+        productsByCategory.set(product.category.id, []);
+      }
+
+      productsByCategory.get(product.category.id)!.push(product);
+    }
+
+    const sections: CatalogOverviewSection[] = [];
+    const CATEGORY_PRODUCTS_LIMIT = 9;
+
+    for (const category of categories) {
+      const categoryProducts = productsByCategory.get(category.id) || [];
+
+      sections.push({
+        id: `category:${category.id}`,
+        type: 'category',
+        label: category.name,
+        categoryId: category.id,
+        categorySlug: category.slug,
+        filters: {},
+        totalItems: categoryProducts.length,
+        products: categoryProducts
+          .slice(0, CATEGORY_PRODUCTS_LIMIT)
+          .map((product) => this.mapOverviewProduct(product)),
+      });
+
+      sections.push(...this.buildOverviewModelSections(category, categoryProducts));
+    }
+
+    return {
+      catalog: {
+        id: catalog.id,
+        slug: catalog.slug,
+        name: catalog.name,
+      },
+      categories: categories.map((category) => ({
+        id: category.id,
+        slug: category.slug,
+        name: category.name,
+        totalProducts: productsByCategory.get(category.id)?.length || 0,
+      })),
+      sections,
+    };
+  }
+
+  private buildOverviewModelSections(
+    category: { id: string; slug: string; name: LocalizedString },
+    products: ProductsEntity[],
+  ): CatalogOverviewSection[] {
+    if (products.length === 0) return [];
+
+    const groupKeys = ['brand', 'manufacturer', 'compatible_brand', 'accessory_type'];
+    const selectedGroupKey = groupKeys.find((key) =>
+      products.some((product) => this.getFilterValue(product, key)),
+    );
+
+    if (!selectedGroupKey) return [];
+
+    const byGroup = new Map<string, ProductsEntity[]>();
+
+    for (const product of products) {
+      const groupValue = this.getFilterValue(product, selectedGroupKey);
+      if (!groupValue) continue;
+
+      if (!byGroup.has(groupValue)) {
+        byGroup.set(groupValue, []);
+      }
+
+      byGroup.get(groupValue)!.push(product);
+    }
+
+    return Array.from(byGroup.entries())
+      .map(([groupValue, groupedProducts]) => {
+        const groupLabel = this.formatMenuLinkLabel(groupValue);
+        const filters = { [selectedGroupKey]: groupValue };
+        const models = this.buildOverviewModelCards(groupedProducts, filters);
+        const totalItems = this.countUniqueModels(groupedProducts);
+
+        return {
+          id: `model-group:${category.id}:${selectedGroupKey}:${groupValue}`,
+          type: 'model_group' as const,
+          label: {
+            ua: `${category.name.ua} ${groupLabel}`,
+            en: `${category.name.en} ${groupLabel}`,
+          },
+          categoryId: category.id,
+          categorySlug: category.slug,
+          filters,
+          totalItems,
+          models,
+        };
+      })
+      .filter((section) => (section.models?.length || 0) > 0)
+      .sort((a, b) => this.compareLocalizedStrings(a.label, b.label));
+  }
+
+  private buildOverviewModelCards(
+    products: ProductsEntity[],
+    baseFilters: Record<string, string>,
+  ): OverviewModelCard[] {
+    const MODEL_PREVIEW_LIMIT = 9;
+    const modelsByValue = new Map<
+      string,
+      {
+        modelValue: string;
+        representative: ProductsEntity;
+        totalProducts: number;
+        releaseYear: number;
+        createdAt: number;
+      }
+    >();
+
+    for (const product of products) {
+      const modelValue = this.getProductModelValue(product);
+      if (!modelValue) continue;
+
+      const uniqueKey = modelValue.toLowerCase();
+      const releaseYear = this.getNumericFilterValue(product, 'release_year');
+      const createdAt = this.getProductTimestamp(product);
+      const existing = modelsByValue.get(uniqueKey);
+
+      if (!existing) {
+        modelsByValue.set(uniqueKey, {
+          modelValue,
+          representative: product,
+          totalProducts: 1,
+          releaseYear,
+          createdAt,
+        });
+        continue;
+      }
+
+      existing.totalProducts += 1;
+
+      if (
+        releaseYear > existing.releaseYear ||
+        (releaseYear === existing.releaseYear && createdAt > existing.createdAt)
+      ) {
+        existing.representative = product;
+        existing.releaseYear = releaseYear;
+        existing.createdAt = createdAt;
+      }
+    }
+
+    return Array.from(modelsByValue.values())
+      .sort((a, b) =>
+        this.compareModelCandidates(
+          {
+            value: a.modelValue,
+            releaseYear: a.releaseYear,
+            createdAt: a.createdAt,
+          },
+          {
+            value: b.modelValue,
+            releaseYear: b.releaseYear,
+            createdAt: b.createdAt,
+          },
+        ),
+      )
+      .slice(0, MODEL_PREVIEW_LIMIT)
+      .map((item) => ({
+        id: `${item.representative.id}:${item.modelValue}`,
+        label: {
+          ua: this.formatMenuLinkLabel(item.modelValue),
+          en: this.formatMenuLinkLabel(item.modelValue),
+        },
+        image: item.representative.images?.[0] || null,
+        productSlug: item.representative.slug,
+        filters: {
+          ...baseFilters,
+          [this.getProductModelFilterKey(item.representative)]: item.modelValue,
+        },
+        totalProducts: item.totalProducts,
+        releaseYear: item.releaseYear,
+        createdAt: item.createdAt,
+      }));
+  }
+
+  private countUniqueModels(products: ProductsEntity[]): number {
+    const modelValues = new Set<string>();
+
+    for (const product of products) {
+      const modelValue = this.getProductModelValue(product);
+      if (modelValue) modelValues.add(modelValue.toLowerCase());
+    }
+
+    return modelValues.size;
+  }
+
+  private getProductModelValue(product: ProductsEntity): string | null {
+    return (
+      this.getFilterValue(product, 'model') ||
+      this.getFilterValue(product, 'compatible_model') ||
+      null
+    );
+  }
+
+  private getProductModelFilterKey(product: ProductsEntity): string {
+    return this.getFilterValue(product, 'model') ? 'model' : 'compatible_model';
+  }
+
+  private mapOverviewProduct(product: ProductsEntity): OverviewProduct {
+    return {
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      slug: product.slug,
+      price: Number(product.price),
+      oldPrice:
+        product.oldPrice === null || product.oldPrice === undefined
+          ? null
+          : Number(product.oldPrice),
+      stock: product.stock,
+      images: product.images || [],
+      category: {
+        id: product.category.id,
+        name: product.category.name,
+      },
+    };
   }
 
   private buildVirtualGroupsForCategory(
