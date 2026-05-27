@@ -1204,14 +1204,24 @@ function CategoryPageContent() {
 								<Chip
 									label={labels.clearAll}
 									onDelete={clearAllFilters}
-									deleteIcon={
-										<CloseRoundedIcon sx={{ color: 'var(--theme-text)' }} />
-									}
+									deleteIcon={<CloseRoundedIcon />}
 									sx={{
 										...appliedChipSx,
 										color: 'var(--theme-text)',
 										bgcolor: 'transparent',
 										border: '1px solid #6D28D9',
+
+										'& .MuiChip-deleteIcon': {
+											color: 'var(--theme-text)',
+											fontSize: 18,
+											'&:hover': {
+												color: 'var(--theme-text)',
+											},
+										},
+
+										'& .MuiChip-deleteIcon.MuiSvgIcon-root': {
+											color: 'var(--theme-text)',
+										},
 									}}
 								/>
 							</Box>
