@@ -69,12 +69,14 @@ const getProductHref = (product: ProductCardData): string => {
 	return `/product/${product.slug || product.id}`
 }
 
-const formatCurrency = (value: number, locale: Locale): string => {
-	const formatter = new Intl.NumberFormat(locale === 'ua' ? 'uk-UA' : 'en-US', {
-		maximumFractionDigits: 0,
-	})
+const formatCurrency = (value: number): string => {
+	const roundedValue = Math.round(Number(value) || 0)
+	const formattedValue = String(roundedValue).replace(
+		/\B(?=(\d{3})+(?!\d))/g,
+		' ',
+	)
 
-	return `${formatter.format(Math.round(value))} ₴`
+	return `${formattedValue} ₴`
 }
 
 const getArrayFromUnknown = <T,>(value: unknown): T[] => {
@@ -853,7 +855,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 							whiteSpace: 'nowrap',
 						}}
 					>
-						{formatCurrency(Number(product.oldPrice), locale)}
+						{formatCurrency(Number(product.oldPrice))}
 					</Typography>
 
 					<Box
@@ -879,14 +881,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 								whiteSpace: 'nowrap',
 							}}
 						>
-							-{formatCurrency(discountAmount, locale)}
+							-{formatCurrency(discountAmount)}
 						</Typography>
 					</Box>
 				</Box>
 			)}
 
 			<Typography
-				aria-label={`Ціна ${formatCurrency(product.price, locale)}`}
+				aria-label={`Ціна ${formatCurrency(product.price)}`}
 				sx={{
 					fontFamily: 'var(--font-inter)',
 					fontSize: isMain ? '24px' : isHistory ? '12px' : '34px',
@@ -900,7 +902,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 					whiteSpace: 'nowrap',
 				}}
 			>
-				{formatCurrency(product.price, locale)}
+				{formatCurrency(product.price)}
 			</Typography>
 		</Box>
 	)
@@ -949,7 +951,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 						whiteSpace: 'nowrap',
 					}}
 				>
-					{formatCurrency(personalPrice, locale)}
+					{formatCurrency(personalPrice)}
 				</Typography>
 			</Box>
 		)
@@ -1013,7 +1015,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 							color: '#6D28D9',
 						}}
 					>
-						+{formatCurrency(bonusEarned, locale)}
+						+{formatCurrency(bonusEarned)}
 					</Typography>{' '}
 					{t('bonusAccount')}
 				</Typography>
