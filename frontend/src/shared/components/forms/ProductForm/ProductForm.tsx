@@ -16,7 +16,7 @@ import {
 } from '@mui/material'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 interface LocalizedString {
@@ -126,6 +126,45 @@ const getAttributeValue = (
 	return values.find(item => item.code === code) || { code, value: '' }
 }
 
+type AppLocale = 'ua' | 'en'
+
+const normalizeLocale = (locale: string): AppLocale => {
+	return locale === 'en' ? 'en' : 'ua'
+}
+
+const getLocalizedText = (
+	value: LocalizedString | undefined,
+	locale: AppLocale,
+): string => {
+	if (!value) return ''
+
+	return value[locale] || value.ua || value.en || ''
+}
+
+const getAttributeLabel = (
+	attribute: CategoryAttributeSchemaItem,
+	locale: AppLocale,
+): string => {
+	const requiredMark = attribute.required ? ' *' : ''
+	const unit = attribute.unit ? ` (${attribute.unit})` : ''
+
+	return `${getLocalizedText(attribute.name, locale)}${requiredMark}${unit}`
+}
+
+const getBooleanOptions = (
+	attribute: CategoryAttributeSchemaItem,
+	t: (key: 'yes' | 'no') => string,
+): AttributeOption[] => {
+	if (attribute.options && attribute.options.length > 0) {
+		return attribute.options
+	}
+
+	return [
+		{ value: 'true', label: { ua: t('yes'), en: t('yes') } },
+		{ value: 'false', label: { ua: t('no'), en: t('no') } },
+	]
+}
+
 const toDisplayValue = (
 	attribute: CategoryAttributeSchemaItem,
 	value: string | number | boolean | string[] | null,
@@ -168,6 +207,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 	categories,
 }) => {
 	const t = useTranslations('ProductForm')
+	const currentLocale = normalizeLocale(useLocale())
 	const [newImageUrl, setNewImageUrl] = useState('')
 	const [schema, setSchema] = useState<CategoryAttributeSchemaItem[]>([])
 	const [schemaLoading, setSchemaLoading] = useState(false)
@@ -216,9 +256,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 				})
 			} catch (error) {
 				console.error('Помилка завантаження схеми характеристик:', error)
-				setSchemaError(
-					'Не вдалося завантажити характеристики для цієї категорії',
-				)
+				setSchemaError(t('schemaLoadError'))
 			} finally {
 				setSchemaLoading(false)
 			}
@@ -291,9 +329,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 			formData.attributeValues || [],
 			attribute.code,
 		)
-		const label = `${attribute.name.ua}${attribute.required ? ' *' : ''}${attribute.unit ? ` (${attribute.unit})` : ''}`
+		const label = getAttributeLabel(attribute, currentLocale)
 
 		if (attribute.type === 'boolean') {
+			const options = getBooleanOptions(attribute, t)
+
 			return (
 				<FormControl fullWidth sx={inputStyles} key={attribute.code}>
 					<InputLabel>{label}</InputLabel>
@@ -305,8 +345,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 						}
 						IconComponent={KeyboardArrowDownRoundedIcon}
 					>
-						<MenuItem value='true'>Так</MenuItem>
-						<MenuItem value='false'>Ні</MenuItem>
+						{options.map(option => (
+							<MenuItem key={option.value} value={option.value}>
+								{getLocalizedText(option.label, currentLocale)}
+							</MenuItem>
+						))}
 					</Select>
 				</FormControl>
 			)
@@ -328,7 +371,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 					>
 						{attribute.options.map(option => (
 							<MenuItem key={option.value} value={option.value}>
-								{option.label.ua}
+								{getLocalizedText(option.label, currentLocale)}
 							</MenuItem>
 						))}
 					</Select>
@@ -368,7 +411,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 										return (
 											<Chip
 												key={value}
-												label={option?.label.ua || value}
+												label={
+													getLocalizedText(option?.label, currentLocale) ||
+													value
+												}
 												size='small'
 											/>
 										)
@@ -379,7 +425,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 						>
 							{attribute.options.map(option => (
 								<MenuItem key={option.value} value={option.value}>
-									{option.label.ua}
+									{getLocalizedText(option.label, currentLocale)}
 								</MenuItem>
 							))}
 						</Select>
@@ -402,7 +448,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 								.filter(Boolean),
 						)
 					}
-					helperText='Можна ввести кілька значень через кому'
+					helperText={t('multiEnumCommaHint')}
 					sx={inputStyles}
 				/>
 			)
@@ -523,7 +569,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 						</MenuItem>
 						{categories.map(cat => (
 							<MenuItem key={cat.id} value={cat.id}>
-								{cat.name.ua}
+								{getLocalizedText(cat.name, currentLocale)}
 							</MenuItem>
 						))}
 					</Select>
@@ -660,7 +706,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 						>
 							<Image
 								src={img}
-								alt='preview'
+								alt={t('imagePreviewAlt')}
 								fill
 								sizes='70px'
 								unoptimized
@@ -709,7 +755,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 					</Typography>
 					{schema.length > 0 && (
 						<Chip
-							label='Автоматична схема категорії'
+							label={t('autoCategorySchema')}
 							size='small'
 							sx={{ color: '#6D28D9', borderColor: '#6D28D9' }}
 							variant='outlined'
@@ -719,8 +765,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
 				{!formData.categoryId && (
 					<Typography sx={{ color: 'var(--theme-icon-dim)' }}>
-						Оберіть категорію — після цього система автоматично покаже потрібні
-						поля характеристик.
+						{t('selectCategoryForSchema')}
 					</Typography>
 				)}
 
@@ -736,7 +781,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
 				{!schemaLoading &&
 					groupedSchema.map(group => (
-						<Box key={`${group.group.ua}-${group.group.en}`} sx={{ mb: 3 }}>
+						<Box
+							key={`${getLocalizedText(group.group, currentLocale)}-${group.group.en}`}
+							sx={{ mb: 3 }}
+						>
 							<Typography
 								sx={{
 									color: 'var(--theme-text)',
@@ -744,7 +792,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 									mb: 1.5,
 								}}
 							>
-								{group.group.ua}
+								{getLocalizedText(group.group, currentLocale)}
 							</Typography>
 							<Box
 								sx={{

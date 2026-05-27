@@ -19,6 +19,7 @@ import {
 	Snackbar,
 	Menu,
 	MenuItem,
+	Tooltip,
 	SxProps,
 	Theme,
 } from '@mui/material'
@@ -29,6 +30,7 @@ import DriveFileRenameOutlineRoundedIcon from '@mui/icons-material/DriveFileRena
 import BlockIcon from '@mui/icons-material/Block'
 import InventoryIcon from '@mui/icons-material/Inventory'
 import DeleteForeverRoundedIcon from '@mui/icons-material/DeleteForeverRounded'
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AddIcon from '@mui/icons-material/Add'
 import SortRoundedIcon from '@mui/icons-material/SortRounded'
@@ -51,12 +53,14 @@ interface ProductAttributeValueResponse {
 
 interface CategoryOption {
 	id: string
+	sku: string
 	name: { ua: string; en: string }
 	slug?: string
 }
 
 interface Product {
 	id: string
+	sku: string
 	name: { ua: string; en: string }
 	slug: string
 	price: number
@@ -286,7 +290,8 @@ export default function AdminProductsPage() {
 			filtered = filtered.filter(
 				p =>
 					p.name.ua.toLowerCase().includes(lower) ||
-					p.name.en.toLowerCase().includes(lower),
+					p.name.en.toLowerCase().includes(lower) ||
+					p.sku?.toLowerCase().includes(lower),
 			)
 		}
 		filtered.sort((a, b) => {
@@ -358,6 +363,33 @@ export default function AdminProductsPage() {
 			boxShadow: 'none',
 			'&:hover': { bgcolor: '#5B21B6', boxShadow: 'none' },
 		},
+	}
+
+	const openDuplicateModal = (prod: Product) => {
+		const copySuffix = Date.now().toString().slice(-6)
+
+		setFormData({
+			name: {
+				ua: `${prod.name.ua} ${t('copySuffix.ua')}`,
+				en: `${prod.name.en} ${t('copySuffix.en')}`,
+			},
+			slug: `${prod.slug}-copy-${copySuffix}`,
+			price: Number(prod.price),
+			oldPrice: prod.oldPrice ? Number(prod.oldPrice) : undefined,
+			stock: 0,
+			images: prod.images || [],
+			description: prod.description || { ua: '', en: '' },
+			categoryId: prod.category?.id || '',
+			attributeValues: mapProductAttributeValues(prod.attributeValues),
+			characteristics: prod.characteristics || [],
+			isActive: prod.isActive,
+		})
+
+		setModalState({
+			type: 'create',
+			selectedProduct: prod,
+			loading: false,
+		})
 	}
 
 	if (loading)
@@ -554,17 +586,18 @@ export default function AdminProductsPage() {
 					<TableHead>
 						<TableRow>
 							{[
-								'index',
-								'product',
-								'price',
-								'stock',
-								'creationDate',
-								'updateDate',
-								'status',
-								'actions',
+								{ key: 'index', label: t('columns.index') },
+								{ key: 'product', label: t('columns.product') },
+								{ key: 'sku', label: t('columns.sku') },
+								{ key: 'price', label: t('columns.price') },
+								{ key: 'stock', label: t('columns.stock') },
+								{ key: 'creationDate', label: t('columns.creationDate') },
+								{ key: 'updateDate', label: t('columns.updateDate') },
+								{ key: 'status', label: t('columns.status') },
+								{ key: 'actions', label: t('columns.actions') },
 							].map(col => (
 								<TableCell
-									key={col}
+									key={col.key}
 									sx={{
 										bgcolor: 'var(--color-header-bg)',
 										color: 'var(--theme-text)',
@@ -574,7 +607,7 @@ export default function AdminProductsPage() {
 										whiteSpace: 'nowrap',
 									}}
 								>
-									{t(`columns.${col}`)}
+									{col.label}
 								</TableCell>
 							))}
 						</TableRow>
@@ -656,6 +689,17 @@ export default function AdminProductsPage() {
 										fontSize: '16px',
 										border: '1px solid var(--color-card-border)',
 										fontWeight: 600,
+										color: '#6D28D9',
+										whiteSpace: 'nowrap',
+									}}
+								>
+									{prod.sku || '—'}
+								</TableCell>
+								<TableCell
+									sx={{
+										fontSize: '16px',
+										border: '1px solid var(--color-card-border)',
+										fontWeight: 600,
 										color: 'var(--theme-text)',
 									}}
 								>
@@ -663,7 +707,7 @@ export default function AdminProductsPage() {
 										<Box sx={{ display: 'flex', flexDirection: 'column' }}>
 											<Typography
 												sx={{
-													fontSize: '16px',
+													fontSize: '14px',
 													textDecoration: 'line-through',
 													color: '#4E525C',
 												}}
@@ -784,6 +828,25 @@ export default function AdminProductsPage() {
 											}}
 										/>
 									</IconButton>
+									<Tooltip title={t('actions.duplicate')} arrow>
+										<IconButton
+											onClick={() => openDuplicateModal(prod)}
+											disableRipple
+											aria-label={t('actions.duplicate')}
+											sx={{
+												transition: 'color 0.2s',
+												'&:hover': { backgroundColor: 'transparent' },
+											}}
+										>
+											<ContentCopyRoundedIcon
+												sx={{
+													color: '#6D28D9',
+													width: '23px',
+													height: '23px',
+												}}
+											/>
+										</IconButton>
+									</Tooltip>
 									<IconButton
 										onClick={() =>
 											setModalState({
@@ -847,7 +910,7 @@ export default function AdminProductsPage() {
 						{filteredProducts.length === 0 && (
 							<TableRow>
 								<TableCell
-									colSpan={8}
+									colSpan={9}
 									align='center'
 									sx={{
 										border: '1px solid var(--color-card-border)',

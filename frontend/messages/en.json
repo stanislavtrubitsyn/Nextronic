@@ -577,7 +577,8 @@
 				"creationDate": "Creation date",
 				"updateDate": "Update date",
 				"status": "Status",
-				"actions": "Actions"
+				"actions": "Actions",
+				"sku": "Product code"
 			},
 			"status": {
 				"active": "Active",
@@ -610,6 +611,14 @@
 				"errorStatus": "Error changing status",
 				"errorDelete": "Error deleting product",
 				"errorNetwork": "Network error"
+			},
+			"actions": {
+				"duplicate": "Duplicate product"
+			},
+			"uncategorized": "No category",
+			"copySuffix": {
+				"ua": "(копія)",
+				"en": "(copy)"
 			}
 		}
 	},
@@ -682,7 +691,14 @@
 		"valueEn": "Value (Eng)",
 		"images": "Product images",
 		"addImage": "Add image URL",
-		"imageUrl": "Image URL"
+		"imageUrl": "Image URL",
+		"autoCategorySchema": "Automatic category schema",
+		"selectCategoryForSchema": "Select a category — after that, the system will automatically show the required characteristic fields.",
+		"imagePreviewAlt": "Product image preview",
+		"schemaLoadError": "Failed to load characteristics for this category",
+		"multiEnumCommaHint": "You can enter multiple values separated by commas",
+		"yes": "Yes",
+		"no": "No"
 	},
 
 	"ProductCard": {

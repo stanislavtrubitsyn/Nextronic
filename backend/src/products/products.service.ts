@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
 import { ProductsEntity } from './products.entity';
-import { CreateProductDto, UpdateProductDto } from './products.dto';
+import { CreateProductDto, DuplicateProductDto, UpdateProductDto } from './products.dto';
 import { CategoriesEntity } from '../categories/categories.entity';
 import { PRODUCTS_I18N, ProductLangType } from './products.i18n';
 import { RecommendationsService } from '../recommendations/recommendations.service';
@@ -31,6 +31,64 @@ export class ProductsService {
     return `NX-${randomDigits}`;
   }
 
+  private async generateUniqueSKU(): Promise<string> {
+    const maxAttempts = 30;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const sku = this.generateSKU();
+      const existing = await this.productRepo.findOne({ where: { sku } });
+
+      if (!existing) {
+        return sku;
+      }
+    }
+
+    return `NX-${Date.now()}`;
+  }
+
+  private async generateUniqueSlug(baseSlug: string): Promise<string> {
+    const normalizedBase = baseSlug
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9а-яіїєґ-]+/gi, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    let candidate = normalizedBase || `product-copy-${Date.now()}`;
+    let counter = 2;
+
+    while (await this.productRepo.findOne({ where: { slug: candidate } })) {
+      candidate = `${normalizedBase}-${counter}`;
+      counter += 1;
+    }
+
+    return candidate;
+  }
+
+  private buildCopyName(name: { ua: string; en: string }) {
+    return {
+      ua: `${name.ua} (копія)`,
+      en: `${name.en} (copy)`,
+    };
+  }
+
+  private mapExistingAttributeValues(product: ProductsEntity) {
+    return (product.attributeValues || []).map((item) => ({
+      code: item.code,
+      value:
+        item.valueNumber !== null && item.valueNumber !== undefined
+          ? Number(item.valueNumber)
+          : item.valueBoolean !== null && item.valueBoolean !== undefined
+            ? item.valueBoolean
+            : item.valueString !== null && item.valueString !== undefined
+              ? item.valueString
+              : Array.isArray(item.valueJson)
+                ? (item.valueJson as string[])
+                : '',
+      displayValue: item.displayValue,
+    }));
+  }
+
   async create(
     dto: CreateProductDto,
     adminId: string,
@@ -50,10 +108,7 @@ export class ProductsService {
     const finalCatalogId = dto.catalogId || category.catalog?.id;
     if (!finalCatalogId) throw new BadRequestException(t.catalogError);
 
-    let sku = this.generateSKU();
-    while (await this.productRepo.findOne({ where: { sku } })) {
-      sku = this.generateSKU();
-    }
+    const sku = await this.generateUniqueSKU();
 
     const preparedAttributes = await this.attributesService.prepareProductAttributes(
       category.id,
@@ -102,6 +157,80 @@ export class ProductsService {
       'ProductsEntity',
       savedProduct.id,
       null,
+      savedProduct,
+    );
+
+    return await this.findOne(savedProduct.id);
+  }
+
+  async duplicate(
+    id: string,
+    dto: DuplicateProductDto,
+    adminId: string,
+    lang: ProductLangType = 'ua',
+  ): Promise<ProductsEntity> {
+    const t = PRODUCTS_I18N[lang];
+    const originalProduct = await this.findOne(id, lang);
+
+    const targetCategoryId = dto.categoryId || originalProduct.category.id;
+    const category = await this.categoryRepo.findOne({
+      where: { id: targetCategoryId },
+      relations: ['catalog'],
+    });
+    if (!category) throw new NotFoundException(t.categoryNotFound);
+
+    const finalCatalogId = dto.catalogId || category.catalog?.id || originalProduct.catalog.id;
+    if (!finalCatalogId) throw new BadRequestException(t.catalogError);
+
+    const slug = dto.slug || (await this.generateUniqueSlug(`${originalProduct.slug}-copy`));
+    const existingSlug = await this.productRepo.findOne({ where: { slug } });
+    if (existingSlug) throw new BadRequestException(t.slugExists);
+
+    const attributeValues =
+      dto.attributeValues !== undefined
+        ? dto.attributeValues
+        : this.mapExistingAttributeValues(originalProduct);
+
+    const preparedAttributes = await this.attributesService.prepareProductAttributes(
+      category.id,
+      attributeValues,
+    );
+
+    const product = this.productRepo.create({
+      name: dto.name || this.buildCopyName(originalProduct.name),
+      slug,
+      description: dto.description !== undefined ? dto.description : originalProduct.description,
+      price: dto.price !== undefined ? dto.price : Number(originalProduct.price),
+      oldPrice:
+        dto.oldPrice !== undefined
+          ? dto.oldPrice
+          : originalProduct.oldPrice !== undefined
+            ? Number(originalProduct.oldPrice)
+            : undefined,
+      stock: dto.stock !== undefined ? dto.stock : 0,
+      images: dto.images !== undefined ? dto.images : originalProduct.images || [],
+      isActive: dto.isActive ?? originalProduct.isActive,
+      characteristics: preparedAttributes.characteristics,
+      filters: preparedAttributes.filters,
+      sku: await this.generateUniqueSKU(),
+      catalog: { id: finalCatalogId },
+      category: { id: category.id },
+    });
+
+    const savedProduct = await this.productRepo.save(product);
+
+    await this.attributesService.replaceProductAttributeValues(
+      savedProduct,
+      category,
+      preparedAttributes.values,
+    );
+
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.CREATE,
+      'ProductsEntity',
+      savedProduct.id,
+      originalProduct,
       savedProduct,
     );
 

@@ -136,3 +136,4 @@ export class CreateProductDto {
 }
 
 export class UpdateProductDto extends PartialType(CreateProductDto) {}
+export class DuplicateProductDto extends PartialType(CreateProductDto) {}

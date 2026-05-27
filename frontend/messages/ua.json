@@ -580,7 +580,8 @@
 				"creationDate": "Дата створення",
 				"updateDate": "Дата зміни",
 				"status": "Статус",
-				"actions": "Дії"
+				"actions": "Дії",
+				"sku": "Код товару"
 			},
 			"status": {
 				"active": "Активний",
@@ -613,6 +614,14 @@
 				"errorStatus": "Помилка зміни статусу",
 				"errorDelete": "Помилка видалення",
 				"errorNetwork": "Мережева помилка"
+			},
+			"actions": {
+				"duplicate": "Дублювати товар"
+			},
+			"uncategorized": "Без категорії",
+			"copySuffix": {
+				"ua": "(копія)",
+				"en": "(copy)"
 			}
 		}
 	},
@@ -684,7 +693,14 @@
 		"valueEn": "Значення (Англ)",
 		"images": "Фотографії товару",
 		"addImage": "Додати URL фотографії",
-		"imageUrl": "URL фото"
+		"imageUrl": "URL фото",
+		"autoCategorySchema": "Автоматична схема категорії",
+		"selectCategoryForSchema": "Оберіть категорію — після цього система автоматично покаже потрібні поля характеристик.",
+		"imagePreviewAlt": "Попередній перегляд фото товару",
+		"schemaLoadError": "Не вдалося завантажити характеристики для цієї категорії",
+		"multiEnumCommaHint": "Можна ввести кілька значень через кому",
+		"yes": "Так",
+		"no": "Ні"
 	},
 
 	"ProductCard": {

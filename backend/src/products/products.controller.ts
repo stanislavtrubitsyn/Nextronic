@@ -14,7 +14,7 @@ import {
 import { ProductsService } from './products.service';
 import { ViewedProductsService } from './viewed-products.service';
 import { ProductsEntity } from './products.entity';
-import { CreateProductDto, UpdateProductDto } from './products.dto';
+import { CreateProductDto, DuplicateProductDto, UpdateProductDto } from './products.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -101,6 +101,17 @@ export class ProductsController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   create(@Body() body: CreateProductDto, @Req() req: RequestWithUser): Promise<ProductsEntity> {
     return this.productsService.create(body, req.user!.userId);
+  }
+
+  @Post(':id/duplicate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  duplicate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: DuplicateProductDto,
+    @Req() req: RequestWithUser,
+  ): Promise<ProductsEntity> {
+    return this.productsService.duplicate(id, body, req.user!.userId);
   }
 
   @Patch(':id')
