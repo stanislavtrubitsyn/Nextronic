@@ -98,7 +98,7 @@ function MUIWrapper({ children }: { children: React.ReactNode }) {
 				primary: { main: '#6D28D9' },
 			},
 			breakpoints: {
-				values: { xs: 0, sm: 376, md: 1025, lg: 1921, xl: 2001 },
+				values: { xs: 0, sm: 375, md: 1024, lg: 1920, xl: 2000 },
 			},
 			typography: {
 				fontFamily: 'var(--font-inter)',
