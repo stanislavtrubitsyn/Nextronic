@@ -30,8 +30,11 @@ export class ViewedProductsService {
 
   async getHistory(userId: string, limit: number = 20) {
     return await this.viewedRepo.find({
-      where: { user: { id: userId } },
-      relations: ['product'],
+      where: {
+        user: { id: userId },
+        product: { isActive: true },
+      },
+      relations: ['product', 'product.category', 'product.reviews'],
       order: { viewedAt: 'DESC' },
       take: limit,
     });

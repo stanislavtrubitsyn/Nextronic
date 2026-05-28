@@ -136,6 +136,17 @@ export class ProductsController {
     });
   }
 
+  @Get('slug/:slug')
+  async findBySlug(@Param('slug') slug: string, @Query('lang') lang?: 'ua' | 'en') {
+    return await this.productsService.getProductPageBySlug(slug, lang || 'ua');
+  }
+
+  @Get('history/recent')
+  @UseGuards(JwtAuthGuard)
+  async getMyViewHistory(@Req() req: RequestWithUser) {
+    return await this.viewedProductsService.getHistory(req.user!.userId);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ProductsEntity> {
     return this.productsService.findOne(id);
@@ -180,6 +191,21 @@ export class ProductsController {
     return this.productsService.toggleStatus(id, req.user!.userId);
   }
 
+  @Delete('history/clear')
+  @UseGuards(JwtAuthGuard)
+  async clearMyHistory(@Req() req: RequestWithUser) {
+    return await this.viewedProductsService.clearHistory(req.user!.userId);
+  }
+
+  @Delete('history/:productId')
+  @UseGuards(JwtAuthGuard)
+  async removeProductFromHistory(
+    @Param('productId', ParseUUIDPipe) productId: string,
+    @Req() req: RequestWithUser,
+  ) {
+    return await this.viewedProductsService.removeView(req.user!.userId, productId);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -200,26 +226,5 @@ export class ProductsController {
       ActivityAction.VIEW,
     );
     return await this.viewedProductsService.addView(req.user!.userId, productId);
-  }
-
-  @Get('history/recent')
-  @UseGuards(JwtAuthGuard)
-  async getMyViewHistory(@Req() req: RequestWithUser) {
-    return await this.viewedProductsService.getHistory(req.user!.userId);
-  }
-
-  @Delete('history/clear')
-  @UseGuards(JwtAuthGuard)
-  async clearMyHistory(@Req() req: RequestWithUser) {
-    return await this.viewedProductsService.clearHistory(req.user!.userId);
-  }
-
-  @Delete('history/:productId')
-  @UseGuards(JwtAuthGuard)
-  async removeProductFromHistory(
-    @Param('productId', ParseUUIDPipe) productId: string,
-    @Req() req: RequestWithUser,
-  ) {
-    return await this.viewedProductsService.removeView(req.user!.userId, productId);
   }
 }

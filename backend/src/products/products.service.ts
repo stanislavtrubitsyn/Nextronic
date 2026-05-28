@@ -13,6 +13,7 @@ import {
   AttributesService,
   PreparedProductAttributesResult,
 } from '../attributes/attributes.service';
+import { ReviewType } from '../reviews/reviews.entity';
 
 @Injectable()
 export class ProductsService {
@@ -643,6 +644,418 @@ export class ProductsService {
         minPrice,
         maxPrice,
       ),
+    };
+  }
+
+  async getProductPageBySlug(slug: string, lang: ProductLangType = 'ua') {
+    const product = await this.productRepo.findOne({
+      where: { slug, isActive: true },
+      relations: [
+        'catalog',
+        'category',
+        'attributeValues',
+        'attributeValues.attribute',
+        'reviews',
+        'reviews.user',
+        'reviews.user.profile',
+        'reviews.replies',
+        'reviews.replies.user',
+        'reviews.replies.user.profile',
+      ],
+    });
+
+    if (!product) throw new NotFoundException(PRODUCTS_I18N[lang].productNotFound);
+
+    const reviewSummary = this.buildProductReviewSummary(product);
+    const recommendations = await this.buildProductPageRecommendations(product);
+    const variants = await this.buildProductVariantGroups(product);
+
+    return {
+      product: {
+        ...this.mapProductSummary(product, reviewSummary.averageRating, reviewSummary.reviewsCount),
+        sku: product.sku,
+        description: product.description || null,
+        catalog: product.catalog
+          ? {
+              id: product.catalog.id,
+              slug: product.catalog.slug,
+              name: product.catalog.name,
+            }
+          : null,
+        category: product.category
+          ? {
+              id: product.category.id,
+              slug: product.category.slug,
+              name: product.category.name,
+            }
+          : null,
+        filters: product.filters || {},
+        characteristics: product.characteristics || [],
+        attributeValues: this.mapProductAttributeValues(product),
+        shortCharacteristics: this.buildShortCharacteristics(product),
+      },
+      variants,
+      rating: reviewSummary,
+      reviews: this.mapProductReviews(product, ReviewType.REVIEW),
+      questions: this.mapProductReviews(product, ReviewType.QUESTION),
+      recommendations,
+    };
+  }
+
+  private mapProductSummary(product: ProductsEntity, rating = 0, reviewsCount = 0) {
+    return {
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      slug: product.slug,
+      price: Number(product.price),
+      oldPrice:
+        product.oldPrice === null || product.oldPrice === undefined
+          ? null
+          : Number(product.oldPrice),
+      stock: product.stock,
+      images: product.images || [],
+      rating,
+      reviewsCount,
+      category: product.category
+        ? {
+            id: product.category.id,
+            slug: product.category.slug,
+            name: product.category.name,
+          }
+        : undefined,
+    };
+  }
+
+  private buildProductReviewSummary(product: ProductsEntity) {
+    const rootReviews = (product.reviews || []).filter((review) => !review.parent);
+    const reviews = rootReviews.filter((review) => review.type === ReviewType.REVIEW);
+    const questions = rootReviews.filter((review) => review.type === ReviewType.QUESTION);
+
+    const distribution = [5, 4, 3, 2, 1].reduce<Record<number, number>>((acc, value) => {
+      acc[value] = reviews.filter((review) => review.rating === value).length;
+      return acc;
+    }, {});
+
+    const ratingSum = reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
+    const averageRating = reviews.length > 0 ? Number((ratingSum / reviews.length).toFixed(1)) : 0;
+
+    return {
+      averageRating,
+      reviewsCount: reviews.length,
+      questionsCount: questions.length,
+      totalActivity: reviews.length + questions.length,
+      distribution,
+    };
+  }
+
+  private mapProductReviews(product: ProductsEntity, type: ReviewType) {
+    return (product.reviews || [])
+      .filter((review) => !review.parent && review.type === type)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map((review) => this.mapProductReview(review));
+  }
+
+  private mapProductReview(review: any): Record<string, unknown> {
+    return {
+      id: review.id,
+      type: review.type,
+      rating: review.rating || null,
+      comment: review.comment,
+      advantages: review.advantages || null,
+      disadvantages: review.disadvantages || null,
+      photos: review.photos || [],
+      isVerifiedPurchase: review.isVerifiedPurchase,
+      likesCount: (review.likedUserIds || []).length,
+      dislikesCount: (review.dislikedUserIds || []).length,
+      userReaction: null,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      author: this.mapReviewAuthor(review.user),
+      replies: (review.replies || [])
+        .slice()
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((reply) => this.mapProductReview(reply)),
+    };
+  }
+
+  private mapReviewAuthor(user: any) {
+    const profile = user?.profile;
+    const name = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ').trim();
+
+    return {
+      id: user?.id || '',
+      name: name || profile?.email || user?.email || 'Користувач',
+    };
+  }
+
+  private mapProductAttributeValues(product: ProductsEntity) {
+    return (product.attributeValues || [])
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((value) => ({
+        code: value.code,
+        name: value.attribute?.name || { ua: value.code, en: value.code },
+        group: value.attribute?.group || { ua: 'Характеристики', en: 'Specifications' },
+        value: value.displayValue,
+        filterValue: value.filterValue || null,
+        sortOrder: value.sortOrder,
+      }));
+  }
+
+  private buildShortCharacteristics(product: ProductsEntity) {
+    const priorityCodes = [
+      'screen_size',
+      'screen_type',
+      'processor_model',
+      'main_camera',
+      'storage',
+      'ram',
+    ];
+
+    const values = new Map((product.attributeValues || []).map((value) => [value.code, value]));
+
+    return priorityCodes
+      .map((code) => values.get(code))
+      .filter((value): value is NonNullable<typeof value> => Boolean(value))
+      .slice(0, 4)
+      .map((value) => ({
+        code: value.code,
+        name: value.attribute?.name || { ua: value.code, en: value.code },
+        value: value.displayValue,
+      }));
+  }
+
+  private async buildProductVariantGroups(product: ProductsEntity) {
+    const sameModelVariantCodes = ['color_manufacturer', 'color', 'main_color', 'storage'];
+    const productFilters = product.filters || {};
+    const brand = productFilters.brand;
+    const model = productFilters.model;
+    const productLine = productFilters.product_line;
+    const series = productFilters.series;
+
+    const sameModelQb = this.productRepo
+      .createQueryBuilder('variant')
+      .leftJoinAndSelect('variant.category', 'category')
+      .leftJoinAndSelect('variant.attributeValues', 'attributeValues')
+      .leftJoinAndSelect('attributeValues.attribute', 'attribute')
+      .where('variant.isActive = :isActive', { isActive: true })
+      .andWhere('category.id = :categoryId', { categoryId: product.category.id });
+
+    if (brand) {
+      sameModelQb.andWhere("variant.filters ->> 'brand' = :brand", { brand: String(brand) });
+    }
+
+    if (model) {
+      sameModelQb.andWhere("variant.filters ->> 'model' = :model", { model: String(model) });
+    }
+
+    const sameModelVariants = await sameModelQb.orderBy('variant.createdAt', 'DESC').getMany();
+
+    const variantGroups = sameModelVariantCodes
+      .map((code) => this.buildVariantGroupFromProducts(code, sameModelVariants, product))
+      .filter((group): group is NonNullable<typeof group> => Boolean(group));
+
+    const lineModelGroup = await this.buildLineModelVariantGroup(product, {
+      brand: brand === undefined || brand === null ? undefined : String(brand),
+      productLine:
+        productLine === undefined || productLine === null ? undefined : String(productLine),
+      series: series === undefined || series === null ? undefined : String(series),
+      model: model === undefined || model === null ? undefined : String(model),
+    });
+
+    if (lineModelGroup) {
+      const colorGroupIndex = variantGroups.findIndex((group) =>
+        ['color_manufacturer', 'color', 'main_color'].includes(group.code),
+      );
+      const insertIndex = colorGroupIndex >= 0 ? colorGroupIndex + 1 : 0;
+      variantGroups.splice(insertIndex, 0, lineModelGroup);
+    }
+
+    return variantGroups;
+  }
+
+  private buildVariantGroupFromProducts(
+    code: string,
+    variants: ProductsEntity[],
+    currentProduct: ProductsEntity,
+  ) {
+    const optionsByValue = new Map<
+      string,
+      {
+        value: string;
+        label: { ua: string; en: string };
+        slug: string;
+        selected: boolean;
+        image: string | null;
+      }
+    >();
+
+    for (const variant of variants) {
+      const attributeValue = (variant.attributeValues || []).find((item) => item.code === code);
+      if (!attributeValue?.filterValue) continue;
+
+      const existingOption = optionsByValue.get(attributeValue.filterValue);
+      const optionImage = variant.images?.[0] || null;
+
+      if (!existingOption) {
+        optionsByValue.set(attributeValue.filterValue, {
+          value: attributeValue.filterValue,
+          label: attributeValue.displayValue,
+          slug: variant.slug,
+          selected: variant.id === currentProduct.id,
+          image: optionImage,
+        });
+        continue;
+      }
+
+      if (!existingOption.image && optionImage) {
+        existingOption.image = optionImage;
+      }
+
+      if (variant.id === currentProduct.id) {
+        existingOption.slug = variant.slug;
+        existingOption.selected = true;
+        existingOption.image = optionImage || existingOption.image;
+      }
+    }
+
+    const options = Array.from(optionsByValue.values());
+    if (options.length <= 1) return null;
+
+    const sourceAttribute = variants
+      .flatMap((variant) => variant.attributeValues || [])
+      .find((item) => item.code === code)?.attribute;
+
+    return {
+      code,
+      label: sourceAttribute?.name || { ua: code, en: code },
+      options,
+    };
+  }
+
+  private async buildLineModelVariantGroup(
+    product: ProductsEntity,
+    filters: {
+      brand?: string;
+      productLine?: string;
+      series?: string;
+      model?: string;
+    },
+  ) {
+    const lineFilterCode = filters.productLine ? 'product_line' : filters.series ? 'series' : null;
+    const lineFilterValue = filters.productLine || filters.series;
+
+    if (!filters.brand || !lineFilterCode || !lineFilterValue) return null;
+
+    const qb = this.productRepo
+      .createQueryBuilder('variant')
+      .leftJoinAndSelect('variant.category', 'category')
+      .leftJoinAndSelect('variant.attributeValues', 'attributeValues')
+      .leftJoinAndSelect('attributeValues.attribute', 'attribute')
+      .where('variant.isActive = :isActive', { isActive: true })
+      .andWhere('category.id = :categoryId', { categoryId: product.category.id })
+      .andWhere("variant.filters ->> 'brand' = :brand", { brand: filters.brand })
+      .andWhere(`variant.filters ->> '${lineFilterCode}' = :lineFilterValue`, { lineFilterValue });
+
+    const variants = await qb.orderBy('variant.createdAt', 'DESC').getMany();
+    const optionsByModel = new Map<
+      string,
+      {
+        value: string;
+        label: { ua: string; en: string };
+        slug: string;
+        selected: boolean;
+        image: string | null;
+      }
+    >();
+
+    for (const variant of variants) {
+      const modelValue = (variant.attributeValues || []).find((item) => item.code === 'model');
+      if (!modelValue?.filterValue) continue;
+
+      const existingOption = optionsByModel.get(modelValue.filterValue);
+      const optionImage = variant.images?.[0] || null;
+      const selected = modelValue.filterValue === filters.model;
+
+      if (!existingOption) {
+        optionsByModel.set(modelValue.filterValue, {
+          value: modelValue.filterValue,
+          label: modelValue.displayValue,
+          slug: selected ? product.slug : variant.slug,
+          selected,
+          image: selected ? product.images?.[0] || optionImage : optionImage,
+        });
+        continue;
+      }
+
+      if (!existingOption.image && optionImage) {
+        existingOption.image = optionImage;
+      }
+
+      if (selected) {
+        existingOption.slug = product.slug;
+        existingOption.selected = true;
+        existingOption.image = product.images?.[0] || optionImage || existingOption.image;
+      }
+    }
+
+    const options = Array.from(optionsByModel.values());
+    if (options.length <= 1) return null;
+
+    return {
+      code: 'line_model',
+      label: { ua: 'Модель', en: 'Model' },
+      options,
+    };
+  }
+
+  private async buildProductPageRecommendations(product: ProductsEntity) {
+    const [similar, catalogProducts, personal] = await Promise.all([
+      this.productRepo.find({
+        where: {
+          category: { id: product.category.id },
+          id: Not(product.id),
+          isActive: true,
+        },
+        relations: ['category'],
+        order: { createdAt: 'DESC' },
+        take: 12,
+      }),
+      this.productRepo.find({
+        where: {
+          catalog: { id: product.catalog.id },
+          id: Not(product.id),
+          isActive: true,
+        },
+        relations: ['category'],
+        order: { createdAt: 'DESC' },
+        take: 12,
+      }),
+      this.productRepo.find({
+        where: {
+          id: Not(product.id),
+          isActive: true,
+        },
+        relations: ['category'],
+        order: { createdAt: 'DESC' },
+        take: 12,
+      }),
+    ]);
+
+    const accessoryProducts = catalogProducts.filter((item) => {
+      const slug = item.category?.slug || '';
+      const nameUa = item.category?.name?.ua || '';
+      const nameEn = item.category?.name?.en || '';
+      return /access|аксесуар|чохол|кабель|навуш/i.test(`${slug} ${nameUa} ${nameEn}`);
+    });
+
+    return {
+      accessories: (accessoryProducts.length ? accessoryProducts : catalogProducts).map((item) =>
+        this.mapProductSummary(item),
+      ),
+      similar: similar.map((item) => this.mapProductSummary(item)),
+      personal: personal.map((item) => this.mapProductSummary(item)),
     };
   }
 
