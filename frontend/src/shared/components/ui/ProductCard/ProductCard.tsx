@@ -49,6 +49,11 @@ interface ProductCardProps {
 	product: ProductCardData
 	variant?: 'main' | 'history' | 'sticky'
 	userBonuses?: number
+	stretch?: boolean
+	favoriteActive?: boolean
+	comparedActive?: boolean
+	onFavoriteChange?: (value: boolean) => void
+	onCompareChange?: (value: boolean) => void
 }
 
 // Допоміжні функції
@@ -79,6 +84,20 @@ const formatCurrency = (value: number): string => {
 	return `${formattedValue} ₴`
 }
 
+const getReviewPluralLabel = (count: number, locale: Locale): string => {
+	if (locale === 'en') return count === 1 ? 'review' : 'reviews'
+
+	const absCount = Math.abs(count)
+	const lastTwoDigits = absCount % 100
+	const lastDigit = absCount % 10
+
+	if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return 'відгуків'
+	if (lastDigit === 1) return 'відгук'
+	if (lastDigit >= 2 && lastDigit <= 4) return 'відгуки'
+
+	return 'відгуків'
+}
+
 const getArrayFromUnknown = <T,>(value: unknown): T[] => {
 	return Array.isArray(value) ? value : []
 }
@@ -97,11 +116,37 @@ const getCartItems = (data: unknown): Array<{ product?: { id?: string } }> => {
 	return []
 }
 
+type ProductCardSyncEventDetail = {
+	productId: string
+	isFavorite?: boolean
+	isCompared?: boolean
+	isInCart?: boolean
+}
+
+const PRODUCT_FAVORITE_SYNC_EVENT = 'product:favorite-sync'
+const PRODUCT_COMPARE_SYNC_EVENT = 'product:compare-sync'
+const PRODUCT_CART_SYNC_EVENT = 'product:cart-sync'
+
+const dispatchProductSyncEvent = (
+	eventName: string,
+	detail: ProductCardSyncEventDetail,
+) => {
+	if (typeof window === 'undefined') return
+	window.dispatchEvent(
+		new CustomEvent<ProductCardSyncEventDetail>(eventName, { detail }),
+	)
+}
+
 // Основний компонент
 export const ProductCard: React.FC<ProductCardProps> = ({
 	product,
 	variant = 'main',
 	userBonuses = 0,
+	stretch = false,
+	favoriteActive,
+	comparedActive,
+	onFavoriteChange,
+	onCompareChange,
 }) => {
 	const t = useTranslations('ProductCard')
 	const locale = useLocale() as Locale
@@ -114,13 +159,55 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 	const isSticky = variant === 'sticky'
 
 	const [imgIndex, setImgIndex] = useState(0)
-	const [isFavorite, setIsFavorite] = useState(false)
-	const [isCompared, setIsCompared] = useState(false)
+	const isFavoriteControlled = typeof favoriteActive === 'boolean'
+	const isComparedControlled = typeof comparedActive === 'boolean'
+
+	const [isFavorite, setIsFavorite] = useState(favoriteActive ?? false)
+	const [isCompared, setIsCompared] = useState(comparedActive ?? false)
 	const [isInCart, setIsInCart] = useState(false)
 	const [loadingFavorite, setLoadingFavorite] = useState(false)
 	const [loadingCompare, setLoadingCompare] = useState(false)
 	const [loadingCart, setLoadingCart] = useState(false)
 	const [initializing, setInitializing] = useState(true)
+
+	const currentIsFavorite = favoriteActive ?? isFavorite
+	const currentIsCompared = comparedActive ?? isCompared
+
+	const syncFavoriteState = useCallback(
+		(nextValue: boolean, shouldDispatch = true) => {
+			if (!isFavoriteControlled) {
+				setIsFavorite(nextValue)
+			}
+
+			onFavoriteChange?.(nextValue)
+
+			if (shouldDispatch) {
+				dispatchProductSyncEvent(PRODUCT_FAVORITE_SYNC_EVENT, {
+					productId: product.id,
+					isFavorite: nextValue,
+				})
+			}
+		},
+		[isFavoriteControlled, onFavoriteChange, product.id],
+	)
+
+	const syncCompareState = useCallback(
+		(nextValue: boolean, shouldDispatch = true) => {
+			if (!isComparedControlled) {
+				setIsCompared(nextValue)
+			}
+
+			onCompareChange?.(nextValue)
+
+			if (shouldDispatch) {
+				dispatchProductSyncEvent(PRODUCT_COMPARE_SYNC_EVENT, {
+					productId: product.id,
+					isCompared: nextValue,
+				})
+			}
+		},
+		[isComparedControlled, onCompareChange, product.id],
+	)
 
 	// Дані для відображення товару
 	const images = useMemo(() => {
@@ -156,14 +243,67 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 		setImgIndex(0)
 	}, [product.id])
 
+	useEffect(() => {
+		if (typeof favoriteActive === 'boolean') {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setIsFavorite(favoriteActive)
+		}
+	}, [favoriteActive])
+
+	useEffect(() => {
+		if (typeof comparedActive === 'boolean') {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setIsCompared(comparedActive)
+		}
+	}, [comparedActive])
+
+	useEffect(() => {
+		const handleFavoriteSync = (event: Event) => {
+			const detail = (event as CustomEvent<ProductCardSyncEventDetail>).detail
+			if (detail?.productId !== product.id) return
+			if (typeof detail.isFavorite !== 'boolean') return
+
+			syncFavoriteState(detail.isFavorite, false)
+		}
+
+		const handleCompareSync = (event: Event) => {
+			const detail = (event as CustomEvent<ProductCardSyncEventDetail>).detail
+			if (detail?.productId !== product.id) return
+			if (typeof detail.isCompared !== 'boolean') return
+
+			syncCompareState(detail.isCompared, false)
+		}
+
+		const handleCartSync = (event: Event) => {
+			const detail = (event as CustomEvent<ProductCardSyncEventDetail>).detail
+			if (detail?.productId !== product.id) return
+			if (typeof detail.isInCart !== 'boolean') return
+
+			setIsInCart(detail.isInCart)
+		}
+
+		window.addEventListener(PRODUCT_FAVORITE_SYNC_EVENT, handleFavoriteSync)
+		window.addEventListener(PRODUCT_COMPARE_SYNC_EVENT, handleCompareSync)
+		window.addEventListener(PRODUCT_CART_SYNC_EVENT, handleCartSync)
+
+		return () => {
+			window.removeEventListener(
+				PRODUCT_FAVORITE_SYNC_EVENT,
+				handleFavoriteSync,
+			)
+			window.removeEventListener(PRODUCT_COMPARE_SYNC_EVENT, handleCompareSync)
+			window.removeEventListener(PRODUCT_CART_SYNC_EVENT, handleCartSync)
+		}
+	}, [product.id, syncCompareState, syncFavoriteState])
+
 	// Перевірка станів: товар у кошику, в обраному, в порівнянні
 	useEffect(() => {
 		let isCancelled = false
 
 		const checkStatuses = async () => {
 			if (!token) {
-				setIsFavorite(false)
-				setIsCompared(false)
+				syncFavoriteState(false, false)
+				syncCompareState(false, false)
 				setIsInCart(false)
 				setInitializing(false)
 				return
@@ -197,13 +337,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 						items?: Array<{ product?: { id?: string } }>
 					}>(await wishlistsRes.value.json())
 
-					setIsFavorite(
-						wishlists.some(list =>
-							getArrayFromUnknown<{ product?: { id?: string } }>(
-								list.items,
-							).some(item => item.product?.id === product.id),
+					const nextIsFavorite = wishlists.some(list =>
+						getArrayFromUnknown<{ product?: { id?: string } }>(list.items).some(
+							item => item.product?.id === product.id,
 						),
 					)
+
+					syncFavoriteState(nextIsFavorite, false)
 				}
 
 				if (comparisonsRes.status === 'fulfilled' && comparisonsRes.value.ok) {
@@ -211,13 +351,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 						items?: Array<{ product?: { id?: string } }>
 					}>(await comparisonsRes.value.json())
 
-					setIsCompared(
-						comparisons.some(comparison =>
-							getArrayFromUnknown<{ product?: { id?: string } }>(
-								comparison.items,
-							).some(item => item.product?.id === product.id),
-						),
+					const nextIsCompared = comparisons.some(comparison =>
+						getArrayFromUnknown<{ product?: { id?: string } }>(
+							comparison.items,
+						).some(item => item.product?.id === product.id),
 					)
+
+					syncCompareState(nextIsCompared, false)
 				}
 			} catch (error) {
 				console.error('Failed to check product card statuses:', error)
@@ -233,7 +373,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 		return () => {
 			isCancelled = true
 		}
-	}, [token, product.id])
+	}, [syncCompareState, syncFavoriteState, token, product.id])
 
 	// Захист дій, які потребують авторизації
 	const requireAuth = useCallback(() => {
@@ -260,7 +400,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 		setLoadingFavorite(true)
 
 		try {
-			if (!isFavorite) {
+			if (!currentIsFavorite) {
 				const wishlistsRes = await fetch(
 					`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
 					{
@@ -322,7 +462,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 					throw new Error('Failed to add product to wishlist')
 				}
 
-				setIsFavorite(true)
+				syncFavoriteState(true)
 				return
 			}
 
@@ -377,7 +517,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 					throw new Error('Failed to remove product from wishlist')
 				}
 
-				setIsFavorite(false)
+				syncFavoriteState(false)
 				break
 			}
 		} catch (error) {
@@ -397,7 +537,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 		setLoadingCompare(true)
 
 		try {
-			if (!isCompared) {
+			if (!currentIsCompared) {
 				const response = await fetch(
 					`${process.env.NEXT_PUBLIC_API_URL}/comparisons`,
 					{
@@ -417,7 +557,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 					)
 				}
 
-				setIsCompared(true)
+				syncCompareState(true)
 				return
 			}
 
@@ -436,7 +576,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 				)
 			}
 
-			setIsCompared(false)
+			syncCompareState(false)
 		} catch (error) {
 			console.error('Compare error:', error)
 		} finally {
@@ -473,6 +613,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 			}
 
 			setIsInCart(true)
+			dispatchProductSyncEvent(PRODUCT_CART_SYNC_EVENT, {
+				productId: product.id,
+				isInCart: true,
+			})
 		} catch (error) {
 			console.error('Cart error:', error)
 		} finally {
@@ -623,7 +767,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 	// Рейтинг і кількість відгуків
 	const renderRating = () => (
 		<Box
-			aria-label={`Рейтинг ${rating}, ${reviewsCount} ${t('reviews')}`}
+			aria-label={`Рейтинг ${rating}, ${reviewsCount} ${getReviewPluralLabel(reviewsCount, locale)}`}
 			sx={{
 				display: 'flex',
 				alignItems: 'center',
@@ -666,7 +810,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 					textOverflow: 'ellipsis',
 				}}
 			>
-				{reviewsCount} {t('reviews')}
+				{reviewsCount} {getReviewPluralLabel(reviewsCount, locale)}
 			</Typography>
 		</Box>
 	)
@@ -716,7 +860,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 					startIcon={
 						loadingFavorite ? (
 							<CircularProgress size={isMain ? 18 : 8} />
-						) : isFavorite ? (
+						) : currentIsFavorite ? (
 							<FavoriteRoundedIcon
 								sx={{
 									fontSize: isMain ? '20px' : '10px',
@@ -735,17 +879,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 					}
 					sx={{
 						...actionButtonBaseSx,
-						color: isFavorite ? '#6D28D9' : 'var(--theme-text)',
+						color: currentIsFavorite ? '#6D28D9' : 'var(--theme-text)',
 						'&:hover .MuiSvgIcon-root': {
 							color: '#6D28D9',
 						},
 						'&.Mui-disabled': {
-							color: isFavorite ? '#6D28D9' : 'var(--theme-text)',
+							color: currentIsFavorite ? '#6D28D9' : 'var(--theme-text)',
 							opacity: 0.75,
 						},
 					}}
 				>
-					{isFavorite ? t('inFavorite') : t('addFavorite')}
+					{currentIsFavorite ? t('inFavorite') : t('addFavorite')}
 				</Button>
 
 				<Button
@@ -759,7 +903,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 							<BalanceOutlinedIcon
 								sx={{
 									fontSize: isMain ? '20px' : '10px',
-									color: isCompared ? '#6D28D9' : '#4E525C',
+									color: currentIsCompared ? '#6D28D9' : '#4E525C',
 									transition: 'color 160ms ease',
 								}}
 							/>
@@ -767,17 +911,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 					}
 					sx={{
 						...actionButtonBaseSx,
-						color: isCompared ? '#6D28D9' : 'var(--theme-text)',
+						color: currentIsCompared ? '#6D28D9' : 'var(--theme-text)',
 						'&:hover .MuiSvgIcon-root': {
 							color: '#6D28D9',
 						},
 						'&.Mui-disabled': {
-							color: isCompared ? '#6D28D9' : 'var(--theme-text)',
+							color: currentIsCompared ? '#6D28D9' : 'var(--theme-text)',
 							opacity: 0.75,
 						},
 					}}
 				>
-					{isCompared ? t('inCompare') : t('addCompare')}
+					{currentIsCompared ? t('inCompare') : t('addCompare')}
 				</Button>
 			</Box>
 		)
@@ -1112,7 +1256,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 			<Box
 				sx={{
 					boxSizing: 'border-box',
-					width: '270px',
+					width: stretch ? '100%' : '270px',
+					minWidth: stretch ? 0 : '270px',
 					height: '530px',
 					display: 'flex',
 					alignItems: 'center',
@@ -1141,9 +1286,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 			sx={{
 				boxSizing: 'border-box',
 				// РОЗМІРИ ВСІЄЇ КАРТКИ:
-				width: isMain ? '270px' : isHistory ? '150px' : '485px',
+				width: stretch
+					? '100%'
+					: isMain
+						? '270px'
+						: isHistory
+							? '150px'
+							: '485px',
+				minWidth: stretch ? 0 : undefined,
 				height: isMain ? '550px' : isHistory ? '215px' : '785px',
-				flex: isMain ? '0 0 270px' : isHistory ? '0 0 140px' : '0 0 156px',
+				flex: stretch
+					? '0 0 auto'
+					: isMain
+						? '0 0 270px'
+						: isHistory
+							? '0 0 140px'
+							: '0 0 156px',
 				p: isMain ? '10px' : isHistory ? '5px' : '10px',
 				display: 'flex',
 				flexDirection: 'column',
