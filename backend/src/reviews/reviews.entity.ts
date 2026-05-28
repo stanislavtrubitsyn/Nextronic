@@ -25,10 +25,25 @@ export class ReviewsEntity {
   type!: ReviewType;
 
   @Column({ type: 'int', nullable: true })
-  rating?: number; // Nullable для питань та відповідей
+  rating?: number | null;
 
   @Column('text')
   comment!: string;
+
+  @Column({ type: 'text', nullable: true })
+  advantages?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  disadvantages?: string | null;
+
+  @Column({ type: 'jsonb', default: [] })
+  photos!: string[];
+
+  @Column({ type: 'jsonb', default: [] })
+  likedUserIds!: string[];
+
+  @Column({ type: 'jsonb', default: [] })
+  dislikedUserIds!: string[];
 
   @Column({ default: false })
   isVerifiedPurchase!: boolean;
@@ -39,12 +54,11 @@ export class ReviewsEntity {
   @ManyToOne(() => ProductsEntity, (product) => product.reviews, { onDelete: 'CASCADE' })
   product!: ProductsEntity;
 
-  // Деревоподібна структура для відповідей
   @ManyToOne(() => ReviewsEntity, (review) => review.replies, {
     onDelete: 'CASCADE',
     nullable: true,
   })
-  parent?: ReviewsEntity;
+  parent?: ReviewsEntity | null;
 
   @OneToMany(() => ReviewsEntity, (review) => review.parent)
   replies!: ReviewsEntity[];

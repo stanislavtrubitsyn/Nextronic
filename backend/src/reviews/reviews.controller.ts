@@ -1,23 +1,23 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Delete,
   Body,
+  Controller,
+  Delete,
+  Get,
   Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
   Req,
   UseGuards,
-  ParseUUIDPipe,
-  Query,
 } from '@nestjs/common';
-import { ReviewsService } from './reviews.service';
+import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { UserRole } from '../users/users.entity';
-import { CreateReviewDto, UpdateReviewDto } from './reviews.dto';
-import { Request } from 'express';
+import { CreateReviewDto, ReviewReactionDto, UpdateReviewDto } from './reviews.dto';
 import { ReviewLangType } from './reviews.i18n';
+import { ReviewsService } from './reviews.service';
 
 interface RequestWithUser extends Request {
   user: { userId: string; role: UserRole };
@@ -37,7 +37,6 @@ export class ReviewsController {
     return await this.reviewsService.create(req.user.userId, dto, lang);
   }
 
-  //ЕНДПОІНТ ДЛЯ ПРОФІЛЮ КОРИСТУВАЧА
   @Get('my')
   @UseGuards(JwtAuthGuard)
   async getMyReviews(@Req() req: RequestWithUser) {
@@ -47,6 +46,17 @@ export class ReviewsController {
   @Get('product/:productId')
   async findByProduct(@Param('productId', ParseUUIDPipe) productId: string) {
     return await this.reviewsService.getProductReviews(productId);
+  }
+
+  @Post(':id/reaction')
+  @UseGuards(JwtAuthGuard)
+  async react(
+    @Req() req: RequestWithUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviewReactionDto,
+    @Query('lang') lang: ReviewLangType = 'ua',
+  ) {
+    return await this.reviewsService.toggleReaction(req.user.userId, id, dto.reaction, lang);
   }
 
   @Patch(':id')
