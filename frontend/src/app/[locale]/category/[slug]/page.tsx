@@ -805,7 +805,6 @@ function CategoryPageContent() {
 			try {
 				const apiUrl = process.env.NEXT_PUBLIC_API_URL
 				const query = new URLSearchParams(queryString)
-				query.set('lang', locale)
 				query.set('page', String(pageToLoad))
 				query.set('limit', String(PAGE_LIMIT))
 
@@ -840,7 +839,7 @@ function CategoryPageContent() {
 				}
 			}
 		},
-		[locale, requestQueryString, slug],
+		[requestQueryString, slug],
 	)
 
 	useEffect(() => {

@@ -675,7 +675,7 @@ export default function CatalogOverviewPage() {
 			try {
 				const apiUrl = process.env.NEXT_PUBLIC_API_URL
 				const response = await fetch(
-					`${apiUrl}/catalogs/slug/${encodeURIComponent(slug)}/overview?lang=${locale}`,
+					`${apiUrl}/catalogs/slug/${encodeURIComponent(slug)}/overview`,
 				)
 
 				if (!response.ok) {
@@ -716,7 +716,7 @@ export default function CatalogOverviewPage() {
 		return () => {
 			isCancelled = true
 		}
-	}, [slug, locale])
+	}, [slug])
 
 	const catalogName = getLocalizedText(overview?.catalog.name, locale)
 

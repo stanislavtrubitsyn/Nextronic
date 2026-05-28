@@ -1,20 +1,45 @@
 'use client'
-import { useState, useTransition } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState } from 'react'
 import { Box, Typography, Popover } from '@mui/material'
 import { LanguageOutlined } from '@mui/icons-material'
 import { useLocale, useTranslations } from 'next-intl'
-import { usePathname, useRouter } from '@/i18n/routing'
 import { US, UA } from 'country-flag-icons/react/3x2'
+import {
+	SUPPORTED_LOCALES,
+	type AppLocale,
+	useClientLocale,
+} from '@/shared/providers/ClientI18nProvider'
+
+const replaceLocaleInPathname = (pathname: string, nextLocale: AppLocale) => {
+	const segments = pathname.split('/').filter(Boolean)
+	const firstSegment = segments[0]
+
+	if (SUPPORTED_LOCALES.includes(firstSegment as AppLocale)) {
+		segments[0] = nextLocale
+	} else {
+		segments.unshift(nextLocale)
+	}
+
+	return `/${segments.join('/')}`
+}
+
+const updateBrowserLocaleUrl = (nextLocale: AppLocale) => {
+	if (typeof window === 'undefined') return
+
+	const nextPathname = replaceLocaleInPathname(
+		window.location.pathname,
+		nextLocale,
+	)
+	const nextUrl = `${nextPathname}${window.location.search}${window.location.hash}`
+
+	window.history.replaceState(window.history.state, '', nextUrl)
+}
 
 export const LanguageSwitcher = () => {
 	const t = useTranslations('LocaleSwitcher')
-	const locale = useLocale()
-	const router = useRouter()
-	const pathname = usePathname()
-	const searchParams = useSearchParams()
+	const locale = useLocale() as AppLocale
+	const { setLocale } = useClientLocale()
 
-	const [isPending, startTransition] = useTransition()
 	const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null)
 
 	const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -25,18 +50,14 @@ export const LanguageSwitcher = () => {
 		setAnchorEl(null)
 	}
 
-	const handleSwitch = (newLocale: string) => {
+	const handleSwitch = (newLocale: AppLocale) => {
 		if (newLocale === locale) {
 			handleClose()
 			return
 		}
 
-		const queryString = searchParams.toString()
-		const href = queryString ? `${pathname}?${queryString}` : pathname
-
-		startTransition(() => {
-			router.replace(href, { locale: newLocale })
-		})
+		updateBrowserLocaleUrl(newLocale)
+		setLocale(newLocale)
 		handleClose()
 	}
 

@@ -1,5 +1,4 @@
-import { NextIntlClientProvider } from 'next-intl'
-import { getMessages, setRequestLocale } from 'next-intl/server'
+import { setRequestLocale } from 'next-intl/server'
 import { Inter } from 'next/font/google'
 import { Providers } from './providers'
 import { notFound } from 'next/navigation'
@@ -8,6 +7,7 @@ import { ThemeProvider as NextThemesProvider } from 'next-themes'
 import '../globals.css'
 import { Header } from '@/shared/components/layout/Header/Header'
 import { Footer } from '@/shared/components/layout/Footer/Footer'
+import { ClientI18nProvider } from '@/shared/providers/ClientI18nProvider'
 
 const inter = Inter({
 	subsets: ['latin', 'cyrillic'],
@@ -32,8 +32,6 @@ export default async function LocaleLayout({
 	}
 
 	setRequestLocale(locale)
-	const messages = await getMessages()
-
 	return (
 		<html
 			lang={locale}
@@ -61,13 +59,13 @@ export default async function LocaleLayout({
 					defaultTheme='system'
 					enableSystem
 				>
-					<NextIntlClientProvider messages={messages}>
+					<ClientI18nProvider initialLocale={locale}>
 						<Providers>
 							<Header />
 							<main className='flex-1 flex flex-col'>{children}</main>
 							<Footer />
 						</Providers>
-					</NextIntlClientProvider>
+					</ClientI18nProvider>
 				</NextThemesProvider>
 			</body>
 		</html>
