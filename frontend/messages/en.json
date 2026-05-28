@@ -14,6 +14,31 @@
 		"dark": "Dark"
 	},
 
+	"Breadcrumbs": {
+		"ariaLabel": "Breadcrumbs",
+		"home": "Home",
+		"admin": "Admin panel",
+		"administrators": "Administrators",
+		"bonuses": "Bonuses",
+		"catalog": "Catalog",
+		"catalogs": "Catalogs",
+		"categories": "Categories",
+		"category": "Category",
+		"compare": "Comparison",
+		"login": "Login",
+		"moderators": "Moderators",
+		"notifications": "Notifications",
+		"orders": "Orders",
+		"products": "Products",
+		"profile": "Account",
+		"register": "Register",
+		"reviews": "Reviews",
+		"search": "Search",
+		"users": "Users",
+		"viewed": "Viewed products",
+		"wishlist": "Wishlist"
+	},
+
 	"AppSearch": {
 		"placeholder": "Search",
 		"button": "Search",

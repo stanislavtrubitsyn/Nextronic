@@ -29,13 +29,14 @@ import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRigh
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded'
 import SwapVertRoundedIcon from '@mui/icons-material/SwapVertRounded'
-import { Link, useRouter } from '@/i18n/routing'
+import { useRouter } from '@/i18n/routing'
 import {
 	ProductCard,
 	ProductCardData,
 } from '@/shared/components/ui/ProductCard/ProductCard'
 import { useAuthStore } from '@/entities/user/model/store'
 import { PaginationLoadMore } from '@/shared/components/ui/PaginationLoadMore/PaginationLoadMore'
+import { usePageBreadcrumbs } from '@/shared/components/layout/Breadcrumbs/AppBreadcrumbs'
 
 type Locale = 'ua' | 'en'
 
@@ -767,7 +768,25 @@ function CategoryPageContent() {
 	)
 
 	const categoryName = getLocalizedText(data?.category.name, locale)
-	const catalogName = getLocalizedText(data?.catalog?.name, locale)
+	const breadcrumbItems = useMemo(
+		() =>
+			data
+				? [
+						...(data.catalog
+							? [
+									{
+										label: data.catalog.name,
+										href: `/catalog/${data.catalog.slug}`,
+									},
+								]
+							: []),
+						{ label: data.category.name },
+					]
+				: null,
+		[data],
+	)
+
+	usePageBreadcrumbs(breadcrumbItems)
 
 	const updateUrlParams = (updater: (next: URLSearchParams) => void) => {
 		const next = new URLSearchParams(searchParams.toString())
@@ -1064,60 +1083,6 @@ function CategoryPageContent() {
 					pb: { xs: 5, md: 8 },
 				}}
 			>
-				<Box
-					sx={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: '5px',
-						mb: '14px',
-						fontFamily: 'var(--font-inter)',
-						fontSize: '12px',
-						lineHeight: 1.2,
-					}}
-				>
-					<Link
-						href='/'
-						style={{
-							color: 'var(--theme-text)',
-							textDecoration: 'none',
-							opacity: 0.85,
-						}}
-					>
-						{labels.home}
-					</Link>
-
-					<Typography
-						component='span'
-						sx={{ color: 'var(--theme-icon-dim)', fontSize: '12px' }}
-					>
-						&gt;
-					</Typography>
-
-					{data.catalog ? (
-						<>
-							<Link
-								href={`/catalog/${data.catalog.slug}`}
-								style={{ color: 'var(--theme-text)', textDecoration: 'none' }}
-							>
-								{catalogName}
-							</Link>
-							<Typography
-								component='span'
-								sx={{ color: 'var(--theme-icon-dim)', fontSize: '12px' }}
-							>
-								&gt;
-							</Typography>
-						</>
-					) : null}
-
-					<Typography
-						component='span'
-						sx={{ color: '#6D28D9', fontSize: '12px', fontWeight: 700 }}
-					>
-						{categoryName}
-					</Typography>
-				</Box>
-
 				<Box
 					component='header'
 					sx={{

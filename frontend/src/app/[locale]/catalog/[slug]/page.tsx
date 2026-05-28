@@ -13,12 +13,13 @@ import {
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded'
-import { Link, useRouter } from '@/i18n/routing'
+import { useRouter } from '@/i18n/routing'
 import {
 	ProductCard,
 	ProductCardData,
 } from '@/shared/components/ui/ProductCard/ProductCard'
 import { useAuthStore } from '@/entities/user/model/store'
+import { usePageBreadcrumbs } from '@/shared/components/layout/Breadcrumbs/AppBreadcrumbs'
 
 type Locale = 'ua' | 'en'
 
@@ -719,6 +720,12 @@ export default function CatalogOverviewPage() {
 	}, [slug])
 
 	const catalogName = getLocalizedText(overview?.catalog.name, locale)
+	const breadcrumbItems = useMemo(
+		() => (overview ? [{ label: overview.catalog.name }] : null),
+		[overview],
+	)
+
+	usePageBreadcrumbs(breadcrumbItems)
 
 	const orderedSections = useMemo(() => {
 		if (!overview) return []
@@ -832,52 +839,6 @@ export default function CatalogOverviewPage() {
 					pb: { xs: 5, md: 8 },
 				}}
 			>
-				<Box
-					sx={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: '5px',
-						mb: '10px',
-						fontFamily: 'var(--font-inter)',
-						fontSize: '12px',
-						lineHeight: 1.2,
-					}}
-				>
-					<Link
-						href='/'
-						style={{
-							color: 'var(--theme-text)',
-							textDecoration: 'none',
-							opacity: 0.85,
-						}}
-					>
-						{getPageText(locale, 'home')}
-					</Link>
-
-					<Typography
-						component='span'
-						sx={{
-							color: 'var(--theme-icon-dim)',
-							fontSize: '12px',
-							lineHeight: 1.2,
-						}}
-					>
-						&gt;
-					</Typography>
-
-					<Typography
-						component='span'
-						sx={{
-							color: '#6D28D9',
-							fontSize: '12px',
-							fontWeight: 700,
-							lineHeight: 1.2,
-						}}
-					>
-						{catalogName}
-					</Typography>
-				</Box>
-
 				<Box
 					component='header'
 					sx={{

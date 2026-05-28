@@ -14,6 +14,31 @@
 		"dark": "Темна"
 	},
 
+	"Breadcrumbs": {
+		"ariaLabel": "Хлібні крошки",
+		"home": "Головна",
+		"admin": "Адмін-панель",
+		"administrators": "Адміністратори",
+		"bonuses": "Бонуси",
+		"catalog": "Каталог",
+		"catalogs": "Каталоги",
+		"categories": "Категорії",
+		"category": "Категорія",
+		"compare": "Порівняння",
+		"login": "Вхід",
+		"moderators": "Модератори",
+		"notifications": "Сповіщення",
+		"orders": "Замовлення",
+		"products": "Товари",
+		"profile": "Кабінет",
+		"register": "Реєстрація",
+		"reviews": "Відгуки",
+		"search": "Пошук",
+		"users": "Користувачі",
+		"viewed": "Переглянуті товари",
+		"wishlist": "Обране"
+	},
+
 	"AppSearch": {
 		"placeholder": "Пошук",
 		"button": "Знайти",

@@ -8,6 +8,10 @@ import '../globals.css'
 import { Header } from '@/shared/components/layout/Header/Header'
 import { Footer } from '@/shared/components/layout/Footer/Footer'
 import { ClientI18nProvider } from '@/shared/providers/ClientI18nProvider'
+import {
+	AppBreadcrumbs,
+	BreadcrumbsProvider,
+} from '@/shared/components/layout/Breadcrumbs/AppBreadcrumbs'
 
 const inter = Inter({
 	subsets: ['latin', 'cyrillic'],
@@ -60,11 +64,14 @@ export default async function LocaleLayout({
 					enableSystem
 				>
 					<ClientI18nProvider initialLocale={locale}>
-						<Providers>
-							<Header />
-							<main className='flex-1 flex flex-col'>{children}</main>
-							<Footer />
-						</Providers>
+						<BreadcrumbsProvider>
+							<Providers>
+								<Header />
+								<AppBreadcrumbs />
+								<main className='flex-1 flex flex-col'>{children}</main>
+								<Footer />
+							</Providers>
+						</BreadcrumbsProvider>
 					</ClientI18nProvider>
 				</NextThemesProvider>
 			</body>
