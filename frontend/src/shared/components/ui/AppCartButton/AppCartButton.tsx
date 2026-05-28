@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@mui/material'
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined'
 import Badge from '@mui/material/Badge'
@@ -10,45 +10,54 @@ import { useAuthStore } from '@/entities/user/model/store'
 export const AppCartButton = () => {
 	const t = useTranslations('AppCartButton')
 	const router = useRouter()
-
-	// Отримуємо токен з глобального сховища
 	const { token } = useAuthStore()
-
 	const [itemsCount, setItemsCount] = useState(0)
 
-	// Завантажуємо дані кошика з бекенду
-	useEffect(() => {
-		const fetchCart = async () => {
-			if (!token) {
-				setItemsCount(0)
-				return
-			}
-
-			try {
-				const apiUrl = process.env.NEXT_PUBLIC_API_URL
-
-				const response = await fetch(`${apiUrl}/cart`, {
-					method: 'GET',
-					headers: {
-						Authorization: `Bearer ${token}`,
-						'Content-Type': 'application/json',
-					},
-				})
-
-				if (response.ok) {
-					const data = await response.json()
-					setItemsCount(data.summary?.totalItems || 0)
-				} else {
-					setItemsCount(0)
-				}
-			} catch (error) {
-				console.error('Помилка завантаження кошика:', error)
-				setItemsCount(0)
-			}
+	const fetchCart = useCallback(async () => {
+		if (!token) {
+			setItemsCount(0)
+			return
 		}
 
-		fetchCart()
+		try {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL
+
+			const response = await fetch(`${apiUrl}/cart`, {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json',
+				},
+			})
+
+			if (response.ok) {
+				const data = await response.json()
+				setItemsCount(data.summary?.totalItems || 0)
+			} else {
+				setItemsCount(0)
+			}
+		} catch (error) {
+			console.error('Помилка завантаження кошика:', error)
+			setItemsCount(0)
+		}
 	}, [token])
+
+	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		fetchCart()
+	}, [fetchCart])
+
+	useEffect(() => {
+		const handleCartUpdated = () => {
+			fetchCart()
+		}
+
+		window.addEventListener('cart:updated', handleCartUpdated)
+
+		return () => {
+			window.removeEventListener('cart:updated', handleCartUpdated)
+		}
+	}, [fetchCart])
 
 	const handleClick = () => {
 		if (!token) {
