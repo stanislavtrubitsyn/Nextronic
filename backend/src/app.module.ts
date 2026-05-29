@@ -16,7 +16,6 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { NotificationsModule } from './notifications';
 import { RecommendationsModule } from './recommendations';
 import { NovaPoshtaModule } from './novaposhta/novaposhta.module';
-import { UkrposhtaModule } from './ukrposhta/ukrposhta.module';
 import { AuditModule } from './audit/audit.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AttributesModule } from './attributes/attributes.module';
@@ -68,7 +67,6 @@ import { AttributesModule } from './attributes/attributes.module';
     NotificationsModule,
     RecommendationsModule,
     NovaPoshtaModule,
-    UkrposhtaModule,
     AuditModule,
     AnalyticsModule,
     AttributesModule,
