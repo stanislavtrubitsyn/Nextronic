@@ -4,11 +4,13 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	type ComponentProps,
 	type FocusEvent,
 	type HTMLAttributes,
 	type Key,
+	type ReactNode,
 } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
@@ -85,15 +87,34 @@ type DeliveryFormState = {
 	carrier: DeliveryCarrier
 	novaCity: NovaPoshtaCity | null
 	novaWarehouse: NovaPoshtaWarehouse | null
-	regionInput: string
-	districtInput: string
-	cityInput: string
-	warehouseInput: string
+	novaCityInput: string
+	novaWarehouseInput: string
+	ukrRegionInput: string
+	ukrDistrictInput: string
+	ukrCityInput: string
+	ukrWarehouseInput: string
 	surname: string
 	firstName: string
 	patronymic: string
 	noPatronymic: boolean
 	phone: string
+}
+
+type StoredDeliveryDraft = Partial<DeliveryFormState>
+
+type StoredDeliveryPayload = {
+	carrier?: DeliveryCarrier
+	city?: string
+	cityRef?: string | null
+	warehouse?: string
+	warehouseRef?: string | null
+	region?: string
+	district?: string
+	surname?: string
+	firstName?: string
+	patronymic?: string
+	noPatronymic?: boolean
+	phone?: string
 }
 
 type LegacyCheckoutTextFieldProps = ComponentProps<typeof TextField> & {
@@ -106,6 +127,8 @@ const HOVER_TRANSITION =
 	'color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease'
 const INPUT_WIDTH = { xs: '100%', md: '460px' }
 const AUTOCOMPLETE_DEBOUNCE_MS = 300
+const CHECKOUT_DELIVERY_STORAGE_KEY = 'nextronic.checkout.delivery'
+const CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY = 'nextronic.checkout.delivery.draft'
 
 const getArrayFromUnknown = <T,>(value: unknown): T[] =>
 	Array.isArray(value) ? value : []
@@ -237,16 +260,218 @@ const createInitialDeliveryForm = (): DeliveryFormState => ({
 	carrier: 'nova-poshta',
 	novaCity: null,
 	novaWarehouse: null,
-	regionInput: '',
-	districtInput: '',
-	cityInput: '',
-	warehouseInput: '',
+	novaCityInput: '',
+	novaWarehouseInput: '',
+	ukrRegionInput: '',
+	ukrDistrictInput: '',
+	ukrCityInput: '',
+	ukrWarehouseInput: '',
 	surname: '',
 	firstName: '',
 	patronymic: '',
 	noPatronymic: false,
 	phone: '+38 (0',
 })
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	Boolean(value && typeof value === 'object' && !Array.isArray(value))
+
+const readStorageObject = <T,>(key: string): T | null => {
+	if (typeof window === 'undefined') return null
+
+	try {
+		const rawValue = window.sessionStorage.getItem(key)
+		if (!rawValue) return null
+
+		const parsedValue = JSON.parse(rawValue)
+		return isRecord(parsedValue) ? (parsedValue as T) : null
+	} catch {
+		return null
+	}
+}
+
+const writeStorageObject = (key: string, value: unknown) => {
+	if (typeof window === 'undefined') return
+
+	try {
+		window.sessionStorage.setItem(key, JSON.stringify(value))
+	} catch {
+		// sessionStorage can be unavailable in private mode. Checkout should still work.
+	}
+}
+
+const getStringFromUnknown = (value: unknown) =>
+	typeof value === 'string' ? value : ''
+
+const getBooleanFromUnknown = (value: unknown) =>
+	typeof value === 'boolean' ? value : false
+
+const getCarrierFromUnknown = (value: unknown): DeliveryCarrier =>
+	value === 'ukrposhta' ? 'ukrposhta' : 'nova-poshta'
+
+const readNovaCityFromUnknown = (value: unknown): NovaPoshtaCity | null => {
+	if (!isRecord(value)) return null
+
+	const ref = getStringFromUnknown(value.ref)
+	const name = getStringFromUnknown(value.name)
+	const area = getStringFromUnknown(value.area)
+
+	return ref && name ? { ref, name, area } : null
+}
+
+const readNovaWarehouseFromUnknown = (
+	value: unknown,
+): NovaPoshtaWarehouse | null => {
+	if (!isRecord(value)) return null
+
+	const ref = getStringFromUnknown(value.ref)
+	const name = getStringFromUnknown(value.name)
+	const shortName = getStringFromUnknown(value.shortName)
+	const number = getStringFromUnknown(value.number)
+
+	return ref && (name || shortName) ? { ref, name, shortName, number } : null
+}
+
+const createNovaCityFromStoredPayload = (
+	payload: StoredDeliveryPayload,
+): NovaPoshtaCity | null => {
+	if (!payload.cityRef || !payload.city) return null
+
+	return {
+		ref: payload.cityRef,
+		name: payload.city,
+		area: '',
+	}
+}
+
+const createNovaWarehouseFromStoredPayload = (
+	payload: StoredDeliveryPayload,
+): NovaPoshtaWarehouse | null => {
+	if (!payload.warehouseRef || !payload.warehouse) return null
+
+	return {
+		ref: payload.warehouseRef,
+		name: payload.warehouse,
+		shortName: payload.warehouse,
+		number: '',
+	}
+}
+
+const mergeStoredDeliveryDraft = (
+	initialForm: DeliveryFormState,
+	draft: StoredDeliveryDraft,
+): DeliveryFormState => {
+	const novaCity = readNovaCityFromUnknown(draft.novaCity)
+	const novaWarehouse = readNovaWarehouseFromUnknown(draft.novaWarehouse)
+
+	return {
+		...initialForm,
+		carrier: getCarrierFromUnknown(draft.carrier),
+		novaCity,
+		novaWarehouse,
+		novaCityInput:
+			getStringFromUnknown(draft.novaCityInput) ||
+			(novaCity ? getNovaPoshtaCityLabel(novaCity) : ''),
+		novaWarehouseInput:
+			getStringFromUnknown(draft.novaWarehouseInput) ||
+			(novaWarehouse ? getNovaPoshtaWarehouseLabel(novaWarehouse) : ''),
+		ukrRegionInput: getStringFromUnknown(draft.ukrRegionInput),
+		ukrDistrictInput: getStringFromUnknown(draft.ukrDistrictInput),
+		ukrCityInput: getStringFromUnknown(draft.ukrCityInput),
+		ukrWarehouseInput: getStringFromUnknown(draft.ukrWarehouseInput),
+		surname: getStringFromUnknown(draft.surname),
+		firstName: getStringFromUnknown(draft.firstName),
+		patronymic: getStringFromUnknown(draft.patronymic),
+		noPatronymic: getBooleanFromUnknown(draft.noPatronymic),
+		phone: getStringFromUnknown(draft.phone) || initialForm.phone,
+	}
+}
+
+const mergeStoredDeliveryPayload = (
+	initialForm: DeliveryFormState,
+	payload: StoredDeliveryPayload,
+): DeliveryFormState => {
+	const carrier = getCarrierFromUnknown(payload.carrier)
+	const novaCity =
+		carrier === 'nova-poshta' ? createNovaCityFromStoredPayload(payload) : null
+	const novaWarehouse =
+		carrier === 'nova-poshta'
+			? createNovaWarehouseFromStoredPayload(payload)
+			: null
+
+	return {
+		...initialForm,
+		carrier,
+		novaCity,
+		novaWarehouse,
+		novaCityInput:
+			carrier === 'nova-poshta' ? getStringFromUnknown(payload.city) : '',
+		novaWarehouseInput:
+			carrier === 'nova-poshta' ? getStringFromUnknown(payload.warehouse) : '',
+		ukrRegionInput:
+			carrier === 'ukrposhta' ? getStringFromUnknown(payload.region) : '',
+		ukrDistrictInput:
+			carrier === 'ukrposhta' ? getStringFromUnknown(payload.district) : '',
+		ukrCityInput:
+			carrier === 'ukrposhta' ? getStringFromUnknown(payload.city) : '',
+		ukrWarehouseInput:
+			carrier === 'ukrposhta' ? getStringFromUnknown(payload.warehouse) : '',
+		surname: getStringFromUnknown(payload.surname),
+		firstName: getStringFromUnknown(payload.firstName),
+		patronymic: getStringFromUnknown(payload.patronymic),
+		noPatronymic: getBooleanFromUnknown(payload.noPatronymic),
+		phone: getStringFromUnknown(payload.phone) || initialForm.phone,
+	}
+}
+
+const readStoredDeliveryForm = (): DeliveryFormState | null => {
+	const initialForm = createInitialDeliveryForm()
+	const storedDraft = readStorageObject<StoredDeliveryDraft>(
+		CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY,
+	)
+
+	if (storedDraft) return mergeStoredDeliveryDraft(initialForm, storedDraft)
+
+	const storedPayload = readStorageObject<StoredDeliveryPayload>(
+		CHECKOUT_DELIVERY_STORAGE_KEY,
+	)
+
+	return storedPayload
+		? mergeStoredDeliveryPayload(initialForm, storedPayload)
+		: null
+}
+
+const createDeliveryPayload = (
+	form: DeliveryFormState,
+): StoredDeliveryPayload => {
+	const recipient = {
+		surname: form.surname.trim(),
+		firstName: form.firstName.trim(),
+		patronymic: form.noPatronymic ? '' : form.patronymic.trim(),
+		noPatronymic: form.noPatronymic,
+		phone: form.phone.trim(),
+	}
+
+	if (form.carrier === 'nova-poshta') {
+		return {
+			carrier: form.carrier,
+			city: form.novaCityInput.trim(),
+			cityRef: form.novaCity?.ref || null,
+			warehouse: form.novaWarehouseInput.trim(),
+			warehouseRef: form.novaWarehouse?.ref || null,
+			...recipient,
+		}
+	}
+
+	return {
+		carrier: form.carrier,
+		region: form.ukrRegionInput.trim(),
+		district: form.ukrDistrictInput.trim(),
+		city: form.ukrCityInput.trim(),
+		warehouse: form.ukrWarehouseInput.trim(),
+		...recipient,
+	}
+}
 
 const renderAutocompleteOption = (
 	props: HTMLAttributes<HTMLLIElement> & { key?: Key },
@@ -283,6 +508,7 @@ export default function CheckoutDeliveryPage() {
 	const checkoutT = useTranslations('CheckoutPage')
 	const cartT = useTranslations('CartPage')
 	const router = useRouter()
+	const routerRef = useRef(router)
 	const locale = useLocale() as Locale
 	const { token, user } = useAuthStore()
 
@@ -299,6 +525,7 @@ export default function CheckoutDeliveryPage() {
 	const [deliveryForm, setDeliveryForm] = useState<DeliveryFormState>(
 		createInitialDeliveryForm,
 	)
+	const [deliveryDraftRestored, setDeliveryDraftRestored] = useState(false)
 
 	const breadcrumbItems = useMemo<BreadcrumbItem[]>(
 		() => [
@@ -316,7 +543,23 @@ export default function CheckoutDeliveryPage() {
 	}, [])
 
 	useEffect(() => {
-		if (!mounted || !user) return
+		routerRef.current = router
+	}, [router])
+
+	useEffect(() => {
+		if (!mounted) return
+
+		const storedDeliveryForm = readStoredDeliveryForm()
+		if (storedDeliveryForm) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setDeliveryForm(storedDeliveryForm)
+		}
+
+		setDeliveryDraftRestored(true)
+	}, [mounted])
+
+	useEffect(() => {
+		if (!mounted || !user || !deliveryDraftRestored) return
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setDeliveryForm(current => ({
 			...current,
@@ -329,7 +572,12 @@ export default function CheckoutDeliveryPage() {
 					? current.phone
 					: formatPhoneInput(user.phone || ''),
 		}))
-	}, [mounted, user])
+	}, [deliveryDraftRestored, mounted, user])
+
+	useEffect(() => {
+		if (!mounted || !deliveryDraftRestored) return
+		writeStorageObject(CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY, deliveryForm)
+	}, [deliveryDraftRestored, deliveryForm, mounted])
 
 	const fetchCheckoutData = useCallback(async () => {
 		if (!token) {
@@ -378,22 +626,22 @@ export default function CheckoutDeliveryPage() {
 		if (!token) {
 			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setLoading(false)
-			router.push('/login')
+			routerRef.current.push('/login')
 			return
 		}
 
 		void fetchCheckoutData()
-	}, [fetchCheckoutData, mounted, router, token])
+	}, [fetchCheckoutData, mounted, token])
 
 	useEffect(() => {
 		if (!mounted || loading || items.length > 0) return
-		router.push('/cart')
-	}, [items.length, loading, mounted, router])
+		routerRef.current.push('/cart')
+	}, [items.length, loading, mounted])
 
 	useEffect(() => {
 		if (
 			deliveryForm.carrier !== 'nova-poshta' ||
-			deliveryForm.cityInput.trim().length < 2
+			deliveryForm.novaCityInput.trim().length < 2
 		) {
 			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setNovaCities([])
@@ -406,7 +654,7 @@ export default function CheckoutDeliveryPage() {
 				setCitiesLoading(true)
 				const response = await fetch(
 					`${process.env.NEXT_PUBLIC_API_URL}/delivery/cities?q=${encodeURIComponent(
-						deliveryForm.cityInput.trim(),
+						deliveryForm.novaCityInput.trim(),
 					)}`,
 				)
 
@@ -426,7 +674,7 @@ export default function CheckoutDeliveryPage() {
 			ignore = true
 			window.clearTimeout(timeoutId)
 		}
-	}, [deliveryForm.carrier, deliveryForm.cityInput])
+	}, [deliveryForm.carrier, deliveryForm.novaCityInput])
 
 	useEffect(() => {
 		if (deliveryForm.carrier !== 'nova-poshta' || !deliveryForm.novaCity?.ref) {
@@ -534,15 +782,40 @@ export default function CheckoutDeliveryPage() {
 		[availableItems, cartT, locale],
 	)
 
+	const novaCityOptions = useMemo(() => {
+		if (!deliveryForm.novaCity) return novaCities
+
+		return [
+			deliveryForm.novaCity,
+			...novaCities.filter(option => option.ref !== deliveryForm.novaCity?.ref),
+		]
+	}, [deliveryForm.novaCity, novaCities])
+
+	const novaWarehouseOptions = useMemo(() => {
+		if (!deliveryForm.novaWarehouse) return novaWarehouses
+
+		return [
+			deliveryForm.novaWarehouse,
+			...novaWarehouses.filter(
+				option => option.ref !== deliveryForm.novaWarehouse?.ref,
+			),
+		]
+	}, [deliveryForm.novaWarehouse, novaWarehouses])
+
 	const isDeliveryFormValid = useMemo(() => {
 		const hasAddress =
 			deliveryForm.carrier === 'nova-poshta'
-				? Boolean(deliveryForm.novaCity && deliveryForm.novaWarehouse)
+				? Boolean(
+						deliveryForm.novaCity?.ref &&
+						deliveryForm.novaWarehouse?.ref &&
+						deliveryForm.novaCityInput.trim() &&
+						deliveryForm.novaWarehouseInput.trim(),
+					)
 				: Boolean(
-						deliveryForm.regionInput.trim() &&
-						deliveryForm.districtInput.trim() &&
-						deliveryForm.cityInput.trim() &&
-						deliveryForm.warehouseInput.trim(),
+						deliveryForm.ukrRegionInput.trim() &&
+						deliveryForm.ukrDistrictInput.trim() &&
+						deliveryForm.ukrCityInput.trim() &&
+						deliveryForm.ukrWarehouseInput.trim(),
 					)
 
 		const hasRecipient =
@@ -568,53 +841,25 @@ export default function CheckoutDeliveryPage() {
 		setDeliveryForm(current => ({
 			...current,
 			carrier,
-			novaCity: null,
-			novaWarehouse: null,
-			regionInput: '',
-			districtInput: '',
-			cityInput: '',
-			warehouseInput: '',
 		}))
-		setNovaCities([])
-		setNovaWarehouses([])
+
+		if (carrier === 'ukrposhta') {
+			setNovaCities([])
+			setNovaWarehouses([])
+		}
 	}
 
 	const handleContinue = () => {
 		if (!isDeliveryFormValid) return
 
-		const deliveryAddress =
-			deliveryForm.carrier === 'nova-poshta'
-				? {
-						carrier: deliveryForm.carrier,
-						city: deliveryForm.cityInput.trim(),
-						cityRef: deliveryForm.novaCity?.ref || null,
-						warehouse: deliveryForm.warehouseInput.trim(),
-						warehouseRef: deliveryForm.novaWarehouse?.ref || null,
-					}
-				: {
-						carrier: deliveryForm.carrier,
-						region: deliveryForm.regionInput.trim(),
-						district: deliveryForm.districtInput.trim(),
-						city: deliveryForm.cityInput.trim(),
-						warehouse: deliveryForm.warehouseInput.trim(),
-					}
+		const deliveryPayload = createDeliveryPayload(deliveryForm)
+		writeStorageObject(CHECKOUT_DELIVERY_STORAGE_KEY, deliveryPayload)
+		writeStorageObject(CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY, deliveryForm)
 
-		window.sessionStorage.setItem(
-			'nextronic.checkout.delivery',
-			JSON.stringify({
-				...deliveryAddress,
-				surname: deliveryForm.surname.trim(),
-				firstName: deliveryForm.firstName.trim(),
-				patronymic: deliveryForm.noPatronymic
-					? ''
-					: deliveryForm.patronymic.trim(),
-				noPatronymic: deliveryForm.noPatronymic,
-				phone: deliveryForm.phone.trim(),
-			}),
-		)
+		routerRef.current.push('/checkout/payment')
 	}
 
-	if (!mounted || loading) {
+	if (!mounted || (loading && items.length === 0)) {
 		return (
 			<CheckoutLayout
 				left={
@@ -745,10 +990,10 @@ export default function CheckoutDeliveryPage() {
 					{deliveryForm.carrier === 'nova-poshta' ? (
 						<>
 							<Autocomplete
-								options={novaCities}
+								options={novaCityOptions}
 								loading={citiesLoading}
 								value={deliveryForm.novaCity}
-								inputValue={deliveryForm.cityInput}
+								inputValue={deliveryForm.novaCityInput}
 								getOptionLabel={getNovaPoshtaCityLabel}
 								isOptionEqualToValue={(option, value) =>
 									option.ref === value.ref
@@ -768,9 +1013,9 @@ export default function CheckoutDeliveryPage() {
 									setDeliveryForm(current => ({
 										...current,
 										novaCity: value,
-										cityInput: value ? getNovaPoshtaCityLabel(value) : '',
+										novaCityInput: value ? getNovaPoshtaCityLabel(value) : '',
 										novaWarehouse: null,
-										warehouseInput: '',
+										novaWarehouseInput: '',
 									}))
 								}}
 								onInputChange={(_, value, reason) => {
@@ -778,14 +1023,14 @@ export default function CheckoutDeliveryPage() {
 
 									setDeliveryForm(current => ({
 										...current,
-										cityInput: value,
+										novaCityInput: value,
 										novaCity:
 											current.novaCity &&
 											getNovaPoshtaCityLabel(current.novaCity) === value
 												? current.novaCity
 												: null,
 										novaWarehouse: null,
-										warehouseInput: '',
+										novaWarehouseInput: '',
 									}))
 								}}
 								renderInput={params => (
@@ -798,15 +1043,15 @@ export default function CheckoutDeliveryPage() {
 							/>
 
 							<Autocomplete
-								options={novaWarehouses}
+								options={novaWarehouseOptions}
 								loading={warehousesLoading}
 								value={deliveryForm.novaWarehouse}
-								inputValue={deliveryForm.warehouseInput}
+								inputValue={deliveryForm.novaWarehouseInput}
 								getOptionLabel={getNovaPoshtaWarehouseLabel}
 								isOptionEqualToValue={(option, value) =>
 									option.ref === value.ref
 								}
-								disabled={!deliveryForm.novaCity}
+								disabled={!deliveryForm.novaCity?.ref}
 								filterOptions={(options, state) =>
 									filterOptionsByText(
 										options,
@@ -828,7 +1073,7 @@ export default function CheckoutDeliveryPage() {
 									setDeliveryForm(current => ({
 										...current,
 										novaWarehouse: value,
-										warehouseInput: value
+										novaWarehouseInput: value
 											? getNovaPoshtaWarehouseLabel(value)
 											: '',
 									}))
@@ -838,7 +1083,7 @@ export default function CheckoutDeliveryPage() {
 
 									setDeliveryForm(current => ({
 										...current,
-										warehouseInput: value,
+										novaWarehouseInput: value,
 										novaWarehouse:
 											current.novaWarehouse &&
 											getNovaPoshtaWarehouseLabel(current.novaWarehouse) ===
@@ -860,33 +1105,33 @@ export default function CheckoutDeliveryPage() {
 						<>
 							<CheckoutTextField
 								label={checkoutT('regionLabel')}
-								value={deliveryForm.regionInput}
+								value={deliveryForm.ukrRegionInput}
 								onChange={event =>
-									updateDeliveryForm('regionInput', event.target.value)
+									updateDeliveryForm('ukrRegionInput', event.target.value)
 								}
 							/>
 
 							<CheckoutTextField
 								label={checkoutT('districtLabel')}
-								value={deliveryForm.districtInput}
+								value={deliveryForm.ukrDistrictInput}
 								onChange={event =>
-									updateDeliveryForm('districtInput', event.target.value)
+									updateDeliveryForm('ukrDistrictInput', event.target.value)
 								}
 							/>
 
 							<CheckoutTextField
 								label={checkoutT('cityLabel')}
-								value={deliveryForm.cityInput}
+								value={deliveryForm.ukrCityInput}
 								onChange={event =>
-									updateDeliveryForm('cityInput', event.target.value)
+									updateDeliveryForm('ukrCityInput', event.target.value)
 								}
 							/>
 
 							<CheckoutTextField
 								label={checkoutT('branchLabel')}
-								value={deliveryForm.warehouseInput}
+								value={deliveryForm.ukrWarehouseInput}
 								onChange={event =>
-									updateDeliveryForm('warehouseInput', event.target.value)
+									updateDeliveryForm('ukrWarehouseInput', event.target.value)
 								}
 							/>
 						</>
@@ -1016,7 +1261,7 @@ export default function CheckoutDeliveryPage() {
 	)
 }
 
-function SectionTitle({ children }: { children: string }) {
+function SectionTitle({ children }: { children?: ReactNode }) {
 	return (
 		<Typography
 			component='h2'

@@ -4,6 +4,7 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	type ReactNode,
 } from 'react'
@@ -106,6 +107,9 @@ const MAX_CART_QUANTITY = 10
 const HOVER_TRANSITION =
 	'color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease'
 const EMPTY_CART_ILLUSTRATION_SRC = '/empty-cart.svg'
+const CHECKOUT_DELIVERY_STORAGE_KEY = 'nextronic.checkout.delivery'
+const CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY = 'nextronic.checkout.delivery.draft'
+const CHECKOUT_PAYMENT_STORAGE_KEY = 'nextronic.checkout.payment'
 
 const getArrayFromUnknown = <T,>(value: unknown): T[] =>
 	Array.isArray(value) ? value : []
@@ -169,6 +173,7 @@ const getComparisonProductIds = (comparisons: ComparisonResponse[]) =>
 export default function CartPage() {
 	const t = useTranslations('CartPage')
 	const router = useRouter()
+	const routerRef = useRef(router)
 	const locale = useLocale() as Locale
 	const { token } = useAuthStore()
 
@@ -192,6 +197,10 @@ export default function CartPage() {
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setMounted(true)
 	}, [])
+
+	useEffect(() => {
+		routerRef.current = router
+	}, [router])
 
 	const fetchCart = useCallback(async () => {
 		if (!token) {
@@ -275,13 +284,21 @@ export default function CartPage() {
 		if (!mounted) return
 
 		if (!token) {
-			router.push('/login')
+			routerRef.current.push('/login')
 			return
 		}
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		fetchCart()
 		fetchAuxiliaryState()
-	}, [fetchAuxiliaryState, fetchCart, mounted, router, token])
+	}, [fetchAuxiliaryState, fetchCart, mounted, token])
+
+	useEffect(() => {
+		if (!mounted || loading || items.length > 0) return
+
+		window.sessionStorage.removeItem(CHECKOUT_DELIVERY_STORAGE_KEY)
+		window.sessionStorage.removeItem(CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY)
+		window.sessionStorage.removeItem(CHECKOUT_PAYMENT_STORAGE_KEY)
+	}, [items.length, loading, mounted])
 
 	const availableItems = useMemo(() => items.filter(isAvailable), [items])
 
