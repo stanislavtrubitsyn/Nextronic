@@ -44,6 +44,8 @@ const SEGMENT_LABEL_KEYS = {
 	catalog: 'catalog',
 	catalogs: 'catalogs',
 	cart: 'cart',
+	checkout: 'checkout',
+	delivery: 'delivery',
 	categories: 'categories',
 	category: 'category',
 	compare: 'compare',
@@ -90,12 +92,20 @@ const formatUnknownSegment = (segment: string) =>
 		.replace(/\s+/g, ' ')
 		.replace(/^./, char => char.toUpperCase())
 
+type SafeTranslator = ((key: string) => string) & {
+	has?: (key: string) => boolean
+}
+
 const getSafeTranslation = (
-	translate: (key: string) => string,
+	translate: SafeTranslator,
 	key: string,
 	fallbackSegment: string,
 ) => {
 	try {
+		if (typeof translate.has === 'function' && !translate.has(key)) {
+			return formatUnknownSegment(fallbackSegment)
+		}
+
 		return translate(key)
 	} catch {
 		return formatUnknownSegment(fallbackSegment)

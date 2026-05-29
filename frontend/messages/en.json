@@ -904,5 +904,39 @@
 			"discount": "Discount:",
 			"total": "Total:"
 		}
+	},
+
+	"CheckoutPage": {
+		"title": "Checkout",
+		"deliveryStep": "Delivery",
+		"deliveryTitle": "Fill in delivery information",
+		"chooseCarrier": "Choose carrier:",
+		"carriers": {
+			"novaPoshta": "Nova Poshta",
+			"ukrposhta": "Ukrposhta"
+		},
+		"addressTitle": "Delivery address:",
+		"cityLabel": "Choose a city",
+		"cityPlaceholder": "",
+		"branchLabel": "Choose a branch",
+		"branchPlaceholder": "",
+		"recipientTitle": "Recipient details:",
+		"surnameLabel": "Last name",
+		"firstNameLabel": "First name",
+		"patronymicLabel": "Middle name",
+		"noPatronymic": "No middle name",
+		"phoneLabel": "Phone number",
+		"continue": "Continue",
+		"summary": {
+			"productsTitle": "Products",
+			"productsCount": "{count, plural, one {# item} other {# items}}",
+			"edit": "Edit",
+			"quantityUnit": "pc."
+		},
+		"regionLabel": "Choose a region",
+		"regionPlaceholder": "",
+		"districtLabel": "Choose a district",
+		"districtPlaceholder": "",
+		"noOptions": "Nothing found"
 	}
 }

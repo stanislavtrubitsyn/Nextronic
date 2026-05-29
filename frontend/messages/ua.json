@@ -906,5 +906,39 @@
 			"discount": "Знижка:",
 			"total": "Загальна сума:"
 		}
+	},
+
+	"CheckoutPage": {
+		"title": "Оформлення замовлення",
+		"deliveryStep": "Доставка",
+		"deliveryTitle": "Заповніть інформацію по доставці",
+		"chooseCarrier": "Виберіть перевізника:",
+		"carriers": {
+			"novaPoshta": "Нова Пошта",
+			"ukrposhta": "Укрпошта"
+		},
+		"addressTitle": "Адреса доставки:",
+		"cityLabel": "Оберіть населений пункт",
+		"cityPlaceholder": "",
+		"branchLabel": "Оберіть відділення",
+		"branchPlaceholder": "",
+		"recipientTitle": "Дані отримувача:",
+		"surnameLabel": "Прізвище",
+		"firstNameLabel": "Ім'я",
+		"patronymicLabel": "По батькові",
+		"noPatronymic": "Немає по батькові",
+		"phoneLabel": "Номер телефону",
+		"continue": "Продовжити",
+		"summary": {
+			"productsTitle": "Товари",
+			"productsCount": "{count, plural, one {# товар} few {# товари} many {# товарів} other {# товару}}",
+			"edit": "Редагувати",
+			"quantityUnit": "од."
+		},
+		"regionLabel": "Оберіть область",
+		"regionPlaceholder": "",
+		"districtLabel": "Оберіть район",
+		"districtPlaceholder": "",
+		"noOptions": "Нічого не знайдено"
 	}
 }
