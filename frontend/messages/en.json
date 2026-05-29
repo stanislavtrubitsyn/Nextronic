@@ -858,5 +858,26 @@
 		"editReplyTitle": "Edit reply",
 		"addPhotos": "Add photos",
 		"removePhoto": "Remove photo"
+	},
+
+	"ComparePage": {
+		"title": "Product comparison",
+		"listLabel": "Comparison list:",
+		"noListsShort": "No lists",
+		"addProduct": "Add product",
+		"deleteList": "Delete full list",
+		"differencesOnly": "Differences only",
+		"removeProduct": "Remove product from comparison list",
+		"deleteListConfirm": "Delete the whole comparison list? This action cannot be undone.",
+		"loadError": "Failed to load comparison lists. Please try again later.",
+		"loginRequired": "Sign in to view and edit your comparison lists.",
+		"goToLogin": "Sign in",
+		"emptyTitle": "Comparison lists are empty",
+		"emptyDescription": "Add a product to comparison from a product card or product page — the category list will be created automatically.",
+		"goToCatalog": "Go to catalog",
+		"emptyListTitle": "This list has no products",
+		"emptyListDescription": "Add a product from this category to compare specifications.",
+		"noDifferences": "The selected products have no differences in available specifications.",
+		"noSpecifications": "The selected products do not have specifications available for comparison yet."
 	}
 }
