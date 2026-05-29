@@ -871,31 +871,6 @@ function ShortCharacteristics({
 	)
 }
 
-type ViewedHistoryProduct = Partial<ProductCardData> & {
-	product?: Partial<ProductCardData>
-}
-
-const mapViewedHistoryItem = (
-	item: ViewedHistoryProduct,
-): ProductCardData | null => {
-	const product = item.product || item
-
-	if (!product?.id || !product.slug) return null
-
-	return {
-		id: String(product.id),
-		name: product.name || '',
-		slug: String(product.slug),
-		price: Number(product.price || 0),
-		oldPrice: product.oldPrice ?? null,
-		stock: Number(product.stock || 0),
-		images: Array.isArray(product.images) ? product.images : [],
-		rating: product.rating ?? 0,
-		reviewsCount: product.reviewsCount ?? 0,
-		category: product.category,
-	}
-}
-
 function ServiceInfoPanel({ benefits }: { benefits: Benefit[] }) {
 	const paymentBadges: ServiceBadge[] = [
 		{
@@ -1063,7 +1038,6 @@ function ProductPageContent() {
 	const [loading, setLoading] = useState(true)
 	const [hasError, setHasError] = useState(false)
 	const [userBonuses, setUserBonuses] = useState(0)
-	const [viewedProducts, setViewedProducts] = useState<ProductCardData[]>([])
 	const [isProductFavorite, setIsProductFavorite] = useState(false)
 	const [isProductCompared, setIsProductCompared] = useState(false)
 
@@ -1187,51 +1161,23 @@ function ProductPageContent() {
 
 	useEffect(() => {
 		const productId = data?.product.id
-		if (!token || !productId) {
-			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setViewedProducts([])
-			return
-		}
+		if (!token || !productId) return
 
-		let cancelled = false
-
-		const syncViewedProducts = async () => {
+		const trackProductView = async () => {
 			try {
-				const headers = { Authorization: `Bearer ${token}` }
-				const apiUrl = process.env.NEXT_PUBLIC_API_URL
-
-				await fetch(`${apiUrl}/products/${productId}/view`, {
-					method: 'POST',
-					headers,
-				})
-
-				const response = await fetch(`${apiUrl}/products/history/recent`, {
-					headers,
-				})
-
-				if (!response.ok) return
-
-				const result = (await response.json()) as ViewedHistoryProduct[]
-				const mappedProducts = result
-					.map(mapViewedHistoryItem)
-					.filter((product): product is ProductCardData => Boolean(product))
-					.filter(product => product.id !== productId)
-					.slice(0, 12)
-
-				if (!cancelled) {
-					setViewedProducts(mappedProducts)
-				}
+				await fetch(
+					`${process.env.NEXT_PUBLIC_API_URL}/products/${productId}/view`,
+					{
+						method: 'POST',
+						headers: { Authorization: `Bearer ${token}` },
+					},
+				)
 			} catch (error) {
-				console.error('Viewed products loading error:', error)
-				if (!cancelled) setViewedProducts([])
+				console.error('Product view tracking error:', error)
 			}
 		}
 
-		syncViewedProducts()
-
-		return () => {
-			cancelled = true
-		}
+		trackProductView()
 	}, [data?.product.id, token])
 
 	const benefits = useMemo<Benefit[]>(
@@ -1296,11 +1242,6 @@ function ProductPageContent() {
 		data.variants || [],
 		MEMORY_VARIANT_CODES,
 	)
-	const viewedRecommendations =
-		viewedProducts.length > 0
-			? viewedProducts
-			: data.recommendations.viewed || []
-
 	const stickyProduct: ProductCardData = {
 		id: data.product.id,
 		name: data.product.name,
@@ -1442,7 +1383,9 @@ function ProductPageContent() {
 				<ProductRecommendations
 					title={t('accessoriesTitle')}
 					viewAllLabel={t('viewAll')}
-					products={data.recommendations.accessories || []}
+					source='accessories'
+					currentProductId={data.product.id}
+					excludeProductIds={[data.product.id]}
 					userBonuses={userBonuses}
 				/>
 			</Box>
@@ -1567,7 +1510,8 @@ function ProductPageContent() {
 				<ProductRecommendations
 					title={t('personalTitle')}
 					viewAllLabel={t('viewAllProducts')}
-					products={data.recommendations.personal || []}
+					source='personal'
+					excludeProductIds={[data.product.id]}
 					userBonuses={userBonuses}
 				/>
 			</Box>
@@ -1576,7 +1520,9 @@ function ProductPageContent() {
 				<ProductRecommendations
 					title={t('similarTitle')}
 					viewAllLabel={t('viewAll')}
-					products={data.recommendations.similar || []}
+					source='similar'
+					currentProductId={data.product.id}
+					excludeProductIds={[data.product.id]}
 					userBonuses={userBonuses}
 				/>
 			</Box>
@@ -1585,7 +1531,8 @@ function ProductPageContent() {
 				<ProductRecommendations
 					title={t('viewedTitle')}
 					viewAllLabel={t('viewAllProducts')}
-					products={viewedRecommendations}
+					source='viewed'
+					excludeProductIds={[data.product.id]}
 					userBonuses={userBonuses}
 				/>
 			</Box>
