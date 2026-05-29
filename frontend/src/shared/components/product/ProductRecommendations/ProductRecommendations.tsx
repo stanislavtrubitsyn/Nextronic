@@ -4,36 +4,49 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, IconButton, Typography } from '@mui/material'
 import KeyboardArrowLeftRoundedIcon from '@mui/icons-material/KeyboardArrowLeftRounded'
 import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded'
+import { useAuthStore } from '@/entities/user/model/store'
 import {
 	ProductCard,
 	type ProductCardData,
 } from '@/shared/components/ui/ProductCard/ProductCard'
 
+type RecommendationSource =
+	| 'manual'
+	| 'personal'
+	| 'similar'
+	| 'accessories'
+	| 'boughtTogether'
+	| 'viewed'
+
 type ProductRecommendationsProps = {
 	title: string
 	viewAllLabel: string
-	products: ProductCardData[]
+	products?: ProductCardData[]
+	source?: RecommendationSource
+	currentProductId?: string
+	excludeProductIds?: string[]
 	userBonuses?: number
 	onViewAll?: () => void
 	maxItems?: number
 	maxVisibleItems?: number
 }
 
+type ApiProduct = Partial<ProductCardData> & {
+	product?: Partial<ProductCardData>
+}
+
 const CARD_GAP = 18
 const DEFAULT_MAX_ITEMS = 12
 const DEFAULT_MAX_VISIBLE_ITEMS = 6
 const MIN_COMFORTABLE_CARD_WIDTH = 235
-const MIN_MOBILE_CARD_WIDTH = 220
+const EMPTY_PRODUCTS: ProductCardData[] = []
+const EMPTY_IDS: string[] = []
 
 const getVisibleCardsCount = (
 	containerWidth: number,
 	maxVisibleItems: number,
 ) => {
 	if (!containerWidth) return maxVisibleItems
-
-	if (containerWidth >= 1440) {
-		return maxVisibleItems
-	}
 
 	const calculatedCount = Math.floor(
 		(containerWidth + CARD_GAP) / (MIN_COMFORTABLE_CARD_WIDTH + CARD_GAP),
@@ -42,10 +55,99 @@ const getVisibleCardsCount = (
 	return Math.max(1, Math.min(maxVisibleItems, calculatedCount))
 }
 
+const getArrayFromUnknown = <T,>(value: unknown): T[] =>
+	Array.isArray(value) ? value : []
+
+const mapApiProductToCardData = (item: ApiProduct): ProductCardData | null => {
+	const product = item.product || item
+
+	if (!product?.id || !product.slug) return null
+
+	return {
+		id: String(product.id),
+		name: product.name || '',
+		slug: String(product.slug),
+		price: Number(product.price || 0),
+		oldPrice: product.oldPrice ?? null,
+		stock: Number(product.stock || 0),
+		images: Array.isArray(product.images) ? product.images : [],
+		rating: product.rating ?? 0,
+		reviewsCount: product.reviewsCount ?? 0,
+		category: product.category,
+	}
+}
+
+const uniqueProducts = (
+	products: ProductCardData[],
+	limit: number,
+	excludeProductIds: string[],
+) => {
+	const excluded = new Set(excludeProductIds)
+	const used = new Set<string>()
+	const result: ProductCardData[] = []
+
+	for (const product of products) {
+		if (!product.id || excluded.has(product.id) || used.has(product.id))
+			continue
+
+		used.add(product.id)
+		result.push(product)
+
+		if (result.length >= limit) break
+	}
+
+	return result
+}
+
+const buildRecommendationsUrl = ({
+	source,
+	currentProductId,
+	maxItems,
+	excludeProductIds,
+}: {
+	source: RecommendationSource
+	currentProductId?: string
+	maxItems: number
+	excludeProductIds: string[]
+}) => {
+	const apiUrl = process.env.NEXT_PUBLIC_API_URL
+	if (!apiUrl) return null
+
+	if (source === 'manual') return null
+
+	if (source === 'viewed') {
+		return `${apiUrl}/products/history/recent`
+	}
+
+	if (source !== 'personal' && !currentProductId) return null
+
+	const params = new URLSearchParams({ limit: String(maxItems) })
+	if (excludeProductIds.length) {
+		params.set('excludeIds', excludeProductIds.join(','))
+	}
+
+	if (source === 'personal') {
+		return `${apiUrl}/recommendations/personal?${params.toString()}`
+	}
+
+	if (source === 'similar') {
+		return `${apiUrl}/recommendations/${currentProductId}/similar?${params.toString()}`
+	}
+
+	if (source === 'accessories') {
+		return `${apiUrl}/recommendations/${currentProductId}/accessories?${params.toString()}`
+	}
+
+	return `${apiUrl}/recommendations/${currentProductId}/bought-together?${params.toString()}`
+}
+
 export function ProductRecommendations({
 	title,
 	viewAllLabel,
-	products,
+	products = EMPTY_PRODUCTS,
+	source = 'manual',
+	currentProductId,
+	excludeProductIds = EMPTY_IDS,
 	userBonuses = 0,
 	onViewAll,
 	maxItems = DEFAULT_MAX_ITEMS,
@@ -54,40 +156,133 @@ export function ProductRecommendations({
 	const viewportRef = useRef<HTMLDivElement | null>(null)
 	const [viewportWidth, setViewportWidth] = useState(0)
 	const [activeIndex, setActiveIndex] = useState(0)
+	const [loadedProducts, setLoadedProducts] = useState<ProductCardData[]>([])
+	const { token } = useAuthStore()
 
-	const visibleProducts = useMemo(
-		() => products.slice(0, maxItems),
-		[products, maxItems],
+	const normalizedExcludeIds = Array.from(
+		new Set(
+			[currentProductId, ...excludeProductIds]
+				.filter((value): value is string => Boolean(value))
+				.map(value => value.trim())
+				.filter(Boolean),
+		),
 	)
+	const normalizedExcludeIdsKey = normalizedExcludeIds.join(',')
+	const shouldFetch = source !== 'manual'
+
+	useEffect(() => {
+		if (!shouldFetch) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setLoadedProducts([])
+			return
+		}
+
+		if ((source === 'personal' || source === 'viewed') && !token) {
+			setLoadedProducts([])
+			return
+		}
+
+		const currentExcludeIds = normalizedExcludeIdsKey
+			? normalizedExcludeIdsKey.split(',')
+			: []
+
+		const url = buildRecommendationsUrl({
+			source,
+			currentProductId,
+			maxItems,
+			excludeProductIds: currentExcludeIds,
+		})
+
+		if (!url) {
+			setLoadedProducts([])
+			return
+		}
+
+		const controller = new AbortController()
+		let cancelled = false
+
+		const fetchRecommendations = async () => {
+			try {
+				const response = await fetch(url, {
+					signal: controller.signal,
+					headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+				})
+
+				if (!response.ok) throw new Error('Failed to load recommendations')
+
+				const result = await response.json()
+				const nextProducts = getArrayFromUnknown<ApiProduct>(result)
+					.map(mapApiProductToCardData)
+					.filter((product): product is ProductCardData => Boolean(product))
+
+				if (!cancelled) {
+					setLoadedProducts(nextProducts)
+				}
+			} catch (error) {
+				if (controller.signal.aborted) return
+				console.error('Recommendations loading error:', error)
+				if (!cancelled) setLoadedProducts([])
+			}
+		}
+
+		fetchRecommendations()
+
+		return () => {
+			cancelled = true
+			controller.abort()
+		}
+	}, [
+		currentProductId,
+		maxItems,
+		normalizedExcludeIdsKey,
+		shouldFetch,
+		source,
+		token,
+	])
+
+	const sourceProducts = shouldFetch ? loadedProducts : products
+
+	const visibleProducts = useMemo(() => {
+		const currentExcludeIds = normalizedExcludeIdsKey
+			? normalizedExcludeIdsKey.split(',')
+			: []
+
+		return uniqueProducts(sourceProducts, maxItems, currentExcludeIds)
+	}, [sourceProducts, maxItems, normalizedExcludeIdsKey])
 
 	const visibleCardsCount = useMemo(
 		() => getVisibleCardsCount(viewportWidth, maxVisibleItems),
 		[viewportWidth, maxVisibleItems],
 	)
 
-	const cardWidth = useMemo(() => {
-		if (!viewportWidth) return MIN_COMFORTABLE_CARD_WIDTH
-
-		const totalGap = CARD_GAP * Math.max(0, visibleCardsCount - 1)
-		const calculatedWidth = (viewportWidth - totalGap) / visibleCardsCount
-
-		return Math.max(MIN_MOBILE_CARD_WIDTH, calculatedWidth)
-	}, [viewportWidth, visibleCardsCount])
-
 	const maxIndex = Math.max(0, visibleProducts.length - visibleCardsCount)
 	const safeActiveIndex = Math.min(activeIndex, maxIndex)
+
 	const canSlide = maxIndex > 0
 	const canGoPrev = canSlide && safeActiveIndex > 0
 	const canGoNext = canSlide && safeActiveIndex < maxIndex
+
+	const totalVisibleGap = CARD_GAP * Math.max(0, visibleCardsCount - 1)
+	const cardColumnWidth = `calc((100% - ${totalVisibleGap}px) / ${visibleCardsCount})`
+
+	const translatePercent = (safeActiveIndex / visibleCardsCount) * 100
+	const translateGap = (safeActiveIndex * CARD_GAP) / visibleCardsCount
+	const trackTransform = `translateX(calc(-${translatePercent}% - ${translateGap}px))`
 
 	useEffect(() => {
 		const element = viewportRef.current
 		if (!element) return
 
-		const updateWidth = () => setViewportWidth(element.clientWidth)
-		const frame = requestAnimationFrame(updateWidth)
+		const updateWidth = () => {
+			const width = element.getBoundingClientRect().width
+			setViewportWidth(Math.round(width))
+		}
 
+		updateWidth()
+
+		const frame = requestAnimationFrame(updateWidth)
 		const resizeObserver = new ResizeObserver(updateWidth)
+
 		resizeObserver.observe(element)
 
 		return () => {
@@ -146,6 +341,7 @@ export function ProductRecommendations({
 					alignItems: 'center',
 					justifyContent: 'space-between',
 					mb: { xs: '14px', md: '18px' },
+					gap: '16px',
 				}}
 			>
 				<Typography
@@ -208,10 +404,12 @@ export function ProductRecommendations({
 				>
 					<Box
 						sx={{
-							display: 'flex',
-							gap: `${CARD_GAP}px`,
-							width: 'max-content',
-							transform: `translateX(-${safeActiveIndex * (cardWidth + CARD_GAP)}px)`,
+							display: 'grid',
+							gridAutoFlow: 'column',
+							gridAutoColumns: cardColumnWidth,
+							columnGap: `${CARD_GAP}px`,
+							width: '100%',
+							transform: trackTransform,
 							transition: 'transform 280ms ease',
 							willChange: 'transform',
 						}}
@@ -220,9 +418,8 @@ export function ProductRecommendations({
 							<Box
 								key={product.id}
 								sx={{
-									width: `${cardWidth}px`,
-									minWidth: `${cardWidth}px`,
-									flex: `0 0 ${cardWidth}px`,
+									minWidth: 0,
+									width: '100%',
 								}}
 							>
 								<ProductCard
