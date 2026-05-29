@@ -55,6 +55,7 @@ const SEGMENT_LABEL_KEYS = {
 	moderators: 'moderators',
 	notifications: 'notifications',
 	orders: 'orders',
+	payment: 'payment',
 	products: 'products',
 	profile: 'profile',
 	register: 'register',

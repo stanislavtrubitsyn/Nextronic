@@ -937,6 +937,20 @@
 		"regionPlaceholder": "",
 		"districtLabel": "Choose a district",
 		"districtPlaceholder": "",
-		"noOptions": "Nothing found"
+		"noOptions": "Nothing found",
+		"paymentStep": "Payment",
+		"paymentTitle": "Fill in payment information",
+		"payment": {
+			"onlineTitle": "Online payment",
+			"cashTitle": "Payment on delivery",
+			"options": {
+				"card": "Card payment",
+				"apple-pay": "Apple Pay",
+				"google-pay": "Google Pay"
+			},
+			"onlineDescription": "Choose this option if you want to pay for the order online at the final confirmation step. After confirming the order, the payment window will open.",
+			"onlineMethodsTitle": "Available online payment methods:",
+			"cashDescription": "Choose this option if you don`t want to pay for the order online at the final confirmation step. Payment on delivery lets you pay for the order when you receive it at the branch or on delivery. The online payment window will not open at the final step."
+		}
 	}
 }
