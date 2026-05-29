@@ -27,6 +27,8 @@ type CheckoutSummaryCardProps = {
 	onAction?: () => void
 	disabled?: boolean
 	children?: ReactNode
+	details?: ReactNode
+	actionPlacement?: 'top' | 'bottom'
 	sx?: SxProps<Theme>
 }
 
@@ -59,8 +61,42 @@ export function CheckoutSummaryCard({
 	onAction,
 	disabled = false,
 	children,
+	details,
+	actionPlacement = 'top',
 	sx,
 }: CheckoutSummaryCardProps) {
+	const actionButton = (
+		<Button
+			disableRipple
+			variant='contained'
+			disabled={disabled}
+			onClick={onAction}
+			sx={{
+				width: '100%',
+				height: { xs: '44px', md: '50px' },
+				borderRadius: '10px',
+				bgcolor: '#6D28D9',
+				color: '#FFFFFF',
+				boxShadow: 'none',
+				textTransform: 'none',
+				fontFamily: 'var(--font-inter)',
+				fontWeight: 700,
+				fontSize: { xs: '14px', md: '16px' },
+				transition: HOVER_TRANSITION,
+				'&:hover': {
+					bgcolor: '#5B21B6',
+					boxShadow: 'none',
+				},
+				'&.Mui-disabled': {
+					bgcolor: 'rgba(109, 40, 217, 0.35)',
+					color: 'rgba(255,255,255,0.65)',
+				},
+			}}
+		>
+			{actionLabel}
+		</Button>
+	)
+
 	return (
 		<Box
 			component='aside'
@@ -141,35 +177,9 @@ export function CheckoutSummaryCard({
 					gap: { xs: '22px', md: '32px' },
 				}}
 			>
-				<Button
-					disableRipple
-					variant='contained'
-					disabled={disabled}
-					onClick={onAction}
-					sx={{
-						width: '100%',
-						height: { xs: '44px', md: '50px' },
-						borderRadius: '10px',
-						bgcolor: '#6D28D9',
-						color: '#FFFFFF',
-						boxShadow: 'none',
-						textTransform: 'none',
-						fontFamily: 'var(--font-inter)',
-						fontWeight: 700,
-						fontSize: { xs: '14px', md: '16px' },
-						transition: HOVER_TRANSITION,
-						'&:hover': {
-							bgcolor: '#5B21B6',
-							boxShadow: 'none',
-						},
-						'&.Mui-disabled': {
-							bgcolor: 'rgba(109, 40, 217, 0.35)',
-							color: 'rgba(255,255,255,0.65)',
-						},
-					}}
-				>
-					{actionLabel}
-				</Button>
+				{details}
+
+				{actionPlacement === 'top' ? actionButton : null}
 
 				<Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 					{rows.map(row => {
@@ -213,6 +223,8 @@ export function CheckoutSummaryCard({
 				</Box>
 
 				{children}
+
+				{actionPlacement === 'bottom' ? actionButton : null}
 			</Box>
 		</Box>
 	)
