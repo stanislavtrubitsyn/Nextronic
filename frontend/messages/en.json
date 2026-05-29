@@ -36,7 +36,8 @@
 		"search": "Search",
 		"users": "Users",
 		"viewed": "Viewed products",
-		"wishlist": "Wishlist"
+		"wishlist": "Wishlist",
+		"cart": "Cart"
 	},
 
 	"AppSearch": {
@@ -879,5 +880,29 @@
 		"emptyListDescription": "Add a product from this category to compare specifications.",
 		"noDifferences": "The selected products have no differences in available specifications.",
 		"noSpecifications": "The selected products do not have specifications available for comparison yet."
+	},
+
+	"CartPage": {
+		"title": "Cart",
+		"itemsCount": "{count, plural, one {# item} other {# items}}",
+		"clearAll": "Remove all items",
+		"clearConfirm": "Remove all items from the cart?",
+		"inFavorite": "In wishlist",
+		"addFavorite": "Add to wishlist",
+		"inCompare": "In comparison",
+		"addCompare": "Add to comparison",
+		"remove": "Remove",
+		"unavailable": "Product is out of stock",
+		"unknownProduct": "Product",
+		"bonusLabel": "Bonus balance:",
+		"checkout": "Proceed to checkout",
+		"emptyTitle": "Oops.. nothing was found in your cart :(",
+		"emptyDescription": "Your cart is completely empty right now. But it is easy to fix by adding something interesting here ;)",
+		"goShopping": "Go shopping",
+		"summary": {
+			"itemsAmount": "{count, plural, one {# item total:} other {# items total:}}",
+			"discount": "Discount:",
+			"total": "Total:"
+		}
 	}
 }

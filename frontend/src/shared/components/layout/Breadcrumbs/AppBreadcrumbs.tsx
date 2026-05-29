@@ -43,6 +43,7 @@ const SEGMENT_LABEL_KEYS = {
 	bonuses: 'bonuses',
 	catalog: 'catalog',
 	catalogs: 'catalogs',
+	cart: 'cart',
 	categories: 'categories',
 	category: 'category',
 	compare: 'compare',
@@ -88,6 +89,18 @@ const formatUnknownSegment = (segment: string) =>
 		.trim()
 		.replace(/\s+/g, ' ')
 		.replace(/^./, char => char.toUpperCase())
+
+const getSafeTranslation = (
+	translate: (key: string) => string,
+	key: string,
+	fallbackSegment: string,
+) => {
+	try {
+		return translate(key)
+	} catch {
+		return formatUnknownSegment(fallbackSegment)
+	}
+}
 
 const getLocalizedLabel = (
 	label: BreadcrumbLabel | undefined,
@@ -162,7 +175,7 @@ export function AppBreadcrumbs() {
 			const translationKey =
 				SEGMENT_LABEL_KEYS[segment as keyof typeof SEGMENT_LABEL_KEYS]
 			const label = translationKey
-				? t(translationKey)
+				? getSafeTranslation(t, translationKey, segment)
 				: formatUnknownSegment(segment)
 
 			return {
