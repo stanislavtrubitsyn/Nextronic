@@ -10,6 +10,8 @@ interface ComparisonList {
 	items?: unknown[]
 }
 
+const PRODUCT_COMPARE_SYNC_EVENT = 'product:compare-sync'
+
 export const AppComparisonButton = () => {
 	const t = useTranslations('AppComparisonButton')
 	const router = useRouter()
@@ -17,6 +19,8 @@ export const AppComparisonButton = () => {
 	const [itemsCount, setItemsCount] = useState(0)
 
 	useEffect(() => {
+		let cancelled = false
+
 		const fetchComparisons = async () => {
 			if (!token) {
 				setItemsCount(0)
@@ -33,9 +37,12 @@ export const AppComparisonButton = () => {
 					},
 				})
 
+				if (cancelled) return
+
 				if (response.ok) {
 					const data = await response.json()
-					const count = data.reduce(
+					const lists = Array.isArray(data) ? data : []
+					const count = lists.reduce(
 						(acc: number, comp: ComparisonList) =>
 							acc + (comp.items?.length || 0),
 						0,
@@ -46,11 +53,22 @@ export const AppComparisonButton = () => {
 				}
 			} catch (error) {
 				console.error('Помилка завантаження порівняння:', error)
-				setItemsCount(0)
+				if (!cancelled) setItemsCount(0)
 			}
 		}
 
 		fetchComparisons()
+
+		const handleCompareSync = () => {
+			fetchComparisons()
+		}
+
+		window.addEventListener(PRODUCT_COMPARE_SYNC_EVENT, handleCompareSync)
+
+		return () => {
+			cancelled = true
+			window.removeEventListener(PRODUCT_COMPARE_SYNC_EVENT, handleCompareSync)
+		}
 	}, [token])
 
 	const handleNavigation = () => {
@@ -85,7 +103,6 @@ export const AppComparisonButton = () => {
 					'& .MuiBadge-badge': {
 						right: -2,
 						top: 2,
-						border: '2px solid var(--color-header-bg)',
 						padding: '0 4px',
 						fontWeight: 700,
 					},

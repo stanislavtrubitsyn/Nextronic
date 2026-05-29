@@ -77,7 +77,16 @@ export class ComparisonService {
   async getMyComparisons(userId: string) {
     return await this.compRepo.find({
       where: { user: { id: userId } },
-      relations: ['items', 'items.product', 'items.product.category'],
+      relations: [
+        'category',
+        'items',
+        'items.product',
+        'items.product.category',
+        'items.product.reviews',
+        'items.product.attributeValues',
+        'items.product.attributeValues.attribute',
+      ],
+      order: { createdAt: 'DESC' },
     });
   }
 }
