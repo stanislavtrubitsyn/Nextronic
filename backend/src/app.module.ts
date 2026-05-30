@@ -19,6 +19,7 @@ import { NovaPoshtaModule } from './novaposhta/novaposhta.module';
 import { AuditModule } from './audit/audit.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AttributesModule } from './attributes/attributes.module';
+import { PaymentsModule } from './payments/payments.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -70,6 +71,7 @@ import { AttributesModule } from './attributes/attributes.module';
     AuditModule,
     AnalyticsModule,
     AttributesModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
