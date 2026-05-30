@@ -7,6 +7,7 @@ import {
 	useRef,
 	useState,
 	type ChangeEvent,
+	type ReactNode,
 } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
@@ -1071,9 +1072,12 @@ export default function CheckoutConfirmPage() {
 						</Box>
 
 						<BonusUseCard
-							availableLabel={checkoutT('confirm.bonusesAvailable', {
-								amount: Math.floor(bonusBalance),
-							})}
+							availableLabel={highlightAvailableBonusesLabel(
+								checkoutT('confirm.bonusesAvailable', {
+									amount: Math.floor(bonusBalance),
+								}),
+								Math.floor(bonusBalance),
+							)}
 							title={checkoutT('confirm.bonusesTitle')}
 							inputAria={checkoutT('confirm.bonusesInputAria')}
 							maxBonuses={maxBonusesToUse}
@@ -1273,9 +1277,34 @@ function BonusAccrualBanner({ amount }: { amount: string }) {
 	)
 }
 
+function highlightAvailableBonusesLabel(
+	label: string,
+	amount: number,
+): ReactNode {
+	const amountText = String(amount)
+	const amountIndex = label.indexOf(amountText)
+
+	if (amountIndex === -1) return label
+
+	return (
+		<>
+			{label.slice(0, amountIndex)}
+			<Box
+				component='span'
+				sx={{
+					color: '#6D28D9',
+					fontWeight: 800,
+				}}
+			>
+				{label.slice(amountIndex)}
+			</Box>
+		</>
+	)
+}
+
 type BonusUseCardProps = {
 	title: string
-	availableLabel: string
+	availableLabel: ReactNode
 	inputAria: string
 	maxBonuses: number
 	usedBonuses: number

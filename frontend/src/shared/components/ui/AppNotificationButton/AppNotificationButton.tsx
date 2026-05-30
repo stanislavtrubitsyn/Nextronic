@@ -82,7 +82,6 @@ export const AppNotificationButton = () => {
 					'& .MuiBadge-badge': {
 						right: -2,
 						top: 2,
-						border: '2px solid var(--color-header-bg)',
 						padding: '0 4px',
 						fontWeight: 700,
 					},
