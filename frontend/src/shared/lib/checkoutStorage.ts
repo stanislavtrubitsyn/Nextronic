@@ -28,6 +28,7 @@ export type CheckoutPaymentDraft = {
 }
 
 const CHECKOUT_DELIVERY_STORAGE_KEY = 'nextronic.checkout.delivery'
+const CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY = 'nextronic.checkout.delivery.draft'
 const CHECKOUT_PAYMENT_STORAGE_KEY = 'nextronic.checkout.payment'
 
 const isBrowser = () => typeof window !== 'undefined'
@@ -77,6 +78,7 @@ export const saveCheckoutDelivery = (delivery: CheckoutDeliveryDraft) => {
 
 export const clearCheckoutDelivery = () => {
 	removeSessionItem(CHECKOUT_DELIVERY_STORAGE_KEY)
+	removeSessionItem(CHECKOUT_DELIVERY_DRAFT_STORAGE_KEY)
 }
 
 export const readCheckoutPayment = () =>

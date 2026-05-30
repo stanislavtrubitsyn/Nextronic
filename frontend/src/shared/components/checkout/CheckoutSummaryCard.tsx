@@ -29,6 +29,7 @@ type CheckoutSummaryCardProps = {
 	children?: ReactNode
 	details?: ReactNode
 	actionPlacement?: 'top' | 'bottom'
+	footer?: ReactNode
 	sx?: SxProps<Theme>
 }
 
@@ -63,6 +64,7 @@ export function CheckoutSummaryCard({
 	children,
 	details,
 	actionPlacement = 'top',
+	footer,
 	sx,
 }: CheckoutSummaryCardProps) {
 	const actionButton = (
@@ -225,6 +227,8 @@ export function CheckoutSummaryCard({
 				{children}
 
 				{actionPlacement === 'bottom' ? actionButton : null}
+
+				{footer}
 			</Box>
 		</Box>
 	)
