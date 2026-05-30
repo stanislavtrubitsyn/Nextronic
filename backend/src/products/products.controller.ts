@@ -143,8 +143,21 @@ export class ProductsController {
 
   @Get('history/recent')
   @UseGuards(JwtAuthGuard)
-  async getMyViewHistory(@Req() req: RequestWithUser) {
-    return await this.viewedProductsService.getHistory(req.user!.userId);
+  async getMyViewHistory(
+    @Req() req: RequestWithUser,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const normalizedLimit = this.parsePositiveInteger(limit, page ? 5 : 20, 50);
+
+    if (page) {
+      return await this.viewedProductsService.getHistory(req.user!.userId, {
+        page: this.parsePositiveInteger(page, 1),
+        limit: normalizedLimit,
+      });
+    }
+
+    return await this.viewedProductsService.getHistory(req.user!.userId, normalizedLimit);
   }
 
   @Get(':id')
@@ -226,5 +239,14 @@ export class ProductsController {
       ActivityAction.VIEW,
     );
     return await this.viewedProductsService.addView(req.user!.userId, productId);
+  }
+
+  private parsePositiveInteger(value: string | undefined, fallback: number, max?: number): number {
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+
+    const normalized = Math.trunc(parsed);
+    return typeof max === 'number' ? Math.min(normalized, max) : normalized;
   }
 }
