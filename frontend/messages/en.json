@@ -3,17 +3,14 @@
 		"title": "Welcome to Nextronic!",
 		"description": "Your favorite electronics store"
 	},
-
 	"LocaleSwitcher": {
 		"ua": "Ukrainian",
 		"en": "English"
 	},
-
 	"ThemeSwitcher": {
 		"light": "Light",
 		"dark": "Dark"
 	},
-
 	"Breadcrumbs": {
 		"ariaLabel": "Breadcrumbs",
 		"home": "Home",
@@ -39,7 +36,6 @@
 		"wishlist": "Wishlist",
 		"cart": "Cart"
 	},
-
 	"AppSearch": {
 		"placeholder": "Search",
 		"button": "Search",
@@ -55,40 +51,32 @@
 		"viewedProducts": "Viewed products:",
 		"viewAllBtn": "All viewed products >"
 	},
-
 	"SearchPage": {
 		"resultsFor": "Search results for",
 		"errorLoading": "An error occurred while loading products. Please try again later.",
 		"notFound": "No products found for your request. Try changing the keywords.",
 		"buyBtn": "Buy"
 	},
-
 	"AppCartButton": {
 		"label": "Cart"
 	},
-
 	"UserProfileButton": {
 		"label": "Profile"
 	},
-
 	"AppComparisonButton": {
 		"label": "Compare"
 	},
-
 	"AppWishlistButton": {
 		"label": "Wishlist"
 	},
-
 	"AppNotificationButton": {
 		"label": "Messages"
 	},
-
 	"AppCatalog": {
 		"label": "Catalog",
 		"allCategories": "All categories >",
 		"viewAll": "View all >"
 	},
-
 	"Footer": {
 		"columns": {
 			"about": "About us:",
@@ -140,7 +128,6 @@
 		"socials": "We are in social networks:",
 		"copyright": "© All rights reserved. 2026 – "
 	},
-
 	"LoginPage": {
 		"title": "Log in to your account",
 		"loginMethod": "Login method:",
@@ -153,7 +140,6 @@
 		"noAccount": "Don't have an account?",
 		"register": "Register right now"
 	},
-
 	"RegisterPage": {
 		"title": "Register an account",
 		"firstName": "First name",
@@ -167,7 +153,6 @@
 		"hasAccount": "Already have an account?",
 		"login": "Log in right now"
 	},
-
 	"ProfilePage": {
 		"sidebar": {
 			"orders": "My orders",
@@ -278,9 +263,33 @@
 			"adminSubtractText": "Administrator deducted bonuses",
 			"expiredText": "Bonus validity period has expired",
 			"viewOrder": "View order"
+		},
+		"viewedProducts": {
+			"pageTitle": "Viewed products",
+			"clearAll": "Clear list",
+			"clearConfirmTitle": "Clear viewed products?",
+			"clearConfirmText": "The full viewed products history will be deleted. This action cannot be undone.",
+			"cancel": "Cancel",
+			"clear": "Clear",
+			"loadError": "Failed to load viewed products. Please try again later.",
+			"emptyTitle": "You have no viewed products yet",
+			"emptyDescription": "Viewed products will appear here automatically after you open product pages.",
+			"goShopping": "Start shopping",
+			"remove": "Remove from viewed",
+			"addFavorite": "Add to wishlist",
+			"inFavorite": "In wishlist",
+			"addCompare": "Add to comparison",
+			"inCompare": "In comparison",
+			"addToCart": "Add to cart",
+			"inCart": "In cart",
+			"outOfStock": "Out of stock",
+			"viewedAt": "Viewed",
+			"loadMore": "Load more",
+			"showLess": "Show less",
+			"previous": "Back",
+			"next": "Next"
 		}
 	},
-
 	"Admin": {
 		"menu": {
 			"dashboard": "Dashboard",
@@ -648,7 +657,6 @@
 			}
 		}
 	},
-
 	"CatalogOverviewPage": {
 		"loading": "Loading catalog...",
 		"loadError": "Failed to load catalog",
@@ -669,7 +677,6 @@
 		"noProducts": "No products yet",
 		"modelPreviewImageAlt": "Model image"
 	},
-
 	"UserForm": {
 		"email": "Email",
 		"password": "Password",
@@ -689,7 +696,6 @@
 			"admin": "Administrator"
 		}
 	},
-
 	"CatalogForm": {
 		"nameUa": "Name (UA)",
 		"nameEn": "Name (EN)",
@@ -701,7 +707,6 @@
 		"descriptionEn": "Description (EN)",
 		"isActive": "Catalog is active"
 	},
-
 	"CategoryForm": {
 		"nameUa": "Name (Ukrainian)",
 		"nameEn": "Name (English)",
@@ -713,7 +718,6 @@
 		"descriptionEn": "Description (English)",
 		"isActive": "Category is active"
 	},
-
 	"ProductForm": {
 		"basicInfo": "Basic information",
 		"nameUa": "Name (Ukr)",
@@ -747,7 +751,6 @@
 		"yes": "Yes",
 		"no": "No"
 	},
-
 	"ProductCard": {
 		"inFavorite": "In favorites",
 		"addFavorite": "Add to favorites",
@@ -762,7 +765,6 @@
 		"inCart": "In cart",
 		"productEnded": "Product is out of stock"
 	},
-
 	"CategoryPage": {
 		"home": "Home",
 		"loading": "Loading products...",
@@ -786,7 +788,6 @@
 		"sortNewest": "Newest",
 		"sortNameAsc": "Name A-Z"
 	},
-
 	"ProductPage": {
 		"loading": "Loading product...",
 		"loadError": "Failed to load product",
@@ -860,7 +861,6 @@
 		"addPhotos": "Add photos",
 		"removePhoto": "Remove photo"
 	},
-
 	"ComparePage": {
 		"title": "Product comparison",
 		"listLabel": "Comparison list:",
@@ -881,7 +881,6 @@
 		"noDifferences": "The selected products have no differences in available specifications.",
 		"noSpecifications": "The selected products do not have specifications available for comparison yet."
 	},
-
 	"CartPage": {
 		"title": "Cart",
 		"itemsCount": "{count, plural, one {# item} other {# items}}",
@@ -905,7 +904,6 @@
 			"total": "Total:"
 		}
 	},
-
 	"CheckoutPage": {
 		"title": "Checkout",
 		"deliveryStep": "Delivery",

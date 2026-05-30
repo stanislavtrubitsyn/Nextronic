@@ -3,17 +3,14 @@
 		"title": "Вітаємо в Nextronic!",
 		"description": "Ваш улюблений магазин електроніки"
 	},
-
 	"LocaleSwitcher": {
 		"ua": "Українська",
 		"en": "Англійська"
 	},
-
 	"ThemeSwitcher": {
 		"light": "Світла",
 		"dark": "Темна"
 	},
-
 	"Breadcrumbs": {
 		"ariaLabel": "Хлібні крошки",
 		"home": "Головна",
@@ -39,7 +36,6 @@
 		"wishlist": "Обране",
 		"cart": "Кошик"
 	},
-
 	"AppSearch": {
 		"placeholder": "Пошук",
 		"button": "Знайти",
@@ -58,40 +54,32 @@
 		"viewedProducts": "Переглянуті товари:",
 		"viewAllBtn": "Всі переглянуті товари >"
 	},
-
 	"SearchPage": {
 		"resultsFor": "Результати пошуку для",
 		"errorLoading": "Сталася помилка при завантаженні товарів. Спробуйте пізніше.",
 		"notFound": "Нічого не знайдено за вашим запитом. Спробуйте змінити ключові слова.",
 		"buyBtn": "Купити"
 	},
-
 	"AppCartButton": {
 		"label": "Кошик"
 	},
-
 	"UserProfileButton": {
 		"label": "Кабінет"
 	},
-
 	"AppComparisonButton": {
 		"label": "Порівняння"
 	},
-
 	"AppWishlistButton": {
 		"label": "Обране"
 	},
-
 	"AppNotificationButton": {
 		"label": "Повідомлення"
 	},
-
 	"AppCatalog": {
 		"label": "Каталог",
 		"allCategories": "Всі категорії >",
 		"viewAll": "Дивитись всі >"
 	},
-
 	"Footer": {
 		"columns": {
 			"about": "Про нас:",
@@ -143,7 +131,6 @@
 		"socials": "Ми у соціальних мережах:",
 		"copyright": "© Всі права захищені. 2026 – "
 	},
-
 	"LoginPage": {
 		"title": "Вхід до облікового запису",
 		"loginMethod": "Варіант входу:",
@@ -156,7 +143,6 @@
 		"noAccount": "Немає акаунту?",
 		"register": "Зареєструйтесь прямо зараз"
 	},
-
 	"RegisterPage": {
 		"title": "Зареєструвати обліковий запис",
 		"firstName": "Ім'я",
@@ -170,7 +156,6 @@
 		"hasAccount": "Вже є акаунт?",
 		"login": "Увійдіть прямо зараз"
 	},
-
 	"ProfilePage": {
 		"sidebar": {
 			"orders": "Мої замовлення",
@@ -281,9 +266,33 @@
 			"adminSubtractText": "Адміністратор списав бонуси",
 			"expiredText": "Строк дії бонусів закінчився",
 			"viewOrder": "Переглянути замовлення"
+		},
+		"viewedProducts": {
+			"pageTitle": "Переглянуті товари",
+			"clearAll": "Очистити список",
+			"clearConfirmTitle": "Очистити переглянуті товари?",
+			"clearConfirmText": "Вся історія переглянутих товарів буде видалена. Цю дію не можна скасувати.",
+			"cancel": "Скасувати",
+			"clear": "Очистити",
+			"loadError": "Не вдалося завантажити переглянуті товари. Спробуйте пізніше.",
+			"emptyTitle": "У вас ще немає переглянутих товарів",
+			"emptyDescription": "Переглянуті товари автоматично зʼявляться тут після відкриття сторінок товарів.",
+			"goShopping": "Перейти до покупок",
+			"remove": "Видалити з переглянутих",
+			"addFavorite": "Додати в обране",
+			"inFavorite": "В обраному",
+			"addCompare": "Додати у порівняння",
+			"inCompare": "В порівнянні",
+			"addToCart": "До кошика",
+			"inCart": "У кошику",
+			"outOfStock": "Немає в наявності",
+			"viewedAt": "Переглянуто",
+			"loadMore": "Показати більше",
+			"showLess": "Показати менше",
+			"previous": "Назад",
+			"next": "Вперед"
 		}
 	},
-
 	"Admin": {
 		"menu": {
 			"dashboard": "Дашборд",
@@ -651,7 +660,6 @@
 			}
 		}
 	},
-
 	"CatalogOverviewPage": {
 		"loading": "Завантаження каталогу...",
 		"loadError": "Не вдалося завантажити каталог",
@@ -672,7 +680,6 @@
 		"noProducts": "Товарів поки немає",
 		"modelPreviewImageAlt": "Зображення моделі"
 	},
-
 	"UserForm": {
 		"email": "Email",
 		"password": "Пароль",
@@ -692,7 +699,6 @@
 			"admin": "Адміністратор"
 		}
 	},
-
 	"CatalogForm": {
 		"nameUa": "Назва (укр.)",
 		"nameEn": "Назва (англ.)",
@@ -703,7 +709,6 @@
 		"descriptionUa": "Опис (укр.)",
 		"descriptionEn": "Опис (англ.)"
 	},
-
 	"CategoryForm": {
 		"nameUa": "Назва (Українська)",
 		"nameEn": "Назва (English)",
@@ -715,7 +720,6 @@
 		"descriptionEn": "Опис (English)",
 		"isActive": "Активна категорія"
 	},
-
 	"ProductForm": {
 		"basicInfo": "Основна інформація",
 		"nameUa": "Назва (Укр)",
@@ -749,7 +753,6 @@
 		"yes": "Так",
 		"no": "Ні"
 	},
-
 	"ProductCard": {
 		"inFavorite": "В обраному",
 		"addFavorite": "Додати в обране",
@@ -764,7 +767,6 @@
 		"inCart": "У кошику",
 		"productEnded": "Товар закінчився"
 	},
-
 	"CategoryPage": {
 		"home": "Головна",
 		"loading": "Завантаження товарів...",
@@ -788,7 +790,6 @@
 		"sortNewest": "Новинки",
 		"sortNameAsc": "За назвою А-Я"
 	},
-
 	"ProductPage": {
 		"loading": "Завантаження товару...",
 		"loadError": "Не вдалося завантажити товар",
@@ -862,7 +863,6 @@
 		"addPhotos": "Додати фото",
 		"removePhoto": "Видалити фото"
 	},
-
 	"ComparePage": {
 		"title": "Порівняння товарів",
 		"listLabel": "Список порівняння:",
@@ -883,7 +883,6 @@
 		"noDifferences": "У вибраних товарах немає відмінностей за доступними характеристиками.",
 		"noSpecifications": "Для вибраних товарів поки немає характеристик для порівняння."
 	},
-
 	"CartPage": {
 		"title": "Кошик",
 		"itemsCount": "{count, plural, one {# товар} few {# товари} many {# товарів} other {# товару}}",
@@ -907,7 +906,6 @@
 			"total": "Загальна сума:"
 		}
 	},
-
 	"CheckoutPage": {
 		"title": "Оформлення замовлення",
 		"deliveryStep": "Доставка",
