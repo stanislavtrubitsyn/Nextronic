@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CartEntity } from './cart.entity';
 import { AddToCartDto } from './cart.dto';
 import { CART_I18N, CartLangType } from './cart.i18n';
@@ -112,6 +112,17 @@ export class CartService {
       throw new NotFoundException(CART_I18N[lang].itemNotFound);
     }
     return await this.cartRepo.remove(item);
+  }
+
+  async removeProductsFromCart(userId: string, productIds: string[]) {
+    const uniqueProductIds = Array.from(new Set(productIds.filter(Boolean)));
+
+    if (uniqueProductIds.length === 0) return { affected: 0 };
+
+    return await this.cartRepo.delete({
+      user: { id: userId },
+      product: { id: In(uniqueProductIds) },
+    });
   }
 
   async clearCart(userId: string) {

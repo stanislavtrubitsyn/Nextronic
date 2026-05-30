@@ -12,6 +12,7 @@ import { OrderItemEntity } from './order-item.entity';
 export enum OrderStatus {
   PENDING = 'pending',
   PROCESSING = 'processing',
+  CONFIRMED = 'confirmed',
   SHIPPED = 'shipped',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
@@ -39,6 +40,24 @@ export class OrderEntity {
 
   @Column({ default: false })
   isPaid!: boolean;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  paymentProvider?: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  paymentStatus?: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  paymentTransactionId?: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  liqpayOrderId?: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  paymentPayload?: Record<string, unknown> | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  paidAt?: Date | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   baseAmount!: number; // Вартість товарів без знижок
