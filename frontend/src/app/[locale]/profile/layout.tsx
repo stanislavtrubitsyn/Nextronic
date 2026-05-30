@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Box, Typography, IconButton } from '@mui/material'
 import { useTranslations } from 'next-intl'
 import { Link, usePathname, useRouter } from '@/i18n/routing'
@@ -47,6 +47,8 @@ export default function ProfileLayout({
 	const isAuth = !!user
 	const [mounted, setMounted] = useState(false)
 	const [bonusBalance, setBonusBalance] = useState<number>(0)
+	const sidebarRef = useRef<HTMLDivElement | null>(null)
+	const [sidebarHeight, setSidebarHeight] = useState<number | null>(null)
 
 	useEffect(() => {
 		// eslint-disable-next-line react-hooks/set-state-in-effect
@@ -83,6 +85,40 @@ export default function ProfileLayout({
 			fetchBalance()
 		}
 	}, [mounted, isAuth, token])
+
+	useEffect(() => {
+		if (!mounted || !isAuth) return
+
+		const sidebar = sidebarRef.current
+		if (!sidebar) return
+
+		let frameId: number | null = null
+
+		const updateSidebarHeight = () => {
+			if (frameId !== null) window.cancelAnimationFrame(frameId)
+
+			frameId = window.requestAnimationFrame(() => {
+				setSidebarHeight(sidebar.offsetHeight)
+				frameId = null
+			})
+		}
+
+		updateSidebarHeight()
+
+		const resizeObserver =
+			typeof ResizeObserver !== 'undefined'
+				? new ResizeObserver(updateSidebarHeight)
+				: null
+
+		resizeObserver?.observe(sidebar)
+		window.addEventListener('resize', updateSidebarHeight)
+
+		return () => {
+			if (frameId !== null) window.cancelAnimationFrame(frameId)
+			resizeObserver?.disconnect()
+			window.removeEventListener('resize', updateSidebarHeight)
+		}
+	}, [mounted, isAuth])
 
 	if (!mounted || !isAuth) return null
 
@@ -150,7 +186,7 @@ export default function ProfileLayout({
 			sx={{
 				display: 'flex',
 				flexDirection: { xs: 'column', md: 'row' },
-				alignItems: 'stretch',
+				alignItems: { xs: 'stretch', md: 'flex-start' },
 				maxWidth: '1920px',
 				mx: 'auto',
 				px: { xs: 2, sm: 5, md: 10 },
@@ -161,6 +197,7 @@ export default function ProfileLayout({
 			}}
 		>
 			<Box
+				ref={sidebarRef}
 				component='aside'
 				sx={{
 					display: 'flex',
@@ -168,6 +205,7 @@ export default function ProfileLayout({
 					alignItems: 'flex-start',
 					width: { xs: '100%', md: '400px' },
 					flexShrink: 0,
+					alignSelf: { xs: 'auto', md: 'flex-start' },
 					backgroundColor: 'var(--color-block-bg)',
 					borderRadius: '20px',
 					overflow: 'hidden',
@@ -580,7 +618,52 @@ export default function ProfileLayout({
 				</Box>
 			</Box>
 
-			<Box sx={{ flex: 1, minWidth: 0, display: 'flex' }}>{children}</Box>
+			<Box
+				sx={{
+					flex: '1 1 auto',
+					minWidth: 0,
+					display: 'flex',
+					alignSelf: { xs: 'auto', md: 'flex-start' },
+					height: {
+						xs: 'auto',
+						md: sidebarHeight ? `${sidebarHeight}px` : 'auto',
+					},
+					maxHeight: {
+						xs: 'none',
+						md: sidebarHeight ? `${sidebarHeight}px` : 'none',
+					},
+					minHeight: 0,
+					borderRadius: '20px',
+					backgroundColor: 'var(--color-block-bg)',
+					overflow: 'hidden',
+				}}
+			>
+				<Box
+					sx={{
+						width: '100%',
+						height: { xs: 'auto', md: '100%' },
+						minHeight: 0,
+						borderRadius: 'inherit',
+						backgroundColor: 'transparent',
+						overflowX: 'hidden',
+						overflowY: { xs: 'visible', md: 'auto' },
+						scrollbarWidth: 'thin',
+						scrollbarColor: '#6D28D9 transparent',
+						'&::-webkit-scrollbar': {
+							width: '6px',
+						},
+						'&::-webkit-scrollbar-track': {
+							backgroundColor: 'transparent',
+						},
+						'&::-webkit-scrollbar-thumb': {
+							backgroundColor: '#6D28D9',
+							borderRadius: '999px',
+						},
+					}}
+				>
+					{children}
+				</Box>
+			</Box>
 		</Box>
 	)
 }
