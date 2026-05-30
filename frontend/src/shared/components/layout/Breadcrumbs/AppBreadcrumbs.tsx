@@ -49,6 +49,7 @@ const SEGMENT_LABEL_KEYS = {
 	categories: 'categories',
 	category: 'category',
 	compare: 'compare',
+	confirm: 'confirm',
 	comparison: 'compare',
 	favorites: 'wishlist',
 	login: 'login',

@@ -951,6 +951,47 @@
 			"onlineDescription": "Choose this option if you want to pay for the order online at the final confirmation step. After confirming the order, the payment window will open.",
 			"onlineMethodsTitle": "Available online payment methods:",
 			"cashDescription": "Choose this option if you don`t want to pay for the order online at the final confirmation step. Payment on delivery lets you pay for the order when you receive it at the branch or on delivery. The online payment window will not open at the final step."
+		},
+		"confirmStep": "Confirmation",
+		"confirmTitle": "Order confirmation",
+		"confirm": {
+			"deliveryCardTitle": "Delivery",
+			"paymentCardTitle": "Payment",
+			"recipientCardTitle": "Recipient",
+			"paymentCardValue": "Card payment",
+			"bonusAccrual": "will be credited to your bonus account",
+			"saveMoreTitle": "Save even more!",
+			"saveMoreDescription": "Use bonuses for extra savings:",
+			"bonusesTitle": "Bonuses",
+			"bonusesAvailable": "Available to use: {amount} ₴ bonuses",
+			"bonusesInputAria": "Number of bonuses to use",
+			"submit": "Place order",
+			"termsText": "By clicking the button, I agree to the terms of the",
+			"termsLink": "User Agreement",
+			"paymentModalTitle": "Order payment",
+			"paymentModalDescription": "The LiqPay payment widget will open inside this window. The order will be created only after successful online payment confirmation.",
+			"paymentModalAmount": "Amount to pay:",
+			"monobankProvider": "Pay with Monobank",
+			"privatbankProvider": "Pay with PrivatBank",
+			"mockPaymentNotice": "No longer used: payment is processed by LiqPay.",
+			"cancelPayment": "Close payment window",
+			"processingOrder": "Processing payment...",
+			"errors": {
+				"auth": "Authorization is required to place an order.",
+				"create": "Failed to create the order.",
+				"payment": "Failed to confirm order payment.",
+				"fallback": "Something went wrong. Please try again.",
+				"checkout": "Failed to prepare LiqPay payment.",
+				"widgetLoad": "Failed to load the LiqPay payment widget. Check LiqPay keys, access to static.liqpay.ua, and the browser console.",
+				"paymentStatus": "Failed to check payment status.",
+				"paymentFailed": "LiqPay returned an unsuccessful payment status.",
+				"paymentFailedWithStatus": "LiqPay returned an unsuccessful payment status: {status}.",
+				"waitCallback": "Payment is confirmed in LiqPay, but the backend has not received the server callback yet. Check BACKEND_PUBLIC_URL / LIQPAY_SERVER_URL."
+			},
+			"liqpayMethodsTitle": "Available payment methods",
+			"liqpayMethodsDescription": "On the LiqPay page the customer can pay by Visa/Mastercard, Apple Pay, Google Pay, QR code, or Privat24.",
+			"liqpayWidgetNotice": "After a successful payment, LiqPay will return the payment status. In local dev mode the backend creates the order after the widget callback; in production the status is confirmed by the server-to-server callback.",
+			"widgetLoading": "Loading LiqPay payment widget..."
 		}
 	}
 }
