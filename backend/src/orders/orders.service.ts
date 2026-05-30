@@ -29,6 +29,29 @@ type MarkOnlinePaymentResultPayload = {
   rawPayload?: Record<string, unknown> | null;
 };
 
+export type PaymentBasketDiscount = {
+  type: 'discount' | 'extra';
+  mode: 'value' | 'percent';
+  value: number;
+};
+
+export type PaymentBasketItem = {
+  name: string;
+  qty: number;
+  sum: number;
+  total: number;
+  code: string;
+  unit: string;
+  tax: number[];
+};
+
+export type OnlinePaymentPreview = {
+  amount: number;
+  amountInMinorUnits: number;
+  basketOrder: PaymentBasketItem[];
+  discounts: PaymentBasketDiscount[];
+};
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -164,6 +187,14 @@ export class OrdersService {
   }
 
   async previewOnlineOrderAmount(userId: string, dto: CreateOrderDto, lang: OrderLangType = 'ua') {
+    return (await this.buildOnlinePaymentPreview(userId, dto, lang)).amount;
+  }
+
+  async buildOnlinePaymentPreview(
+    userId: string,
+    dto: CreateOrderDto,
+    lang: OrderLangType = 'ua',
+  ): Promise<OnlinePaymentPreview> {
     const t = ORDERS_I18N[lang];
     const cartData = await this.cartService.getMyCart(userId);
     const cartItems = cartData.items;
@@ -174,6 +205,7 @@ export class OrdersService {
 
     let baseAmount = 0;
     let discountAmount = 0;
+    const basketOrder: PaymentBasketItem[] = [];
 
     for (const item of cartItems) {
       if (item.product.stock < item.quantity) {
@@ -184,9 +216,26 @@ export class OrdersService {
 
       const currentPrice = Number(item.product.price);
       const originalPrice = item.product.oldPrice ? Number(item.product.oldPrice) : currentPrice;
+      const quantity = Number(item.quantity || 1);
+      const itemTotal = currentPrice * quantity;
 
-      baseAmount += originalPrice * item.quantity;
-      discountAmount += (originalPrice - currentPrice) * item.quantity;
+      baseAmount += originalPrice * quantity;
+      discountAmount += Math.max(0, originalPrice - currentPrice) * quantity;
+
+      const localizedName =
+        typeof item.product.name === 'object'
+          ? item.product.name[lang] || item.product.name.ua || item.product.name.en
+          : t.defaultProductName;
+
+      basketOrder.push({
+        name: localizedName || t.defaultProductName,
+        qty: quantity,
+        sum: Math.round(currentPrice * 100),
+        total: Math.round(itemTotal * 100),
+        code: item.product.sku || item.product.id,
+        unit: 'шт.',
+        tax: [0],
+      });
     }
 
     let finalAmount = baseAmount - discountAmount;
@@ -207,7 +256,25 @@ export class OrdersService {
       finalAmount -= bonusesToUse;
     }
 
-    return Number(Number(finalAmount).toFixed(2));
+    const discounts: PaymentBasketDiscount[] =
+      bonusesToUse > 0
+        ? [
+            {
+              type: 'discount',
+              mode: 'value',
+              value: Math.round(bonusesToUse * 100),
+            },
+          ]
+        : [];
+
+    const amount = Number(Number(finalAmount).toFixed(2));
+
+    return {
+      amount,
+      amountInMinorUnits: Math.max(0, Math.round(amount * 100)),
+      basketOrder,
+      discounts,
+    };
   }
 
   async createPaidOnlineOrder(
