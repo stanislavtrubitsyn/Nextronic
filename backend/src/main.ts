@@ -1,12 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { json, urlencoded } from 'express';
+import { json, urlencoded, type Request } from 'express';
 import { AppModule } from './app.module';
+
+type RequestWithRawBody = Request & {
+  rawBody?: Buffer;
+};
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.use(json({ limit: '1mb' }));
+  app.use(
+    json({
+      limit: '1mb',
+      verify: (req: RequestWithRawBody, _res, buffer) => {
+        req.rawBody = Buffer.from(buffer);
+      },
+    }),
+  );
   app.use(urlencoded({ extended: true, limit: '1mb' }));
 
   // ПІДКЛЮЧАЄМО ВАЛІДАЦІЮ ГЛОБАЛЬНО
