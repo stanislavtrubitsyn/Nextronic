@@ -38,6 +38,7 @@ import {
 
 type Locale = 'ua' | 'en'
 type PaymentChoice = 'online' | 'cash-on-delivery'
+type OnlinePaymentProvider = 'liqpay' | 'monobank'
 
 type LocalizedText = {
 	ua?: string
@@ -114,13 +115,22 @@ const getPaymentChoiceFromStorage = (): PaymentChoice => {
 	return 'online'
 }
 
-const createPaymentDraft = (paymentChoice: PaymentChoice, label: string) => {
+const getOnlineProviderFromStorage = (): OnlinePaymentProvider => {
+	const storedPayment = readCheckoutPayment()
+	return storedPayment?.onlineProvider === 'monobank' ? 'monobank' : 'liqpay'
+}
+
+const createPaymentDraft = (
+	paymentChoice: PaymentChoice,
+	label: string,
+	onlineProvider: OnlinePaymentProvider,
+) => {
 	const isOnlinePayment = paymentChoice === 'online'
 
 	return {
 		paymentChoice,
 		paymentMethod: isOnlinePayment ? 'card' : 'cash',
-		onlineProvider: isOnlinePayment ? 'online-card' : null,
+		onlineProvider: isOnlinePayment ? onlineProvider : null,
 		requiresOnlinePayment: isOnlinePayment,
 		label,
 	} as const
@@ -140,6 +150,8 @@ export default function CheckoutPaymentPage() {
 	const [bonusBalance, setBonusBalance] = useState(0)
 	const [loading, setLoading] = useState(true)
 	const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>('online')
+	const [onlineProvider, setOnlineProvider] =
+		useState<OnlinePaymentProvider>('liqpay')
 
 	const breadcrumbItems = useMemo<BreadcrumbItem[]>(
 		() => [
@@ -164,8 +176,10 @@ export default function CheckoutPaymentPage() {
 		if (!mounted || paymentDraftHydratedRef.current) return
 
 		const storedPaymentChoice = getPaymentChoiceFromStorage()
+		const storedOnlineProvider = getOnlineProviderFromStorage()
 
 		setPaymentChoice(storedPaymentChoice)
+		setOnlineProvider(storedOnlineProvider)
 		paymentDraftHydratedRef.current = true
 	}, [mounted])
 
@@ -177,8 +191,10 @@ export default function CheckoutPaymentPage() {
 				? checkoutT('payment.onlineTitle')
 				: checkoutT('payment.cashTitle')
 
-		saveCheckoutPayment(createPaymentDraft(paymentChoice, paymentLabel))
-	}, [checkoutT, mounted, paymentChoice])
+		saveCheckoutPayment(
+			createPaymentDraft(paymentChoice, paymentLabel, onlineProvider),
+		)
+	}, [checkoutT, mounted, onlineProvider, paymentChoice])
 
 	const fetchCheckoutData = useCallback(async () => {
 		if (!token) {
@@ -319,7 +335,9 @@ export default function CheckoutPaymentPage() {
 				? checkoutT('payment.onlineTitle')
 				: checkoutT('payment.cashTitle')
 
-		saveCheckoutPayment(createPaymentDraft(paymentChoice, paymentLabel))
+		saveCheckoutPayment(
+			createPaymentDraft(paymentChoice, paymentLabel, onlineProvider),
+		)
 		routerRef.current.push('/checkout/confirm')
 	}
 
@@ -349,6 +367,10 @@ export default function CheckoutPaymentPage() {
 
 	const handlePaymentChoiceChange = (choice: PaymentChoice) => {
 		setPaymentChoice(choice)
+	}
+
+	const handleOnlineProviderChange = (provider: OnlinePaymentProvider) => {
+		setOnlineProvider(provider)
 	}
 
 	const isOnlineSelected = paymentChoice === 'online'
@@ -443,6 +465,7 @@ export default function CheckoutPaymentPage() {
 							component='ul'
 							sx={{
 								m: 0,
+								mb: '16px',
 								p: 0,
 								listStyle: 'none',
 								display: 'flex',
@@ -461,6 +484,42 @@ export default function CheckoutPaymentPage() {
 							<PaymentInstructionItem
 								label={checkoutT('payment.options.google-pay')}
 								icon={<GooglePayBadge />}
+							/>
+						</Box>
+
+						<Typography
+							sx={{
+								fontFamily: 'var(--font-inter)',
+								fontWeight: 600,
+								fontSize: '14px',
+								lineHeight: 1.2,
+								color: 'var(--theme-text)',
+								mb: '10px',
+							}}
+						>
+							{checkoutT('payment.providerTitle')}
+						</Typography>
+
+						<Box
+							sx={{
+								display: 'grid',
+								gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+								gap: '10px',
+							}}
+						>
+							<OnlineProviderCard
+								selected={onlineProvider === 'liqpay'}
+								title={checkoutT('payment.providers.liqpay.title')}
+								description={checkoutT('payment.providers.liqpay.description')}
+								onClick={() => handleOnlineProviderChange('liqpay')}
+							/>
+							<OnlineProviderCard
+								selected={onlineProvider === 'monobank'}
+								title={checkoutT('payment.providers.monobank.title')}
+								description={checkoutT(
+									'payment.providers.monobank.description',
+								)}
+								onClick={() => handleOnlineProviderChange('monobank')}
 							/>
 						</Box>
 					</PaymentAccordionCard>
@@ -589,6 +648,76 @@ function PaymentAccordionCard({
 					{children}
 				</Box>
 			</Collapse>
+		</Box>
+	)
+}
+
+type OnlineProviderCardProps = {
+	selected: boolean
+	title: string
+	description: string
+	onClick: () => void
+}
+
+function OnlineProviderCard({
+	selected,
+	title,
+	description,
+	onClick,
+}: OnlineProviderCardProps) {
+	return (
+		<Box
+			component='button'
+			type='button'
+			onClick={onClick}
+			aria-pressed={selected}
+			sx={{
+				width: '100%',
+				minHeight: '88px',
+				border: '1px solid',
+				borderColor: selected ? '#6D28D9' : 'var(--card-border)',
+				borderRadius: '10px',
+				bgcolor: selected ? 'rgba(109, 40, 217, 0.14)' : 'transparent',
+				color: 'var(--theme-text)',
+				cursor: 'pointer',
+				textAlign: 'left',
+				p: '14px',
+				transition: HOVER_TRANSITION,
+				'&:hover': {
+					borderColor: '#6D28D9',
+					bgcolor: selected
+						? 'rgba(109, 40, 217, 0.18)'
+						: 'rgba(109, 40, 217, 0.08)',
+				},
+			}}
+		>
+			<Typography
+				component='span'
+				sx={{
+					display: 'block',
+					fontFamily: 'var(--font-inter)',
+					fontWeight: 800,
+					fontSize: '14px',
+					color: selected ? '#6D28D9' : 'var(--theme-text)',
+					lineHeight: 1.25,
+				}}
+			>
+				{title}
+			</Typography>
+			<Typography
+				component='span'
+				sx={{
+					display: 'block',
+					mt: '6px',
+					fontFamily: 'var(--font-inter)',
+					fontWeight: 500,
+					fontSize: '12px',
+					color: 'var(--theme-icon-dim)',
+					lineHeight: 1.35,
+				}}
+			>
+				{description}
+			</Typography>
 		</Box>
 	)
 }

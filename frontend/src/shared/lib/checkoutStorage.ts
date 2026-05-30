@@ -1,6 +1,7 @@
 export type CheckoutDeliveryCarrier = 'nova-poshta' | 'ukrposhta'
 export type CheckoutPaymentChoice = 'online' | 'cash-on-delivery'
 export type CheckoutPaymentMethod = 'card' | 'cash'
+export type CheckoutOnlinePaymentProvider = 'liqpay' | 'monobank'
 
 export type CheckoutDeliveryDraft = {
 	carrier?: CheckoutDeliveryCarrier
@@ -22,7 +23,7 @@ export type CheckoutDeliveryDraft = {
 export type CheckoutPaymentDraft = {
 	paymentChoice?: CheckoutPaymentChoice
 	paymentMethod: CheckoutPaymentMethod
-	onlineProvider: string | null
+	onlineProvider: CheckoutOnlinePaymentProvider | null
 	requiresOnlinePayment: boolean
 	label?: string
 }

@@ -102,6 +102,24 @@ type LiqPayDevSuccessResponse = {
 	devMode?: boolean
 }
 
+type MonobankCheckoutResponse = {
+	paymentId: string
+	invoiceId: string
+	pageUrl: string
+	amount: number
+	currency: 'UAH'
+	devMode: boolean
+}
+
+type MonobankPaymentStatusResponse = {
+	paymentId: string
+	invoiceId?: string | null
+	status: string
+	orderId?: string | null
+	isPaid: boolean
+	devMode: boolean
+}
+
 type LiqPayWidgetPayload = {
 	status?: string
 	err_code?: string
@@ -147,6 +165,7 @@ const LIQPAY_WIDGET_SCRIPT_ID = 'liqpay-checkout-widget-script'
 const LIQPAY_WIDGET_SCRIPT_SRC = 'https://static.liqpay.ua/libjs/checkout.js'
 const LIQPAY_SUCCESS_STATUSES = new Set(['success', 'sandbox'])
 const LIQPAY_FAILED_STATUSES = new Set(['error', 'failure', 'reversed'])
+const MONOBANK_FAILED_STATUSES = new Set(['failure', 'reversed', 'expired'])
 
 const getArrayFromUnknown = <T,>(value: unknown): T[] =>
 	Array.isArray(value) ? value : []
@@ -307,10 +326,15 @@ export default function CheckoutConfirmPage() {
 	const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
 	const [liqPayCheckout, setLiqPayCheckout] =
 		useState<LiqPayCheckoutResponse | null>(null)
+	const [monobankCheckout, setMonobankCheckout] =
+		useState<MonobankCheckoutResponse | null>(null)
+	const [monobankDialogOpen, setMonobankDialogOpen] = useState(false)
 	const [errorMessage, setErrorMessage] = useState('')
 	const [paymentCompleted, setPaymentCompleted] = useState(false)
 	const [paidOrderId, setPaidOrderId] = useState<string | null>(null)
 	const liqPaySuccessHandledRef = useRef(false)
+	const monobankSuccessHandledRef = useRef(false)
+	const monobankStatusCheckingRef = useRef(false)
 
 	const breadcrumbItems = useMemo<BreadcrumbItem[]>(
 		() => [
@@ -527,9 +551,14 @@ export default function CheckoutConfirmPage() {
 		.map(getCleanString)
 		.filter(isNonEmptyString)
 
+	const selectedOnlineProvider =
+		paymentDraft?.onlineProvider === 'monobank' ? 'monobank' : 'liqpay'
+
 	const paymentLines = [
 		paymentDraft?.requiresOnlinePayment
-			? checkoutT('confirm.paymentCardValue')
+			? selectedOnlineProvider === 'monobank'
+				? checkoutT('confirm.paymentProviderMonobank')
+				: checkoutT('confirm.paymentProviderLiqPay')
 			: checkoutT('payment.cashTitle'),
 	]
 
@@ -596,6 +625,29 @@ export default function CheckoutConfirmPage() {
 		return (await response.json()) as LiqPayCheckoutResponse
 	}, [checkoutT, locale, orderPayload, token])
 
+	const createMonobankCheckout = useCallback(async () => {
+		if (!token) throw new Error(checkoutT('confirm.errors.auth'))
+
+		const response = await fetch(
+			`${process.env.NEXT_PUBLIC_API_URL}/payments/monobank/checkout?lang=${locale}`,
+			{
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(orderPayload),
+			},
+		)
+
+		if (!response.ok) {
+			const message = await response.text()
+			throw new Error(message || checkoutT('confirm.errors.monobankCheckout'))
+		}
+
+		return (await response.json()) as MonobankCheckoutResponse
+	}, [checkoutT, locale, orderPayload, token])
+
 	const confirmDevLiqPayPayment = useCallback(
 		async (paymentId: string): Promise<LiqPayDevSuccessResponse> => {
 			if (!token) throw new Error(checkoutT('confirm.errors.auth'))
@@ -652,6 +704,30 @@ export default function CheckoutConfirmPage() {
 		[checkoutT, locale, token],
 	)
 
+	const getMonobankPaymentStatus = useCallback(
+		async (paymentId: string) => {
+			if (!token) throw new Error(checkoutT('confirm.errors.auth'))
+
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_API_URL}/payments/monobank/status/${paymentId}?lang=${locale}`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+						'Content-Type': 'application/json',
+					},
+				},
+			)
+
+			if (!response.ok) {
+				const message = await response.text()
+				throw new Error(message || checkoutT('confirm.errors.paymentStatus'))
+			}
+
+			return (await response.json()) as MonobankPaymentStatusResponse
+		},
+		[checkoutT, locale, token],
+	)
+
 	const waitForLiqPayServerConfirmation = useCallback(
 		async (paymentId: string) => {
 			for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -698,16 +774,26 @@ export default function CheckoutConfirmPage() {
 			setErrorMessage('')
 			setSubmitting(true)
 			setLiqPayCheckout(null)
+			setMonobankCheckout(null)
 			setPaymentCompleted(false)
 			setPaidOrderId(null)
 			liqPaySuccessHandledRef.current = false
+			monobankSuccessHandledRef.current = false
+
+			if (selectedOnlineProvider === 'monobank') {
+				const checkout = await createMonobankCheckout()
+				setMonobankCheckout(checkout)
+				setMonobankDialogOpen(true)
+				setSubmitting(false)
+				return
+			}
 
 			const checkout = await createLiqPayCheckout()
 			setLiqPayCheckout(checkout)
 			setPaymentDialogOpen(true)
 			setSubmitting(false)
 		} catch (error) {
-			console.error('LiqPay checkout creation failed:', error)
+			console.error('Online checkout creation failed:', error)
 			setErrorMessage(
 				error instanceof Error
 					? error.message
@@ -754,6 +840,58 @@ export default function CheckoutConfirmPage() {
 		if (submitting) return
 
 		setPaymentDialogOpen(false)
+
+		if (paymentCompleted || paidOrderId) {
+			finishCheckout()
+		}
+	}, [finishCheckout, paidOrderId, paymentCompleted, submitting])
+
+	const handleMonobankPaymentStatusCheck = useCallback(async () => {
+		if (
+			!monobankCheckout?.paymentId ||
+			monobankSuccessHandledRef.current ||
+			monobankStatusCheckingRef.current
+		) {
+			return
+		}
+
+		monobankStatusCheckingRef.current = true
+
+		try {
+			const status = await getMonobankPaymentStatus(monobankCheckout.paymentId)
+			const normalizedStatus = String(status.status || '').toLowerCase()
+
+			if (status.isPaid && status.orderId) {
+				monobankSuccessHandledRef.current = true
+				setPaymentCompleted(true)
+				setPaidOrderId(status.orderId)
+				setErrorMessage('')
+				return
+			}
+
+			if (MONOBANK_FAILED_STATUSES.has(normalizedStatus)) {
+				setErrorMessage(
+					checkoutT('confirm.errors.paymentFailedWithStatus', {
+						status: normalizedStatus,
+					}),
+				)
+			}
+		} catch (error) {
+			console.error('Monobank payment status check failed:', error)
+			setErrorMessage(
+				error instanceof Error
+					? error.message
+					: checkoutT('confirm.errors.fallback'),
+			)
+		} finally {
+			monobankStatusCheckingRef.current = false
+		}
+	}, [checkoutT, getMonobankPaymentStatus, monobankCheckout])
+
+	const handleMonobankDialogClose = useCallback(() => {
+		if (submitting) return
+
+		setMonobankDialogOpen(false)
 
 		if (paymentCompleted || paidOrderId) {
 			finishCheckout()
@@ -969,6 +1107,15 @@ export default function CheckoutConfirmPage() {
 				onClose={handlePaymentDialogClose}
 				onPaymentSuccess={() => void handleLiqPayWidgetSuccess()}
 				onPaymentFailure={handleLiqPayWidgetFailure}
+			/>
+
+			<MonobankCheckoutDialog
+				open={monobankDialogOpen}
+				checkout={monobankCheckout}
+				errorMessage={errorMessage}
+				paymentCompleted={paymentCompleted}
+				onClose={handleMonobankDialogClose}
+				onCheckStatus={() => void handleMonobankPaymentStatusCheck()}
 			/>
 		</>
 	)
@@ -1259,6 +1406,195 @@ function BonusUseCard({
 	)
 }
 
+type MonobankCheckoutDialogProps = {
+	open: boolean
+	checkout: MonobankCheckoutResponse | null
+	errorMessage: string
+	paymentCompleted: boolean
+	onClose: () => void
+	onCheckStatus: () => void
+}
+
+function MonobankCheckoutDialog({
+	open,
+	checkout,
+	errorMessage,
+	paymentCompleted,
+	onClose,
+	onCheckStatus,
+}: MonobankCheckoutDialogProps) {
+	const checkoutT = useTranslations('CheckoutPage')
+	const checkStatusRef = useRef(onCheckStatus)
+
+	useEffect(() => {
+		checkStatusRef.current = onCheckStatus
+	}, [onCheckStatus])
+
+	useEffect(() => {
+		if (!open || !checkout || paymentCompleted) return
+
+		const intervalId = window.setInterval(() => {
+			checkStatusRef.current()
+		}, 3000)
+
+		return () => {
+			window.clearInterval(intervalId)
+		}
+	}, [checkout, open, paymentCompleted])
+
+	return (
+		<Dialog
+			open={open}
+			onClose={onClose}
+			fullWidth
+			maxWidth='md'
+			slotProps={{
+				paper: {
+					sx: {
+						width: { xs: 'calc(100vw - 20px)', md: '860px' },
+						maxWidth: '860px',
+						height: { xs: 'calc(100vh - 20px)', md: '860px' },
+						maxHeight: 'calc(100vh - 20px)',
+						borderRadius: '20px',
+						bgcolor: '#F2F3F5',
+						backgroundImage: 'none',
+						color: '#111827',
+						border: '1px solid #6D28D9',
+						overflow: 'hidden',
+					},
+				},
+			}}
+		>
+			<DialogContent
+				sx={{
+					position: 'relative',
+					p: 0,
+					height: '100%',
+					overflow: 'hidden',
+					bgcolor: '#F2F3F5',
+				}}
+			>
+				<IconButton
+					aria-label={checkoutT('confirm.cancelPayment')}
+					onClick={onClose}
+					sx={{
+						position: 'absolute',
+						right: 14,
+						top: 14,
+						zIndex: 5,
+						width: 38,
+						height: 38,
+						color: '#9CA3AF',
+						bgcolor: 'rgba(17, 24, 39, 0.88)',
+						border: '1px solid rgba(255, 255, 255, 0.16)',
+						transition: HOVER_TRANSITION,
+						'&:hover': {
+							color: '#FFFFFF',
+							bgcolor: 'rgba(109, 40, 217, 0.95)',
+							borderColor: '#6D28D9',
+						},
+					}}
+				>
+					<CloseRoundedIcon />
+				</IconButton>
+
+				{checkout?.pageUrl ? (
+					<Box
+						component='iframe'
+						title='Monobank payment'
+						src={checkout.pageUrl}
+						allow='payment *; clipboard-read; clipboard-write'
+						sx={{
+							display: 'block',
+							width: '100%',
+							height: '100%',
+							border: 0,
+							bgcolor: '#F2F3F5',
+						}}
+					/>
+				) : (
+					<Box
+						sx={{
+							height: '100%',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							flexDirection: 'column',
+							gap: '12px',
+						}}
+					>
+						<CircularProgress sx={{ color: '#6D28D9' }} />
+						<Typography
+							sx={{
+								fontFamily: 'var(--font-inter)',
+								fontWeight: 600,
+								fontSize: '14px',
+								color: '#6D28D9',
+							}}
+						>
+							{checkoutT('confirm.widgetLoading')}
+						</Typography>
+					</Box>
+				)}
+
+				{errorMessage ? (
+					<Box
+						sx={{
+							position: 'absolute',
+							left: 16,
+							right: 16,
+							bottom: 16,
+							zIndex: 6,
+							borderRadius: '12px',
+							bgcolor: 'rgba(17, 24, 39, 0.94)',
+							border: '1px solid rgba(255, 9, 11, 0.5)',
+							p: '12px 14px',
+						}}
+					>
+						<Typography
+							role='alert'
+							sx={{
+								fontFamily: 'var(--font-inter)',
+								fontWeight: 600,
+								fontSize: '13px',
+								color: '#FF090B',
+							}}
+						>
+							{errorMessage}
+						</Typography>
+					</Box>
+				) : null}
+
+				{paymentCompleted ? (
+					<Box
+						sx={{
+							position: 'absolute',
+							left: 16,
+							right: 16,
+							bottom: errorMessage ? 72 : 16,
+							zIndex: 6,
+							borderRadius: '12px',
+							bgcolor: 'rgba(17, 24, 39, 0.94)',
+							border: '1px solid rgba(34, 197, 94, 0.55)',
+							p: '12px 14px',
+						}}
+					>
+						<Typography
+							sx={{
+								fontFamily: 'var(--font-inter)',
+								fontWeight: 600,
+								fontSize: '13px',
+								color: '#22C55E',
+							}}
+						>
+							{checkoutT('confirm.monobankPaidDescription')}
+						</Typography>
+					</Box>
+				) : null}
+			</DialogContent>
+		</Dialog>
+	)
+}
 type LiqPayCheckoutDialogProps = {
 	open: boolean
 	submitting: boolean
