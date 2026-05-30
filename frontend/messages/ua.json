@@ -952,7 +952,18 @@
 			},
 			"onlineDescription": "Оберіть цей варіант, якщо хочете оплатити замовлення онлайн на наступному етапі підтвердження. Після підтвердження замовлення відкриється вікно оплати.",
 			"onlineMethodsTitle": "Доступні способи онлайн-оплати:",
-			"cashDescription": "Оберіть цей варіант, якщо не хочете оплатити замовлення онлайн на наступному етапі підтвердження. Оплата при отриманні дозволяє сплатити замовлення після доставки у відділенні або під час отримання. Онлайн-вікно оплати на фінальному етапі не відкриватиметься."
+			"cashDescription": "Оберіть цей варіант, якщо не хочете оплатити замовлення онлайн на наступному етапі підтвердження. Оплата при отриманні дозволяє сплатити замовлення після доставки у відділенні або під час отримання. Онлайн-вікно оплати на фінальному етапі не відкриватиметься.",
+			"providerTitle": "Оберіть сервіс онлайн-оплати:",
+			"providers": {
+				"liqpay": {
+					"title": "LiqPay / ПриватБанк",
+					"description": "Картка, Apple Pay, Google Pay, QR-код та Приват24."
+				},
+				"monobank": {
+					"title": "Monobank",
+					"description": "Оплата через засотсунок або картку Monobank."
+				}
+			}
 		},
 		"confirmStep": "Підтвердження",
 		"confirmTitle": "Підтвердження замовлення",
@@ -988,12 +999,23 @@
 				"paymentStatus": "Не вдалося перевірити статус платежу.",
 				"paymentFailed": "LiqPay повернув неуспішний статус оплати.",
 				"paymentFailedWithStatus": "LiqPay повернув неуспішний статус оплати: {status}.",
-				"waitCallback": "Оплата підтверджена у LiqPay, але backend ще не отримав server callback. Перевірте BACKEND_PUBLIC_URL / LIQPAY_SERVER_URL."
+				"waitCallback": "Оплата підтверджена у LiqPay, але backend ще не отримав server callback. Перевірте BACKEND_PUBLIC_URL / LIQPAY_SERVER_URL.",
+				"monobankCheckout": "Не вдалося підготувати оплату Monobank."
 			},
 			"liqpayMethodsTitle": "Доступні способи оплати",
 			"liqpayMethodsDescription": "На сторінці LiqPay користувач може оплатити карткою Visa/Mastercard, Apple Pay, Google Pay, QR-кодом або через Приват24.",
 			"liqpayWidgetNotice": "Після успішної оплати LiqPay передасть статус платежу. Для локального dev-режиму backend створить замовлення після callback від віджета; у production статус підтверджується server-to-server callback.",
-			"widgetLoading": "Завантажуємо платіжний віджет LiqPay..."
+			"widgetLoading": "Завантажуємо платіжний віджет LiqPay...",
+			"paymentProviderLiqPay": "LiqPay / ПриватБанк",
+			"paymentProviderMonobank": "Monobank",
+			"monobankModalTitle": "Оплата Monobank",
+			"monobankModalDescription": "Відкрийте сторінку оплати Monobank в окремій вкладці. Це вікно автоматично перевірятиме статус платежу та створить замовлення після успішної оплати.",
+			"monobankPaidDescription": "Оплату підтверджено. Закрийте це вікно, щоб перейти до своїх замовлень.",
+			"monobankInvoiceLabel": "Інвойс",
+			"monobankPollingNotice": "Статус платежу перевіряється автоматично кожні кілька секунд.",
+			"monobankOpenPayment": "Відкрити оплату Monobank",
+			"monobankPaidButton": "Оплату підтверджено",
+			"monobankCheckStatus": "Перевірити статус платежу"
 		}
 	}
 }
