@@ -63,6 +63,39 @@ const isProductInCart = (items: CartProductItem[], productId: string) =>
 			item.id === productId,
 	)
 
+const scrollToProductReviewsBlock = () => {
+	if (typeof window === 'undefined') return
+
+	let attempts = 0
+	const maxAttempts = 36
+	const delay = 140
+
+	const tryScroll = () => {
+		attempts += 1
+
+		const reviewsBlock = document.getElementById('product-reviews')
+
+		if (reviewsBlock) {
+			const headerOffset = window.innerWidth < 768 ? 92 : 120
+			const elementTop =
+				reviewsBlock.getBoundingClientRect().top + window.scrollY
+
+			window.scrollTo({
+				top: Math.max(elementTop - headerOffset, 0),
+				behavior: 'smooth',
+			})
+
+			return
+		}
+
+		if (attempts < maxAttempts) {
+			window.setTimeout(tryScroll, delay)
+		}
+	}
+
+	window.setTimeout(tryScroll, 120)
+}
+
 export function ProductPurchasePanel({
 	product,
 	locale,
@@ -103,6 +136,10 @@ export function ProductPurchasePanel({
 
 		return true
 	}, [router, token])
+
+	const handleReviewsNavigation = () => {
+		scrollToProductReviewsBlock()
+	}
 
 	useEffect(() => {
 		if (!token) {
@@ -247,13 +284,57 @@ export function ProductPurchasePanel({
 								mt: '5px',
 							}}
 						>
-							<StarIcon sx={{ fontSize: 16, color: '#FFCF00' }} />
-							<Typography sx={{ fontSize: 12, color: 'var(--theme-text)' }}>
-								{averageRating || 0}
-							</Typography>
-							<Typography sx={{ fontSize: 12, color: '#606060' }}>
-								{reviewsCount} {cardT('reviews')}
-							</Typography>
+							<Box
+								component='button'
+								type='button'
+								onClick={handleReviewsNavigation}
+								aria-label={`${cardT('reviews')}: ${averageRating || 0}`}
+								sx={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									gap: '4px',
+									p: 0,
+									m: 0,
+									border: 'none',
+									background: 'transparent',
+									cursor: 'pointer',
+									font: 'inherit',
+									transition: 'opacity 160ms ease',
+									'&:hover': {
+										opacity: 0.82,
+									},
+								}}
+							>
+								<StarIcon sx={{ fontSize: 16, color: '#FFCF00' }} />
+								<Typography sx={{ fontSize: 12, color: 'var(--theme-text)' }}>
+									{averageRating || 0}
+								</Typography>
+							</Box>
+							<Box
+								component='button'
+								type='button'
+								onClick={handleReviewsNavigation}
+								aria-label={`${reviewsCount} ${cardT('reviews')}`}
+								sx={{
+									display: 'inline-flex',
+									alignItems: 'center',
+									p: 0,
+									m: 0,
+									border: 'none',
+									background: 'transparent',
+									cursor: 'pointer',
+									font: 'inherit',
+									color: '#606060',
+									transition: 'color 160ms ease',
+									'&:hover': {
+										color: '#6D28D9',
+									},
+								}}
+							>
+								<Typography sx={{ fontSize: 12, color: 'currentColor' }}>
+									{reviewsCount} {cardT('reviews')}
+								</Typography>
+							</Box>
 						</Box>
 					</Box>
 				</Box>

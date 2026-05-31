@@ -736,6 +736,7 @@ function ComparePageContent() {
 	const renderComparisonProductCard = (product: ProductCardData) => {
 		const productName = getLocalizedText(product.name, locale)
 		const productHref = `/product/${product.slug || product.id}`
+		const productReviewsHref = `${productHref}?review=1`
 		const imageSrc = product.images?.[0] || '/placeholder.png'
 		const hasDiscount = Boolean(
 			product.oldPrice && product.oldPrice > product.price,
@@ -840,7 +841,21 @@ function ComparePageContent() {
 					</Typography>
 				</Box>
 
-				<Box sx={{ display: 'flex', alignItems: 'center', mb: '15px' }}>
+				<Box
+					component={Link}
+					href={productReviewsHref}
+					sx={{
+						display: 'inline-flex',
+						alignItems: 'center',
+						alignSelf: 'flex-start',
+						mb: '15px',
+						textDecoration: 'none',
+						transition: 'opacity 160ms ease',
+						'&:hover': {
+							opacity: 0.82,
+						},
+					}}
+				>
 					{renderRatingStars(Number(product.rating || 0))}
 				</Box>
 

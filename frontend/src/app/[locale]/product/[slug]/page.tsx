@@ -122,6 +122,39 @@ const getReviewPluralLabel = (count: number, locale: Locale) => {
 const formatReviewsCount = (count: number, locale: Locale) =>
 	`${count} ${getReviewPluralLabel(count, locale)}`
 
+const scrollToProductReviewsBlock = () => {
+	if (typeof window === 'undefined') return
+
+	let attempts = 0
+	const maxAttempts = 36
+	const delay = 140
+
+	const tryScroll = () => {
+		attempts += 1
+
+		const reviewsBlock = document.getElementById('product-reviews')
+
+		if (reviewsBlock) {
+			const headerOffset = window.innerWidth < 768 ? 92 : 120
+			const elementTop =
+				reviewsBlock.getBoundingClientRect().top + window.scrollY
+
+			window.scrollTo({
+				top: Math.max(elementTop - headerOffset, 0),
+				behavior: 'smooth',
+			})
+
+			return
+		}
+
+		if (attempts < maxAttempts) {
+			window.setTimeout(tryScroll, delay)
+		}
+	}
+
+	window.setTimeout(tryScroll, 120)
+}
+
 const findVariantGroup = (
 	groups: ProductVariantGroup[],
 	codes: string[],
@@ -463,7 +496,27 @@ function ProductStatusAndRating({ data }: { data: ProductPageResponse }) {
 				</Typography>
 			</Box>
 
-			<Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+			<Box
+				component='button'
+				type='button'
+				onClick={scrollToProductReviewsBlock}
+				aria-label={`${t('ratingLabel')}: ${rating}`}
+				sx={{
+					display: 'inline-flex',
+					alignItems: 'center',
+					gap: '4px',
+					p: 0,
+					m: 0,
+					border: 'none',
+					background: 'transparent',
+					cursor: 'pointer',
+					font: 'inherit',
+					transition: 'opacity 180ms ease',
+					'&:hover': {
+						opacity: 0.82,
+					},
+				}}
+			>
 				<RatingStars rating={rating} size={20} />
 				<Typography
 					sx={{
@@ -478,18 +531,44 @@ function ProductStatusAndRating({ data }: { data: ProductPageResponse }) {
 			</Box>
 
 			<Box
+				component='button'
+				type='button'
+				onClick={scrollToProductReviewsBlock}
+				aria-label={formatReviewsCount(data.rating.reviewsCount, locale)}
 				sx={{
 					display: 'inline-flex',
 					alignItems: 'center',
 					gap: '4px',
 					color: '#4E525C',
+					p: 0,
+					m: 0,
+					border: 'none',
+					background: 'transparent',
+					cursor: 'pointer',
+					font: 'inherit',
+					transition: 'color 180ms ease, opacity 180ms ease',
+					'&:hover': {
+						color: '#6D28D9',
+						opacity: 0.9,
+					},
+					'&:hover .MuiSvgIcon-root': {
+						color: '#6D28D9',
+					},
 				}}
 			>
 				<ChatBubbleOutlineOutlinedIcon
-					sx={{ fontSize: 18, color: '#4E525C' }}
+					sx={{
+						fontSize: 18,
+						color: 'currentColor',
+						transition: 'color 180ms ease',
+					}}
 				/>
 				<Typography
-					sx={{ fontSize: '14px', fontWeight: 500, color: '#4E525C' }}
+					sx={{
+						fontSize: '14px',
+						fontWeight: 500,
+						color: 'currentColor',
+					}}
 				>
 					{formatReviewsCount(data.rating.reviewsCount, locale)}
 				</Typography>

@@ -75,6 +75,9 @@ const getProductHref = (product: ProductCardData): string => {
 	return `/product/${product.slug || product.id}`
 }
 
+const getProductReviewsHref = (product: ProductCardData): string =>
+	`${getProductHref(product)}?review=1`
+
 const formatCurrency = (value: number): string => {
 	const roundedValue = Math.round(Number(value) || 0)
 	const formattedValue = String(roundedValue).replace(
@@ -217,6 +220,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 	}, [product.images])
 
 	const productHref = getProductHref(product)
+	const productReviewsHref = getProductReviewsHref(product)
 	const productName = getLocalizedText(product.name, locale)
 	const inStock = product.stock > 0
 	const rating = product.rating ?? 0
@@ -390,6 +394,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 	// Навігація на сторінку товару
 	const handleCardClick = () => {
 		router.push(productHref)
+	}
+
+	// Навігація до блоку рейтингу / відгуків на сторінці товару
+	const handleReviewsNavigation = (e: React.MouseEvent) => {
+		e.preventDefault()
+		e.stopPropagation()
+
+		router.push(productReviewsHref)
 	}
 
 	// Відкриття вибору списків обраного
@@ -640,55 +652,97 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 	)
 
 	// Рейтинг і кількість відгуків
-	const renderRating = () => (
-		<Box
-			aria-label={`Рейтинг ${rating}, ${reviewsCount} ${getReviewPluralLabel(reviewsCount, locale)}`}
-			sx={{
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'space-between',
-				gap: isMain ? '8px' : isHistory ? '4px' : '10px',
-				minWidth: 0,
-			}}
-		>
-			<Box sx={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-				<StarIcon
-					sx={{
-						fontSize: isMain ? '20px' : isHistory ? '10px' : '20px',
-						color: '#FFCF00',
-					}}
-				/>
+	const renderRating = () => {
+		const reviewLabel = `${reviewsCount} ${getReviewPluralLabel(reviewsCount, locale)}`
+		const buttonBaseSx = {
+			display: 'inline-flex',
+			alignItems: 'center',
+			minWidth: 0,
+			p: 0,
+			m: 0,
+			border: 'none',
+			background: 'transparent',
+			font: 'inherit',
+			cursor: 'pointer',
+			transition: 'color 160ms ease, opacity 160ms ease',
+			'&:hover': {
+				opacity: 0.82,
+			},
+		} as const
 
-				<Typography
-					sx={{
-						fontFamily: 'var(--font-inter)',
-						fontSize: isMain ? '12px' : isHistory ? '6px' : '14px',
-						fontWeight: 400,
-						lineHeight: 1,
-						color: 'var(--theme-text)',
-					}}
-				>
-					{Number(rating).toFixed(1).replace('.0', '')}
-				</Typography>
-			</Box>
-
-			<Typography
+		return (
+			<Box
+				aria-label={`Рейтинг ${rating}, ${reviewLabel}`}
 				sx={{
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					gap: isMain ? '8px' : isHistory ? '4px' : '10px',
 					minWidth: 0,
-					fontFamily: 'var(--font-inter)',
-					fontSize: isMain ? '12px' : isHistory ? '6px' : '14px',
-					fontWeight: 400,
-					lineHeight: 1,
-					color: '#606060',
-					whiteSpace: 'nowrap',
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
 				}}
 			>
-				{reviewsCount} {getReviewPluralLabel(reviewsCount, locale)}
-			</Typography>
-		</Box>
-	)
+				<Box
+					component='button'
+					type='button'
+					onClick={handleReviewsNavigation}
+					aria-label={`Рейтинг ${Number(rating).toFixed(1).replace('.0', '')}`}
+					sx={{
+						...buttonBaseSx,
+						gap: '3px',
+					}}
+				>
+					<StarIcon
+						sx={{
+							fontSize: isMain ? '20px' : isHistory ? '10px' : '20px',
+							color: '#FFCF00',
+						}}
+					/>
+
+					<Typography
+						sx={{
+							fontFamily: 'var(--font-inter)',
+							fontSize: isMain ? '12px' : isHistory ? '6px' : '14px',
+							fontWeight: 400,
+							lineHeight: 1,
+							color: 'var(--theme-text)',
+						}}
+					>
+						{Number(rating).toFixed(1).replace('.0', '')}
+					</Typography>
+				</Box>
+
+				<Box
+					component='button'
+					type='button'
+					onClick={handleReviewsNavigation}
+					aria-label={reviewLabel}
+					sx={{
+						...buttonBaseSx,
+						color: '#606060',
+						'&:hover': {
+							color: '#6D28D9',
+						},
+					}}
+				>
+					<Typography
+						sx={{
+							minWidth: 0,
+							fontFamily: 'var(--font-inter)',
+							fontSize: isMain ? '12px' : isHistory ? '6px' : '14px',
+							fontWeight: 400,
+							lineHeight: 1,
+							color: 'currentColor',
+							whiteSpace: 'nowrap',
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+						}}
+					>
+						{reviewLabel}
+					</Typography>
+				</Box>
+			</Box>
+		)
+	}
 
 	// Спільні стилі для кнопок “Обране” і “Порівняння”
 	const actionButtonBaseSx = {

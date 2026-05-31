@@ -139,6 +139,9 @@ const formatCurrency = (value: number | string | undefined | null): string => {
 const getProductHref = (product: FavoriteProductData) =>
 	`/product/${product.slug || product.id}`
 
+const getProductReviewsHref = (product: FavoriteProductData) =>
+	`${getProductHref(product)}?review=1`
+
 const getProductImage = (product: FavoriteProductData) =>
 	product.images?.[0] || '/placeholder.png'
 
@@ -274,6 +277,7 @@ function FavoriteProductRow({
 
 	const name = getLocalizedText(product.name, locale)
 	const href = getProductHref(product)
+	const reviewsHref = getProductReviewsHref(product)
 	const price = getProductPrice(product)
 	const oldPrice = getProductOldPrice(product)
 	const hasDiscount = Boolean(oldPrice && oldPrice > price)
@@ -376,12 +380,15 @@ function FavoriteProductRow({
 							</Typography>
 						</Link>
 
-						<Box
-							sx={{
-								display: 'flex',
+						<Link
+							href={reviewsHref}
+							style={{
+								display: 'inline-flex',
 								alignItems: 'center',
 								gap: '8px',
 								flexWrap: 'wrap',
+								textDecoration: 'none',
+								alignSelf: 'flex-start',
 							}}
 						>
 							<RatingStars rating={rating} />
@@ -391,11 +398,13 @@ function FavoriteProductRow({
 									fontWeight: 500,
 									fontSize: '12px',
 									color: '#4E525C',
+									transition: 'color 180ms ease',
+									'&:hover': { color: PURPLE },
 								}}
 							>
 								{reviewsCount} {getReviewPluralLabel(reviewsCount, locale)}
 							</Typography>
-						</Box>
+						</Link>
 					</Box>
 
 					<Box
