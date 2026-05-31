@@ -43,6 +43,14 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
+  @Get('search/resolve')
+  async resolveSearch(@Query('q') query?: string, @Query('lang') lang?: 'ua' | 'en') {
+    return await this.productsService.resolveSearchNavigation({
+      query,
+      lang: lang || 'ua',
+    });
+  }
+
   @Get('search')
   async search(
     @Query('q') query?: string,

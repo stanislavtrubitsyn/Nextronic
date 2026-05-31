@@ -451,11 +451,7 @@ export class ProductsService {
       .leftJoinAndSelect('product.reviews', 'reviews')
       .where('product.isActive = :isActive', { isActive: true });
 
-    if (query?.trim()) {
-      qb.andWhere("(product.name->>'ua' ILIKE :query OR product.name->>'en' ILIKE :query)", {
-        query: `%${query.trim()}%`,
-      });
-    }
+    this.applyProductTextSearch(qb, query, 'search_product_query');
 
     if (catalogSlug) {
       qb.andWhere('catalog.slug = :catalogSlug', { catalogSlug });
@@ -532,6 +528,85 @@ export class ProductsService {
     return await qb.getMany();
   }
 
+  async resolveSearchNavigation(params: { query?: string; lang?: ProductLangType }) {
+    const rawQuery = (params.query || '').trim();
+    const lang = params.lang || 'ua';
+
+    if (!rawQuery) {
+      return {
+        query: '',
+        href: '/search',
+        productsCount: 0,
+        totalMatches: 0,
+        filters: {},
+        products: [],
+      };
+    }
+
+    const products = await this.getSearchNavigationProducts(rawQuery);
+
+    if (products.length === 0) {
+      return {
+        query: rawQuery,
+        href: `/search?q=${encodeURIComponent(rawQuery)}`,
+        productsCount: 0,
+        totalMatches: 0,
+        filters: {},
+        products: [],
+      };
+    }
+
+    const bestCategoryId = this.pickBestSearchCategoryId(products);
+    const categoryProducts = products.filter((product) => product.category?.id === bestCategoryId);
+    const primaryProduct = categoryProducts[0] || products[0];
+    const category = primaryProduct.category;
+    const catalog = primaryProduct.catalog;
+    const filters = this.buildExplicitSearchNavigationFilters(rawQuery, categoryProducts);
+
+    const queryParams = new URLSearchParams();
+
+    if (catalog?.slug) {
+      queryParams.set('catalog', catalog.slug);
+    }
+
+    queryParams.set('q', rawQuery);
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim()) {
+        queryParams.set(key, String(value));
+      }
+    });
+
+    const categorySlug = category?.slug;
+    const href = categorySlug
+      ? `/category/${categorySlug}?${queryParams.toString()}`
+      : `/search?q=${encodeURIComponent(rawQuery)}`;
+
+    return {
+      query: rawQuery,
+      href,
+      category: category
+        ? {
+            id: category.id,
+            slug: category.slug,
+            name: category.name,
+          }
+        : null,
+      catalog: catalog
+        ? {
+            id: catalog.id,
+            slug: catalog.slug,
+            name: catalog.name,
+          }
+        : null,
+      filters,
+      productsCount: categoryProducts.length,
+      totalMatches: products.length,
+      products: categoryProducts.slice(0, 5).map((product) => this.mapProductSummary(product)),
+      lang,
+    };
+  }
+
   async getCategoryPageProducts(params: {
     categorySlug: string;
     query?: string;
@@ -590,11 +665,7 @@ export class ProductsService {
       .where('product.isActive = :isActive', { isActive: true })
       .andWhere('category.id = :categoryId', { categoryId: category.id });
 
-    if (query?.trim()) {
-      qb.andWhere("(product.name->>'ua' ILIKE :query OR product.name->>'en' ILIKE :query)", {
-        query: `%${query.trim()}%`,
-      });
-    }
+    this.applyProductTextSearch(qb, query, 'category_product_query');
 
     if (minPrice !== undefined && !Number.isNaN(minPrice)) {
       qb.andWhere('product.price >= :minPrice', { minPrice });
@@ -702,6 +773,358 @@ export class ProductsService {
       questions: this.mapProductReviews(product, ReviewType.QUESTION),
       recommendations,
     };
+  }
+
+  private applyProductTextSearch(
+    qb: SelectQueryBuilder<ProductsEntity>,
+    query?: string,
+    paramPrefix = 'product_query',
+  ) {
+    const tokens = this.getSearchTokens(query || '');
+
+    if (tokens.length === 0) return;
+
+    tokens.forEach((token, index) => {
+      const paramName = `${paramPrefix}_${index}`;
+
+      qb.andWhere(
+        `(
+          product.name->>'ua' ILIKE :${paramName}
+          OR product.name->>'en' ILIKE :${paramName}
+          OR product.sku ILIKE :${paramName}
+          OR product.filters::text ILIKE :${paramName}
+          OR product.characteristics::text ILIKE :${paramName}
+        )`,
+        { [paramName]: `%${token}%` },
+      );
+    });
+  }
+
+  private buildExplicitSearchNavigationFilters(rawQuery: string, products: ProductsEntity[]) {
+    const filters = new Map<
+      string,
+      {
+        value: string;
+        count: number;
+      }[]
+    >();
+
+    const ignoredKeys = new Set(['category', 'catalog', 'product_type', 'availability']);
+
+    for (const product of products) {
+      const productFilters = product.filters || {};
+
+      for (const [rawKey, rawValue] of Object.entries(productFilters)) {
+        const key = this.normalizeFilterKey(rawKey);
+        if (!key || ignoredKeys.has(key)) continue;
+
+        const values = this.getSearchFilterValues(rawValue);
+
+        for (const value of values) {
+          const normalizedValue = this.attributesService.normalizeFilterValue(value);
+          if (!normalizedValue) continue;
+
+          if (!this.isFilterValueExplicitInSearch(key, normalizedValue, rawQuery)) {
+            continue;
+          }
+
+          const currentValues = filters.get(key) || [];
+          const existing = currentValues.find((item) => item.value === normalizedValue);
+
+          if (existing) {
+            existing.count += 1;
+          } else {
+            currentValues.push({ value: normalizedValue, count: 1 });
+          }
+
+          filters.set(key, currentValues);
+        }
+      }
+    }
+
+    return Array.from(filters.entries()).reduce<Record<string, string>>((acc, [key, values]) => {
+      const sortedValues = values
+        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+        .slice(0, 4)
+        .map((item) => item.value);
+
+      if (sortedValues.length > 0) {
+        acc[key] = sortedValues.join(',');
+      }
+
+      return acc;
+    }, {});
+  }
+
+  private getSearchFilterValues(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value.flatMap((item) => this.getSearchFilterValues(item));
+    }
+
+    const normalizedValue = this.getSearchFilterParamValue(value);
+    if (!normalizedValue) return [];
+
+    return normalizedValue
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private getSearchFilterParamValue(value: unknown): string | null {
+    if (value === null || value === undefined) return null;
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value.toString() : null;
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+
+    if (Array.isArray(value)) {
+      const values = value
+        .map((item) => this.getSearchFilterParamValue(item))
+        .filter((item): item is string => Boolean(item));
+
+      return values.length > 0 ? values.join(',') : null;
+    }
+
+    return null;
+  }
+
+  private isFilterValueExplicitInSearch(key: string, value: string, rawQuery: string) {
+    const queryTokens = this.getSearchTokens(rawQuery);
+    const valueText = this.normalizeSearchText(value);
+
+    if (!valueText || queryTokens.length === 0) return false;
+
+    const valueTokens = valueText.split(' ').filter(Boolean);
+
+    if (this.isMemoryFilterKey(key)) {
+      return this.isMemoryValueExplicit(valueText, rawQuery);
+    }
+
+    if (this.isColorFilterKey(key)) {
+      return (
+        this.searchTokensIncludeAll(valueTokens, queryTokens) ||
+        valueTokens.some((token) => token.length >= 3 && queryTokens.includes(token))
+      );
+    }
+
+    const alternatives = this.getSearchFilterValueAlternatives(valueTokens);
+
+    return alternatives.some((tokens) => this.searchTokensIncludeAll(tokens, queryTokens));
+  }
+
+  private getSearchFilterValueAlternatives(valueTokens: string[]) {
+    const brandTokens = new Set([
+      'apple',
+      'samsung',
+      'xiaomi',
+      'redmi',
+      'poco',
+      'huawei',
+      'honor',
+      'oppo',
+      'vivo',
+      'realme',
+      'oneplus',
+      'motorola',
+      'nokia',
+      'sony',
+      'google',
+      'asus',
+      'acer',
+      'lenovo',
+      'hp',
+      'dell',
+      'msi',
+    ]);
+
+    const genericTokens = new Set(['smartphone', 'смартфон', 'phone', 'телефон', 'notebook']);
+
+    const withoutBrands = valueTokens.filter((token) => !brandTokens.has(token));
+    const withoutGeneric = valueTokens.filter((token) => !genericTokens.has(token));
+    const withoutBrandsAndGeneric = withoutBrands.filter((token) => !genericTokens.has(token));
+
+    return [valueTokens, withoutBrands, withoutGeneric, withoutBrandsAndGeneric].filter(
+      (tokens, index, arr) =>
+        tokens.length > 0 && arr.findIndex((item) => item.join(' ') === tokens.join(' ')) === index,
+    );
+  }
+
+  private searchTokensIncludeAll(valueTokens: string[], queryTokens: string[]) {
+    if (valueTokens.length === 0) return false;
+
+    return valueTokens.every((valueToken) =>
+      queryTokens.some((queryToken) => this.searchTokenMatches(valueToken, queryToken)),
+    );
+  }
+
+  private searchTokenMatches(valueToken: string, queryToken: string) {
+    if (!valueToken || !queryToken) return false;
+
+    if (/^\d+(?:\.\d+)?$/.test(valueToken)) {
+      return queryToken.includes(valueToken);
+    }
+
+    if (valueToken.length <= 2) {
+      return queryToken === valueToken;
+    }
+
+    return queryToken === valueToken || queryToken.includes(valueToken);
+  }
+
+  private isMemoryFilterKey(key: string) {
+    return /(^|_)(ram|storage|memory)(_|$)/i.test(key);
+  }
+
+  private isColorFilterKey(key: string) {
+    return /(^|_)(color|colour)(_|$)/i.test(key);
+  }
+
+  private isMemoryValueExplicit(valueText: string, rawQuery: string) {
+    const valueNumber = valueText.match(/\d+(?:\.\d+)?/)?.[0];
+    if (!valueNumber) return false;
+
+    const escapedValue = valueNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const rawQueryLower = rawQuery.toLowerCase().replace(',', '.');
+
+    const withUnitPattern = new RegExp(
+      `(^|[^0-9])${escapedValue}\\s*(gb|гб|tb|тб|гбайт|гігабайт)\\b`,
+      'i',
+    );
+
+    if (withUnitPattern.test(rawQueryLower)) {
+      return true;
+    }
+
+    const numericValue = Number(valueNumber);
+
+    return (
+      Number.isFinite(numericValue) && numericValue >= 32 && rawQueryLower.includes(valueNumber)
+    );
+  }
+
+  private getSearchTokens(query: string) {
+    return this.normalizeSearchText(query).split(' ').filter(Boolean).slice(0, 12);
+  }
+
+  private async getSearchNavigationProducts(query: string) {
+    const normalizedQuery = query.trim();
+
+    const qb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.catalog', 'catalog')
+      .leftJoinAndSelect('product.reviews', 'reviews')
+      .where('product.isActive = :isActive', { isActive: true });
+
+    this.applyProductTextSearch(qb, normalizedQuery, 'search_navigation_query');
+
+    const products = await qb.orderBy('product.createdAt', 'DESC').take(80).getMany();
+
+    return products.sort((a, b) => {
+      const scoreDiff =
+        this.getSearchProductScore(b, normalizedQuery) -
+        this.getSearchProductScore(a, normalizedQuery);
+
+      if (scoreDiff !== 0) return scoreDiff;
+
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+  }
+
+  private getSearchProductScore(product: ProductsEntity, query: string) {
+    const normalizedQuery = this.normalizeSearchText(query);
+    const uaName = this.normalizeSearchText(product.name?.ua || '');
+    const enName = this.normalizeSearchText(product.name?.en || '');
+    const sku = this.normalizeSearchText(product.sku || '');
+
+    if (!normalizedQuery) return 0;
+
+    let score = 0;
+
+    if (uaName === normalizedQuery || enName === normalizedQuery || sku === normalizedQuery) {
+      score += 100;
+    }
+
+    if (
+      uaName.startsWith(normalizedQuery) ||
+      enName.startsWith(normalizedQuery) ||
+      sku.startsWith(normalizedQuery)
+    ) {
+      score += 70;
+    }
+
+    if (
+      uaName.includes(normalizedQuery) ||
+      enName.includes(normalizedQuery) ||
+      sku.includes(normalizedQuery)
+    ) {
+      score += 45;
+    }
+
+    const queryWords = normalizedQuery.split(' ').filter(Boolean);
+    const productText = `${uaName} ${enName} ${sku}`;
+
+    score += queryWords.filter((word) => productText.includes(word)).length * 8;
+
+    return score;
+  }
+
+  private pickBestSearchCategoryId(products: ProductsEntity[]) {
+    const stats = new Map<
+      string,
+      {
+        count: number;
+        firstIndex: number;
+        bestScore: number;
+      }
+    >();
+
+    products.forEach((product, index) => {
+      const categoryId = product.category?.id;
+      if (!categoryId) return;
+
+      const current = stats.get(categoryId) || {
+        count: 0,
+        firstIndex: index,
+        bestScore: 0,
+      };
+
+      current.count += 1;
+      current.firstIndex = Math.min(current.firstIndex, index);
+      current.bestScore = Math.max(current.bestScore, products.length - index);
+
+      stats.set(categoryId, current);
+    });
+
+    const [bestCategoryId] =
+      Array.from(stats.entries()).sort(([, a], [, b]) => {
+        if (b.count !== a.count) return b.count - a.count;
+        if (b.bestScore !== a.bestScore) return b.bestScore - a.bestScore;
+        return a.firstIndex - b.firstIndex;
+      })[0] || [];
+
+    return bestCategoryId || products[0]?.category?.id;
+  }
+
+  private normalizeSearchText(value: string) {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[ʼ'`]/g, '')
+      .replace(/[^a-zа-яіїєґ0-9]+/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private mapProductSummary(product: ProductsEntity, rating?: number, reviewsCount?: number) {
