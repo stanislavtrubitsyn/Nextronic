@@ -23,6 +23,8 @@ export enum PaymentMethod {
   CARD = 'card',
 }
 
+export type OrderStatusHistory = Partial<Record<OrderStatus | 'delivering' | 'received', string>>;
+
 @Entity('orders')
 export class OrderEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -33,6 +35,9 @@ export class OrderEntity {
 
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
   status!: OrderStatus;
+
+  @Column({ type: 'jsonb', nullable: true })
+  statusHistory?: OrderStatusHistory | null;
 
   //ФІНАНСИ
   @Column({ type: 'enum', enum: PaymentMethod, default: PaymentMethod.CASH })

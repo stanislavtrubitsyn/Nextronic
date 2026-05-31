@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { OrderEntity, OrderStatus, PaymentMethod } from './orders.entity';
+import { OrderEntity, OrderStatus, PaymentMethod, OrderStatusHistory } from './orders.entity';
 import { OrderItemEntity } from './order-item.entity';
 import { CartService } from '../cart/cart.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './orders.dto';
@@ -50,6 +50,15 @@ export type OnlinePaymentPreview = {
   amountInMinorUnits: number;
   basketOrder: PaymentBasketItem[];
   discounts: PaymentBasketDiscount[];
+};
+
+export type MyOrdersStatusFilter = 'all' | 'received' | 'cancelled';
+
+export type MyOrdersQueryOptions = {
+  page?: number;
+  limit?: number;
+  status?: MyOrdersStatusFilter;
+  paginated?: boolean;
 };
 
 @Injectable()
@@ -118,11 +127,13 @@ export class OrdersService {
         await this.bonusService.spendBonuses(userId, bonusesToUse, queryRunner.manager);
       }
 
-      const estimatedDeliveryDate = new Date();
-      estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 3);
+      const estimatedDeliveryDate = this.createEstimatedDeliveryDate();
 
       const paymentMethod = dto.paymentMethod || PaymentMethod.CASH;
       const isCardPayment = paymentMethod === PaymentMethod.CARD;
+
+      const initialStatus = isCardPayment ? OrderStatus.PENDING : OrderStatus.PROCESSING;
+      const createdStatusDate = new Date();
 
       const order = queryRunner.manager.create(OrderEntity, {
         ...dto,
@@ -137,7 +148,8 @@ export class OrdersService {
         usedBonuses: bonusesToUse,
         estimatedDeliveryDate,
         orderNumber: `NX-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        status: isCardPayment ? OrderStatus.PENDING : OrderStatus.PROCESSING,
+        status: initialStatus,
+        statusHistory: this.createInitialStatusHistory(initialStatus, createdStatusDate),
       });
 
       const savedOrder = await queryRunner.manager.save(order);
@@ -342,8 +354,7 @@ export class OrdersService {
         await this.bonusService.spendBonuses(userId, bonusesToUse, queryRunner.manager);
       }
 
-      const estimatedDeliveryDate = new Date();
-      estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 3);
+      const estimatedDeliveryDate = this.createEstimatedDeliveryDate();
 
       const order = queryRunner.manager.create(OrderEntity, {
         ...dto,
@@ -446,10 +457,12 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
+      const statusChangedAt = new Date();
       order.status = dto.status;
+      this.markStatusHistory(order, dto.status, statusChangedAt);
 
       if (dto.status === OrderStatus.DELIVERED) {
-        order.deliveryDate = new Date();
+        order.deliveryDate = statusChangedAt;
         order.isPaid = true;
 
         const firstItem = order.items?.[0];
@@ -559,9 +572,13 @@ export class OrdersService {
     order.paymentPayload = payload.rawPayload || order.paymentPayload || null;
 
     if (payload.isPaid) {
+      const paidAt = order.paidAt || new Date();
+      const targetStatus = payload.targetOrderStatus || OrderStatus.CONFIRMED;
+
       order.isPaid = true;
-      order.paidAt = order.paidAt || new Date();
-      order.status = payload.targetOrderStatus || OrderStatus.CONFIRMED;
+      order.paidAt = paidAt;
+      order.status = targetStatus;
+      this.markStatusHistory(order, targetStatus, paidAt);
 
       if (!wasPaid) {
         await this.notificationsService.createNotification(
@@ -589,13 +606,16 @@ export class OrdersService {
       throw new BadRequestException(ORDERS_I18N[lang].orderAlreadyPaid);
     }
 
+    const paidAt = new Date();
+
     order.isPaid = true;
-    order.paidAt = new Date();
+    order.paidAt = paidAt;
     order.paymentStatus = 'mock_success';
 
     // Якщо замовлення було тільки створене (PENDING), переводимо його в "Підтверджено"
     if (order.status === OrderStatus.PENDING) {
       order.status = OrderStatus.CONFIRMED;
+      this.markStatusHistory(order, OrderStatus.CONFIRMED, paidAt);
     }
 
     return await this.orderRepo.save(order);
@@ -612,12 +632,109 @@ export class OrdersService {
     return order;
   }
 
-  async getMyOrders(userId: string) {
-    return await this.orderRepo.find({
-      where: { user: { id: userId } },
+  async getMyOrders(userId: string, options: MyOrdersQueryOptions = {}) {
+    if (!options.paginated) {
+      return await this.orderRepo.find({
+        where: { user: { id: userId } },
+        relations: ['items', 'items.product'],
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    const page = this.normalizePositiveInteger(options.page, 1);
+    const limit = Math.min(this.normalizePositiveInteger(options.limit, 5), 20);
+    const status = options.status || 'all';
+    const skip = (page - 1) * limit;
+
+    const baseWhere = { user: { id: userId } };
+    const filteredWhere =
+      status === 'received'
+        ? { ...baseWhere, status: OrderStatus.DELIVERED }
+        : status === 'cancelled'
+          ? { ...baseWhere, status: OrderStatus.CANCELLED }
+          : baseWhere;
+
+    const [items, total] = await this.orderRepo.findAndCount({
+      where: filteredWhere,
       relations: ['items', 'items.product'],
       order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
     });
+
+    const [all, received, cancelled] = await Promise.all([
+      this.orderRepo.count({ where: baseWhere }),
+      this.orderRepo.count({ where: { ...baseWhere, status: OrderStatus.DELIVERED } }),
+      this.orderRepo.count({ where: { ...baseWhere, status: OrderStatus.CANCELLED } }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore: page < totalPages,
+      },
+      counters: {
+        all,
+        received,
+        cancelled,
+      },
+    };
+  }
+
+  private createInitialStatusHistory(status: OrderStatus, date: Date): OrderStatusHistory {
+    const isoDate = date.toISOString();
+    const history: OrderStatusHistory = {
+      [OrderStatus.PENDING]: isoDate,
+    };
+
+    if (status !== OrderStatus.PENDING) {
+      history[status] = isoDate;
+    }
+
+    return history;
+  }
+
+  private markStatusHistory(order: OrderEntity, status: OrderStatus, date: Date) {
+    const history = this.normalizeStatusHistory(order.statusHistory);
+    const isoDate = date.toISOString();
+
+    if (!history[OrderStatus.PENDING]) {
+      history[OrderStatus.PENDING] = order.createdAt
+        ? new Date(order.createdAt).toISOString()
+        : isoDate;
+    }
+
+    history[status] = isoDate;
+
+    if (status === OrderStatus.DELIVERED) {
+      history.received = isoDate;
+    }
+
+    order.statusHistory = history;
+  }
+
+  private normalizeStatusHistory(value: OrderStatusHistory | null | undefined): OrderStatusHistory {
+    if (!value || typeof value !== 'object') return {};
+
+    return { ...value };
+  }
+
+  private createEstimatedDeliveryDate() {
+    const estimatedDeliveryDate = new Date();
+    const daysToAdd = estimatedDeliveryDate.getDate() % 2 === 0 ? 4 : 3;
+    estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + daysToAdd);
+    return estimatedDeliveryDate;
+  }
+
+  private normalizePositiveInteger(value: number | undefined, fallback: number) {
+    if (!Number.isFinite(value) || !value || value < 1) return fallback;
+    return Math.floor(value);
   }
 
   async findAllOrders() {

@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Patch, Body, Param, Req, UseGuards, Query } from '@nestjs/common';
-import { OrdersService } from './orders.service';
+import { MyOrdersStatusFilter, OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateOrderDto, UpdateOrderStatusDto } from './orders.dto';
 import { Request } from 'express';
@@ -26,8 +26,24 @@ export class OrdersController {
   }
 
   @Get('my')
-  async getMyOrders(@Req() req: RequestWithUser) {
-    return await this.ordersService.getMyOrders(req.user.userId);
+  async getMyOrders(
+    @Req() req: RequestWithUser,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: MyOrdersStatusFilter,
+  ) {
+    const hasPaginationQuery = Boolean(page || limit || status);
+
+    if (!hasPaginationQuery) {
+      return await this.ordersService.getMyOrders(req.user.userId);
+    }
+
+    return await this.ordersService.getMyOrders(req.user.userId, {
+      page: Number(page),
+      limit: Number(limit),
+      status,
+      paginated: true,
+    });
   }
 
   @Get('admin/all')
