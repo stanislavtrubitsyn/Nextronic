@@ -288,6 +288,41 @@
 			"showLess": "Show less",
 			"previous": "Back",
 			"next": "Next"
+		},
+		"favoriteProducts": {
+			"pageTitle": "Favorite products",
+			"listControlsLabel": "Favorite product list controls",
+			"createList": "Create list",
+			"createDialogTitle": "New list",
+			"renameDialogTitle": "Edit list name",
+			"listNameLabel": "List name",
+			"listNamePlaceholder": "For example: Birthday gifts",
+			"create": "Create",
+			"save": "Save",
+			"cancel": "Cancel",
+			"delete": "Delete",
+			"renameList": "Rename list",
+			"deleteList": "Delete list",
+			"listActions": "List actions",
+			"deleteConfirmTitle": "Delete list?",
+			"deleteConfirmText": "The “{name}” list and all products inside it will be deleted. This action cannot be undone.",
+			"loadError": "Could not load favorite products. Please refresh the page.",
+			"emptyListsTitle": "You do not have any favorite lists yet",
+			"emptyListsDescription": "Create your first list to save products for future purchases.",
+			"emptyListTitle": "This list is empty",
+			"emptyListDescription": "Add products to favorites from the catalog or product page.",
+			"goShopping": "Start shopping",
+			"remove": "Remove product from list",
+			"addCompare": "Add to comparison",
+			"inCompare": "In comparison",
+			"addToCart": "Add to cart",
+			"inCart": "Go to cart",
+			"outOfStock": "Out of stock",
+			"loadMore": "Show more",
+			"showLess": "Show less",
+			"previous": "Previous",
+			"next": "Next",
+			"move": "Move to another list"
 		}
 	},
 	"Admin": {
@@ -1013,5 +1048,19 @@
 			"monobankPaidButton": "Payment confirmed",
 			"monobankCheckStatus": "Check payment status"
 		}
+	},
+	"WishlistSelectDialog": {
+		"manageTitle": "Add to favorites",
+		"manageDescription": "Choose one or more lists where this product should be saved. You can also create a new list right here.",
+		"moveTitle": "Move product",
+		"moveDescription": "Choose the list where you want to move this product. The current list is hidden from the selection.",
+		"newListPlaceholder": "New list name",
+		"createAndSelect": "Create",
+		"emptyLists": "There are no lists yet. Create a new list above.",
+		"itemsCount": "{count} products",
+		"loadError": "Failed to load lists. Please try again.",
+		"cancel": "Cancel",
+		"save": "Save",
+		"move": "Move"
 	}
 }
