@@ -484,9 +484,7 @@ function OrderItems({
 				const productName =
 					getLocalizedText(product?.name, locale) || labels.unknownProduct
 				const canLeaveReview = Boolean(product)
-				const reviewHref = product
-					? `${getProductHref(product)}?review=1#product-reviews`
-					: '/'
+				const reviewHref = product ? `${getProductHref(product)}?review=1` : '/'
 
 				return (
 					<Box

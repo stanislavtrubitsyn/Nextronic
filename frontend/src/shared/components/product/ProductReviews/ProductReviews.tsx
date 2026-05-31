@@ -343,6 +343,7 @@ export function ProductReviews({
 	const searchParams = useSearchParams()
 	const { token, user } = useAuthStore()
 	const feedbackScrollHandledRef = useRef(false)
+	const autoReviewScrollHandledRef = useRef(false)
 	const [tab, setTab] = useState<'reviews' | 'questions'>('reviews')
 	const [limit, setLimit] = useState(4)
 	const [ratingFilter, setRatingFilter] = useState<number | null>(null)
@@ -415,6 +416,37 @@ export function ProductReviews({
 		[],
 	)
 
+	const scrollToReviewsBlock = useCallback(() => {
+		let attempts = 0
+		const maxAttempts = 36
+		const delay = 140
+
+		const tryScroll = () => {
+			attempts += 1
+
+			const reviewsBlock = document.getElementById('product-reviews')
+
+			if (reviewsBlock) {
+				const headerOffset = window.innerWidth < 768 ? 92 : 120
+				const elementTop =
+					reviewsBlock.getBoundingClientRect().top + window.scrollY
+
+				window.scrollTo({
+					top: Math.max(elementTop - headerOffset, 0),
+					behavior: 'smooth',
+				})
+
+				return
+			}
+
+			if (attempts < maxAttempts) {
+				window.setTimeout(tryScroll, delay)
+			}
+		}
+
+		window.setTimeout(tryScroll, 420)
+	}, [])
+
 	useEffect(() => {
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setLocalReviews(reviews)
@@ -424,6 +456,24 @@ export function ProductReviews({
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setLocalQuestions(questions)
 	}, [questions])
+
+	useEffect(() => {
+		if (autoReviewScrollHandledRef.current) return
+		if (searchParams.get('review') !== '1') return
+		if (searchParams.get('feedbackId')) return
+
+		autoReviewScrollHandledRef.current = true
+
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setTab('reviews')
+		setRatingFilter(null)
+
+		window.setTimeout(() => {
+			requestAnimationFrame(() => {
+				scrollToReviewsBlock()
+			})
+		}, 180)
+	}, [scrollToReviewsBlock, searchParams])
 
 	useEffect(() => {
 		if (feedbackScrollHandledRef.current) return
