@@ -7,6 +7,7 @@ import { CATALOGS_I18N, CatalogLangType } from './catalogs.i18n';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
 import { ProductsEntity } from '../products/products.entity';
+import { ReviewType } from '../reviews/reviews.entity';
 
 interface LocalizedString {
   ua: string;
@@ -42,6 +43,8 @@ interface OverviewProduct {
   oldPrice?: number | null;
   stock: number;
   images: string[];
+  rating: number;
+  reviewsCount: number;
   category: {
     id: string;
     name: LocalizedString;
@@ -182,7 +185,7 @@ export class CatalogsService {
         catalog: { id: catalog.id },
         isActive: true,
       },
-      relations: ['category'],
+      relations: ['category', 'reviews'],
       order: { createdAt: 'DESC' },
     });
 
@@ -394,6 +397,8 @@ export class CatalogsService {
   }
 
   private mapOverviewProduct(product: ProductsEntity): OverviewProduct {
+    const reviewStats = this.getReviewStats(product);
+
     return {
       id: product.id,
       sku: product.sku,
@@ -406,11 +411,30 @@ export class CatalogsService {
           : Number(product.oldPrice),
       stock: product.stock,
       images: product.images || [],
+      rating: reviewStats.averageRating,
+      reviewsCount: reviewStats.reviewsCount,
       category: {
         id: product.category.id,
         name: product.category.name,
       },
     };
+  }
+
+  private getReviewStats(product: ProductsEntity) {
+    const reviews = (product.reviews || []).filter(
+      (review) => review.type === ReviewType.REVIEW && typeof review.rating === 'number',
+    );
+
+    const reviewsCount = reviews.length;
+    const averageRating = reviewsCount
+      ? Number(
+          (
+            reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviewsCount
+          ).toFixed(1),
+        )
+      : 0;
+
+    return { averageRating, reviewsCount };
   }
 
   private buildVirtualGroupsForCategory(

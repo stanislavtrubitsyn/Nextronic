@@ -448,6 +448,7 @@ export class ProductsService {
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
       .leftJoinAndSelect('product.catalog', 'catalog')
+      .leftJoinAndSelect('product.reviews', 'reviews')
       .where('product.isActive = :isActive', { isActive: true });
 
     if (query?.trim()) {
@@ -585,6 +586,7 @@ export class ProductsService {
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.category', 'category')
       .leftJoinAndSelect('product.catalog', 'catalog')
+      .leftJoinAndSelect('product.reviews', 'reviews')
       .where('product.isActive = :isActive', { isActive: true })
       .andWhere('category.id = :categoryId', { categoryId: category.id });
 
@@ -702,7 +704,12 @@ export class ProductsService {
     };
   }
 
-  private mapProductSummary(product: ProductsEntity, rating = 0, reviewsCount = 0) {
+  private mapProductSummary(product: ProductsEntity, rating?: number, reviewsCount?: number) {
+    const reviewStats =
+      rating !== undefined && reviewsCount !== undefined
+        ? { averageRating: rating, reviewsCount }
+        : this.getProductReviewStats(product);
+
     return {
       id: product.id,
       sku: product.sku,
@@ -715,8 +722,8 @@ export class ProductsService {
           : Number(product.oldPrice),
       stock: product.stock,
       images: product.images || [],
-      rating,
-      reviewsCount,
+      rating: reviewStats.averageRating,
+      reviewsCount: reviewStats.reviewsCount,
       category: product.category
         ? {
             id: product.category.id,
@@ -725,6 +732,23 @@ export class ProductsService {
           }
         : undefined,
     };
+  }
+
+  private getProductReviewStats(product: ProductsEntity) {
+    const reviews = (product.reviews || []).filter(
+      (review) => review.type === ReviewType.REVIEW && typeof review.rating === 'number',
+    );
+
+    const reviewsCount = reviews.length;
+    const averageRating = reviewsCount
+      ? Number(
+          (
+            reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviewsCount
+          ).toFixed(1),
+        )
+      : 0;
+
+    return { averageRating, reviewsCount };
   }
 
   private buildProductReviewSummary(product: ProductsEntity) {
@@ -1018,7 +1042,7 @@ export class ProductsService {
           id: Not(product.id),
           isActive: true,
         },
-        relations: ['category'],
+        relations: ['category', 'reviews'],
         order: { createdAt: 'DESC' },
         take: 12,
       }),
@@ -1028,7 +1052,7 @@ export class ProductsService {
           id: Not(product.id),
           isActive: true,
         },
-        relations: ['category'],
+        relations: ['category', 'reviews'],
         order: { createdAt: 'DESC' },
         take: 12,
       }),
@@ -1037,7 +1061,7 @@ export class ProductsService {
           id: Not(product.id),
           isActive: true,
         },
-        relations: ['category'],
+        relations: ['category', 'reviews'],
         order: { createdAt: 'DESC' },
         take: 12,
       }),
@@ -1137,6 +1161,8 @@ export class ProductsService {
   }
 
   private mapCategoryPageProduct(product: ProductsEntity) {
+    const reviewStats = this.getProductReviewStats(product);
+
     return {
       id: product.id,
       sku: product.sku,
@@ -1149,8 +1175,8 @@ export class ProductsService {
           : Number(product.oldPrice),
       stock: product.stock,
       images: product.images || [],
-      rating: 0,
-      reviewsCount: 0,
+      rating: reviewStats.averageRating,
+      reviewsCount: reviewStats.reviewsCount,
       category: product.category
         ? {
             id: product.category.id,
