@@ -34,6 +34,7 @@ import {
 	CheckoutSummaryCard,
 	type CheckoutSummaryRow,
 } from '@/shared/components/checkout'
+import { WishlistSelectDialog } from '@/shared/components/ui/WishlistSelectDialog/WishlistSelectDialog'
 
 type Locale = 'ua' | 'en'
 
@@ -184,6 +185,9 @@ export default function CartPage() {
 	const [comparedProductIds, setComparedProductIds] = useState<string[]>([])
 	const [loading, setLoading] = useState(true)
 	const [actionId, setActionId] = useState<string | null>(null)
+	const [wishlistDialogProductId, setWishlistDialogProductId] = useState<
+		string | null
+	>(null)
 	const [clearing, setClearing] = useState(false)
 
 	const breadcrumbItems = useMemo<BreadcrumbItem[]>(
@@ -463,139 +467,15 @@ export default function CartPage() {
 		}
 	}
 
-	const ensureDefaultWishlist = async () => {
-		if (!token) return null
-
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-			{
-				headers: { Authorization: `Bearer ${token}` },
-			},
-		)
-
-		if (!response.ok) throw new Error('Failed to load wishlists')
-
-		const wishlists = getArrayFromUnknown<WishlistResponse>(
-			await response.json(),
-		)
-		const defaultWishlist = wishlists.find(
-			wishlist => wishlist.name === 'Default',
-		)
-
-		if (defaultWishlist?.id) return defaultWishlist.id
-
-		const createResponse = await fetch(
-			`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-			{
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ name: 'Default' }),
-			},
-		)
-
-		if (!createResponse.ok) throw new Error('Failed to create wishlist')
-
-		const created = (await createResponse.json()) as { id?: string }
-		return created.id || null
-	}
-
-	const handleToggleFavorite = async (productId: string) => {
-		if (!token || actionId) return
-
-		const isFavorite = favoriteProductIds.includes(productId)
-		setActionId(productId)
-
-		try {
-			if (!isFavorite) {
-				const wishlistId = await ensureDefaultWishlist()
-				if (!wishlistId) throw new Error('Default wishlist was not created')
-
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${wishlistId}/items`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ productId }),
-					},
-				)
-
-				if (!response.ok) throw new Error('Failed to add product to wishlist')
-
-				setFavoriteProductIds(current =>
-					current.includes(productId) ? current : [...current, productId],
-				)
-				dispatchProductSyncEvent(PRODUCT_FAVORITE_SYNC_EVENT, {
-					productId,
-					isFavorite: true,
-				})
-				return
-			}
-
-			const wishlistsResponse = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-				{
-					headers: { Authorization: `Bearer ${token}` },
-				},
-			)
-
-			if (!wishlistsResponse.ok) throw new Error('Failed to load wishlists')
-
-			const wishlists = getArrayFromUnknown<WishlistResponse>(
-				await wishlistsResponse.json(),
-			)
-
-			for (const wishlist of wishlists) {
-				const detailResponse = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${wishlist.id}`,
-					{
-						headers: { Authorization: `Bearer ${token}` },
-					},
-				)
-
-				if (!detailResponse.ok) continue
-
-				const detail = (await detailResponse.json()) as WishlistResponse
-				const hasProduct = getArrayFromUnknown<WishlistResponseItem>(
-					detail.items,
-				).some(item => item.product?.id === productId)
-
-				if (!hasProduct) continue
-
-				const removeResponse = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${wishlist.id}/items`,
-					{
-						method: 'DELETE',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ productId }),
-					},
-				)
-
-				if (!removeResponse.ok) {
-					throw new Error('Failed to remove product from wishlist')
-				}
-
-				break
-			}
-
-			setFavoriteProductIds(current => current.filter(id => id !== productId))
-			dispatchProductSyncEvent(PRODUCT_FAVORITE_SYNC_EVENT, {
-				productId,
-				isFavorite: false,
-			})
-		} catch (error) {
-			console.error('Favorite toggle failed:', error)
-		} finally {
-			setActionId(null)
+	const handleToggleFavorite = (productId: string) => {
+		if (!token) {
+			router.push('/login')
+			return
 		}
+
+		if (actionId) return
+
+		setWishlistDialogProductId(productId)
 	}
 
 	const handleToggleCompare = async (productId: string) => {
@@ -659,159 +539,185 @@ export default function CartPage() {
 	}
 
 	return (
-		<CheckoutLayout
-			summary={
-				<CheckoutSummaryCard
-					bonusLabel={t('bonusLabel')}
-					bonusValue={formatCurrency(bonusBalance)}
-					actionLabel={t('checkout')}
-					rows={summaryRows}
-					disabled={!availableItems.length}
-					onAction={handleCheckout}
-				/>
-			}
-		>
-			<CheckoutPanel
-				sx={{
-					p: { xs: '18px', md: '24px' },
-					display: 'flex',
-					flexDirection: 'column',
-				}}
+		<>
+			<CheckoutLayout
+				summary={
+					<CheckoutSummaryCard
+						bonusLabel={t('bonusLabel')}
+						bonusValue={formatCurrency(bonusBalance)}
+						actionLabel={t('checkout')}
+						rows={summaryRows}
+						disabled={!availableItems.length}
+						onAction={handleCheckout}
+					/>
+				}
 			>
-				<Box
-					component='header'
+				<CheckoutPanel
 					sx={{
+						p: { xs: '18px', md: '24px' },
 						display: 'flex',
-						alignItems: 'baseline',
-						gap: '10px',
-						mb: { xs: '16px', md: '24px' },
-					}}
-				>
-					<Typography
-						component='h1'
-						sx={{
-							fontFamily: 'var(--font-inter)',
-							fontSize: { xs: '24px', md: '34px' },
-							fontWeight: 800,
-							color: 'var(--theme-text)',
-							lineHeight: 1.15,
-						}}
-					>
-						{t('title')}
-					</Typography>
-
-					<Typography
-						sx={{
-							fontFamily: 'var(--font-inter)',
-							fontWeight: 500,
-							fontSize: { xs: '12px', md: '14px' },
-							color: '#4E525C',
-							opacity: 1,
-							lineHeight: 1,
-						}}
-					>
-						{t('itemsCount', { count: availableItems.length })}
-					</Typography>
-				</Box>
-
-				<Box
-					sx={{
-						border: '1px solid #6D28D9',
-						borderRadius: '20px',
-						overflow: 'hidden',
+						flexDirection: 'column',
 					}}
 				>
 					<Box
+						component='header'
 						sx={{
-							height: { xs: '42px', md: '40px' },
 							display: 'flex',
-							alignItems: 'center',
-							px: { xs: '12px', md: '20px' },
-							borderBottom: '1px solid #6D28D9',
+							alignItems: 'baseline',
+							gap: '10px',
+							mb: { xs: '16px', md: '24px' },
 						}}
 					>
-						<Button
-							disableRipple
-							disabled={!items.length || clearing}
-							onClick={handleClearCart}
-							startIcon={<DeleteOutlineRoundedIcon sx={{ fontSize: 18 }} />}
+						<Typography
+							component='h1'
 							sx={{
-								p: 0,
-								minWidth: 0,
-								color: '#4E525C',
+								fontFamily: 'var(--font-inter)',
+								fontSize: { xs: '24px', md: '34px' },
+								fontWeight: 800,
+								color: 'var(--theme-text)',
+								lineHeight: 1.15,
+							}}
+						>
+							{t('title')}
+						</Typography>
+
+						<Typography
+							sx={{
 								fontFamily: 'var(--font-inter)',
 								fontWeight: 500,
 								fontSize: { xs: '12px', md: '14px' },
-								textTransform: 'none',
-								transition: HOVER_TRANSITION,
-								'& .MuiButton-startIcon, & .MuiSvgIcon-root': {
-									color: 'inherit',
-									transition: 'color 180ms ease',
-								},
-								'&:hover': {
-									bgcolor: 'transparent',
-									color: '#FF090B',
-								},
-								'&.Mui-disabled': {
-									color: 'var(--theme-icon-dim)',
-									opacity: 0.55,
-								},
+								color: '#4E525C',
+								opacity: 1,
+								lineHeight: 1,
 							}}
 						>
-							{t('clearAll')}
-						</Button>
+							{t('itemsCount', { count: availableItems.length })}
+						</Typography>
 					</Box>
 
-					{loading ? (
+					<Box
+						sx={{
+							border: '1px solid #6D28D9',
+							borderRadius: '20px',
+							overflow: 'hidden',
+						}}
+					>
 						<Box
 							sx={{
-								minHeight: '280px',
+								height: { xs: '42px', md: '40px' },
 								display: 'flex',
 								alignItems: 'center',
-								justifyContent: 'center',
+								px: { xs: '12px', md: '20px' },
+								borderBottom: '1px solid #6D28D9',
 							}}
 						>
-							<CircularProgress sx={{ color: '#6D28D9' }} />
+							<Button
+								disableRipple
+								disabled={!items.length || clearing}
+								onClick={handleClearCart}
+								startIcon={<DeleteOutlineRoundedIcon sx={{ fontSize: 18 }} />}
+								sx={{
+									p: 0,
+									minWidth: 0,
+									color: '#4E525C',
+									fontFamily: 'var(--font-inter)',
+									fontWeight: 500,
+									fontSize: { xs: '12px', md: '14px' },
+									textTransform: 'none',
+									transition: HOVER_TRANSITION,
+									'& .MuiButton-startIcon, & .MuiSvgIcon-root': {
+										color: 'inherit',
+										transition: 'color 180ms ease',
+									},
+									'&:hover': {
+										bgcolor: 'transparent',
+										color: '#FF090B',
+									},
+									'&.Mui-disabled': {
+										color: 'var(--theme-icon-dim)',
+										opacity: 0.55,
+									},
+								}}
+							>
+								{t('clearAll')}
+							</Button>
 						</Box>
-					) : (
-						<Box>
-							{items.map((item, index) => (
-								<CartProductRow
-									key={item.id}
-									item={item}
-									locale={locale}
-									isLast={index === items.length - 1}
-									isFavorite={
-										!!item.product?.id &&
-										favoriteProductIds.includes(item.product.id)
-									}
-									isCompared={
-										!!item.product?.id &&
-										comparedProductIds.includes(item.product.id)
-									}
-									loading={
-										actionId === item.id || actionId === item.product?.id
-									}
-									onDecrease={() =>
-										handleQuantityChange(item, Number(item.quantity || 1) - 1)
-									}
-									onIncrease={() =>
-										handleQuantityChange(item, Number(item.quantity || 1) + 1)
-									}
-									onRemove={() => handleRemoveItem(item)}
-									onToggleFavorite={() =>
-										item.product?.id && handleToggleFavorite(item.product.id)
-									}
-									onToggleCompare={() =>
-										item.product?.id && handleToggleCompare(item.product.id)
-									}
-								/>
-							))}
-						</Box>
-					)}
-				</Box>
-			</CheckoutPanel>
-		</CheckoutLayout>
+
+						{loading ? (
+							<Box
+								sx={{
+									minHeight: '280px',
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+								}}
+							>
+								<CircularProgress sx={{ color: '#6D28D9' }} />
+							</Box>
+						) : (
+							<Box>
+								{items.map((item, index) => (
+									<CartProductRow
+										key={item.id}
+										item={item}
+										locale={locale}
+										isLast={index === items.length - 1}
+										isFavorite={
+											!!item.product?.id &&
+											favoriteProductIds.includes(item.product.id)
+										}
+										isCompared={
+											!!item.product?.id &&
+											comparedProductIds.includes(item.product.id)
+										}
+										loading={
+											actionId === item.id || actionId === item.product?.id
+										}
+										onDecrease={() =>
+											handleQuantityChange(item, Number(item.quantity || 1) - 1)
+										}
+										onIncrease={() =>
+											handleQuantityChange(item, Number(item.quantity || 1) + 1)
+										}
+										onRemove={() => handleRemoveItem(item)}
+										onToggleFavorite={() =>
+											item.product?.id && handleToggleFavorite(item.product.id)
+										}
+										onToggleCompare={() =>
+											item.product?.id && handleToggleCompare(item.product.id)
+										}
+									/>
+								))}
+							</Box>
+						)}
+					</Box>
+				</CheckoutPanel>
+			</CheckoutLayout>
+
+			<WishlistSelectDialog
+				open={Boolean(wishlistDialogProductId)}
+				token={token}
+				productId={wishlistDialogProductId}
+				mode='manage'
+				onClose={() => setWishlistDialogProductId(null)}
+				onSuccess={({ productId, isFavorite }) => {
+					setFavoriteProductIds(current =>
+						isFavorite
+							? current.includes(productId)
+								? current
+								: [...current, productId]
+							: current.filter(id => id !== productId),
+					)
+
+					dispatchProductSyncEvent(PRODUCT_FAVORITE_SYNC_EVENT, {
+						productId,
+						isFavorite,
+					})
+
+					void fetchAuxiliaryState()
+				}}
+			/>
+		</>
 	)
 }
 

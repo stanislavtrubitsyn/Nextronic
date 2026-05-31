@@ -32,6 +32,7 @@ import StarBorderIcon from '@mui/icons-material/StarBorder'
 import { useAuthStore } from '@/entities/user/model/store'
 import { Link, useRouter } from '@/i18n/routing'
 import { PaginationLoadMore } from '@/shared/components/ui/PaginationLoadMore/PaginationLoadMore'
+import { WishlistSelectDialog } from '@/shared/components/ui/WishlistSelectDialog/WishlistSelectDialog'
 
 type Locale = 'ua' | 'en'
 
@@ -669,6 +670,9 @@ export default function ViewedProductsPage() {
 	const [cartProductIds, setCartProductIds] = useState<string[]>([])
 	const [actionProductId, setActionProductId] = useState<string | null>(null)
 	const [actionType, setActionType] = useState<ProductAction | null>(null)
+	const [wishlistDialogProductId, setWishlistDialogProductId] = useState<
+		string | null
+	>(null)
 	const [clearDialogOpen, setClearDialogOpen] = useState(false)
 	const [clearing, setClearing] = useState(false)
 
@@ -820,45 +824,6 @@ export default function ViewedProductsPage() {
 		fetchAuxiliaryState()
 	}, [fetchAuxiliaryState, fetchViewedProducts, router, token])
 
-	const ensureDefaultWishlist = async () => {
-		if (!token) return null
-
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-			{
-				headers: { Authorization: `Bearer ${token}` },
-			},
-		)
-
-		if (!response.ok) throw new Error('Failed to load wishlists')
-
-		const wishlists = getArrayFromUnknown<WishlistResponse>(
-			await response.json(),
-		)
-		const defaultWishlist = wishlists.find(
-			wishlist => wishlist.name === 'Default',
-		)
-
-		if (defaultWishlist?.id) return defaultWishlist.id
-
-		const createResponse = await fetch(
-			`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-			{
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ name: 'Default' }),
-			},
-		)
-
-		if (!createResponse.ok) throw new Error('Failed to create wishlist')
-
-		const created = (await createResponse.json()) as { id?: string }
-		return created.id || null
-	}
-
 	const startProductAction = (productId: string, type: ProductAction) => {
 		setActionProductId(productId)
 		setActionType(type)
@@ -906,100 +871,30 @@ export default function ViewedProductsPage() {
 		}
 	}
 
-	const handleToggleFavorite = async (productId: string) => {
+	const handleToggleFavorite = (productId: string) => {
 		if (!token || actionProductId) return
+		setWishlistDialogProductId(productId)
+	}
 
-		const isFavorite = favoriteProductIds.includes(productId)
-		startProductAction(productId, 'favorite')
+	const closeWishlistDialog = () => {
+		setWishlistDialogProductId(null)
+	}
 
-		try {
-			if (!isFavorite) {
-				const wishlistId = await ensureDefaultWishlist()
-				if (!wishlistId) throw new Error('Default wishlist was not created')
-
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${wishlistId}/items`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ productId }),
-					},
-				)
-
-				if (!response.ok) throw new Error('Failed to add product to wishlist')
-
-				setFavoriteProductIds(current =>
-					current.includes(productId) ? current : [...current, productId],
-				)
-				dispatchProductSyncEvent(PRODUCT_FAVORITE_SYNC_EVENT, {
-					productId,
-					isFavorite: true,
-				})
-				return
-			}
-
-			const wishlistsResponse = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-				{
-					headers: { Authorization: `Bearer ${token}` },
-				},
-			)
-
-			if (!wishlistsResponse.ok) throw new Error('Failed to load wishlists')
-
-			const wishlists = getArrayFromUnknown<WishlistResponse>(
-				await wishlistsResponse.json(),
-			)
-
-			for (const wishlist of wishlists) {
-				const detailResponse = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${wishlist.id}`,
-					{
-						headers: { Authorization: `Bearer ${token}` },
-					},
-				)
-
-				if (!detailResponse.ok) continue
-
-				const detail = (await detailResponse.json()) as WishlistResponse
-				const hasProduct = getArrayFromUnknown<WishlistResponseItem>(
-					detail.items,
-				).some(item => item.product?.id === productId)
-
-				if (!hasProduct) continue
-
-				const removeResponse = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${wishlist.id}/items`,
-					{
-						method: 'DELETE',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ productId }),
-					},
-				)
-
-				if (!removeResponse.ok) {
-					throw new Error('Failed to remove product from wishlist')
-				}
-
-				break
-			}
-
-			setFavoriteProductIds(current => current.filter(id => id !== productId))
-			dispatchProductSyncEvent(PRODUCT_FAVORITE_SYNC_EVENT, {
-				productId,
-				isFavorite: false,
-			})
-		} catch (err) {
-			console.error('Viewed product favorite toggle failed:', err)
-		} finally {
-			finishProductAction()
-		}
+	const handleWishlistDialogSuccess = (
+		productId: string,
+		isFavorite: boolean,
+	) => {
+		setFavoriteProductIds(current =>
+			isFavorite
+				? current.includes(productId)
+					? current
+					: [...current, productId]
+				: current.filter(id => id !== productId),
+		)
+		dispatchProductSyncEvent(PRODUCT_FAVORITE_SYNC_EVENT, {
+			productId,
+			isFavorite,
+		})
 	}
 
 	const handleToggleCompare = async (productId: string) => {
@@ -1350,6 +1245,17 @@ export default function ViewedProductsPage() {
 					/>
 				</Box>
 			)}
+
+			<WishlistSelectDialog
+				open={Boolean(wishlistDialogProductId)}
+				token={token}
+				productId={wishlistDialogProductId}
+				mode='manage'
+				onClose={closeWishlistDialog}
+				onSuccess={({ productId, isFavorite }) => {
+					handleWishlistDialogSuccess(productId, isFavorite)
+				}}
+			/>
 
 			<Dialog
 				open={clearDialogOpen}

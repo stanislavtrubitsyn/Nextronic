@@ -51,6 +51,7 @@ import {
 	ProductCard,
 	type ProductCardData,
 } from '@/shared/components/ui/ProductCard/ProductCard'
+import { WishlistSelectDialog } from '@/shared/components/ui/WishlistSelectDialog/WishlistSelectDialog'
 import {
 	getLocalizedText,
 	type Locale,
@@ -171,7 +172,7 @@ function ProductActionButtons({
 	const cardT = useTranslations('ProductCard')
 	const router = useRouter()
 	const { token } = useAuthStore()
-	const [loadingFavorite, setLoadingFavorite] = useState(false)
+	const [wishlistDialogOpen, setWishlistDialogOpen] = useState(false)
 	const [loadingCompare, setLoadingCompare] = useState(false)
 
 	const requireAuth = () => {
@@ -294,108 +295,13 @@ function ProductActionButtons({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [productId])
 
-	const handleFavorite = async (event: MouseEvent<HTMLButtonElement>) => {
+	const handleFavorite = (event: MouseEvent<HTMLButtonElement>) => {
 		event.preventDefault()
 		event.stopPropagation()
 
 		if (!requireAuth()) return
 
-		setLoadingFavorite(true)
-
-		try {
-			if (!isFavorite) {
-				const wishlistsRes = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-					{ headers: { Authorization: `Bearer ${token}` } },
-				)
-
-				if (!wishlistsRes.ok) throw new Error('Failed to fetch wishlists')
-
-				const wishlists = getArrayFromUnknown<{ id: string; name: string }>(
-					await wishlistsRes.json(),
-				)
-
-				let defaultWishlistId = wishlists.find(
-					wishlist => wishlist.name === 'Default',
-				)?.id
-
-				if (!defaultWishlistId) {
-					const createRes = await fetch(
-						`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-						{
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-								Authorization: `Bearer ${token}`,
-							},
-							body: JSON.stringify({ name: 'Default' }),
-						},
-					)
-
-					if (!createRes.ok) throw new Error('Failed to create wishlist')
-
-					const createdWishlist = (await createRes.json()) as { id?: string }
-					if (!createdWishlist.id) {
-						throw new Error('Created wishlist does not contain id')
-					}
-
-					defaultWishlistId = createdWishlist.id
-				}
-
-				const addRes = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${defaultWishlistId}/items`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ productId }),
-					},
-				)
-
-				if (!addRes.ok) throw new Error('Failed to add product to wishlist')
-
-				syncFavoriteState(true)
-				return
-			}
-
-			const wishlistsRes = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-				{ headers: { Authorization: `Bearer ${token}` } },
-			)
-
-			if (!wishlistsRes.ok) throw new Error('Failed to fetch wishlists')
-
-			const wishlists = getArrayFromUnknown<{ id: string }>(
-				await wishlistsRes.json(),
-			)
-
-			for (const list of wishlists) {
-				const removeRes = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${list.id}/items`,
-					{
-						method: 'DELETE',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ productId }),
-					},
-				)
-
-				if (removeRes.ok) {
-					syncFavoriteState(false)
-					return
-				}
-			}
-
-			syncFavoriteState(false)
-		} catch (error) {
-			console.error('Favorite error:', error)
-		} finally {
-			setLoadingFavorite(false)
-		}
+		setWishlistDialogOpen(true)
 	}
 
 	const handleCompare = async (event: MouseEvent<HTMLButtonElement>) => {
@@ -465,50 +371,62 @@ function ProductActionButtons({
 	} as const
 
 	return (
-		<Box
-			sx={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: '14px',
-				flexWrap: 'wrap',
-			}}
-		>
-			<Button
-				disableRipple
-				disabled={loadingFavorite}
-				onClick={handleFavorite}
-				startIcon={
-					isFavorite ? (
-						<FavoriteRoundedIcon sx={{ color: '#6D28D9' }} />
-					) : (
-						<FavoriteBorderRoundedIcon sx={{ color: '#4E525C' }} />
-					)
-				}
+		<>
+			<Box
 				sx={{
-					...buttonSx,
-					color: isFavorite ? '#6D28D9' : '#4E525C',
+					display: 'flex',
+					alignItems: 'center',
+					gap: '14px',
+					flexWrap: 'wrap',
 				}}
 			>
-				{isFavorite ? cardT('inFavorite') : cardT('addFavorite')}
-			</Button>
+				<Button
+					disableRipple
+					onClick={handleFavorite}
+					startIcon={
+						isFavorite ? (
+							<FavoriteRoundedIcon sx={{ color: '#6D28D9' }} />
+						) : (
+							<FavoriteBorderRoundedIcon sx={{ color: '#4E525C' }} />
+						)
+					}
+					sx={{
+						...buttonSx,
+						color: isFavorite ? '#6D28D9' : '#4E525C',
+					}}
+				>
+					{isFavorite ? cardT('inFavorite') : cardT('addFavorite')}
+				</Button>
 
-			<Button
-				disableRipple
-				disabled={loadingCompare}
-				onClick={handleCompare}
-				startIcon={
-					<BalanceOutlinedIcon
-						sx={{ color: isCompared ? '#6D28D9' : '#4E525C' }}
-					/>
-				}
-				sx={{
-					...buttonSx,
-					color: isCompared ? '#6D28D9' : '#4E525C',
+				<Button
+					disableRipple
+					disabled={loadingCompare}
+					onClick={handleCompare}
+					startIcon={
+						<BalanceOutlinedIcon
+							sx={{ color: isCompared ? '#6D28D9' : '#4E525C' }}
+						/>
+					}
+					sx={{
+						...buttonSx,
+						color: isCompared ? '#6D28D9' : '#4E525C',
+					}}
+				>
+					{isCompared ? cardT('inCompare') : cardT('addCompare')}
+				</Button>
+			</Box>
+
+			<WishlistSelectDialog
+				open={wishlistDialogOpen}
+				token={token}
+				productId={productId}
+				mode='manage'
+				onClose={() => setWishlistDialogOpen(false)}
+				onSuccess={({ isFavorite }) => {
+					syncFavoriteState(isFavorite)
 				}}
-			>
-				{isCompared ? cardT('inCompare') : cardT('addCompare')}
-			</Button>
-		</Box>
+			/>
+		</>
 	)
 }
 
