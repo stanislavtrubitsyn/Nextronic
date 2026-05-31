@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { UserRole } from '../users/users.entity';
 import { CreateReviewDto, ReviewReactionDto, UpdateReviewDto } from './reviews.dto';
+import { ReviewType } from './reviews.entity';
 import { ReviewLangType } from './reviews.i18n';
 import { ReviewsService } from './reviews.service';
 
@@ -39,8 +40,25 @@ export class ReviewsController {
 
   @Get('my')
   @UseGuards(JwtAuthGuard)
-  async getMyReviews(@Req() req: RequestWithUser) {
-    return await this.reviewsService.getMyReviews(req.user.userId);
+  async getMyReviews(
+    @Req() req: RequestWithUser,
+    @Query('page') page = '1',
+    @Query('limit') limit = '8',
+    @Query('type') type: 'all' | ReviewType = 'all',
+  ) {
+    const allowedTypes = new Set<string>([
+      'all',
+      ReviewType.REVIEW,
+      ReviewType.QUESTION,
+      ReviewType.REPLY,
+    ]);
+    const normalizedType = allowedTypes.has(type) ? type : 'all';
+
+    return await this.reviewsService.getMyReviews(req.user.userId, {
+      page: Number(page),
+      limit: Number(limit),
+      type: normalizedType,
+    });
   }
 
   @Get('product/:productId')

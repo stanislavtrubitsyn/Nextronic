@@ -19,6 +19,19 @@ import { CreateReviewDto, ReviewReactionType, UpdateReviewDto } from './reviews.
 import { ReviewsEntity, ReviewType } from './reviews.entity';
 import { REVIEWS_I18N, ReviewLangType } from './reviews.i18n';
 
+type ProfileReviewsFilter = 'all' | ReviewType;
+
+type GetMyReviewsOptions = {
+  page?: number;
+  limit?: number;
+  type?: ProfileReviewsFilter;
+};
+
+type ProfileReviewCounterRow = {
+  type: ReviewType;
+  count: string;
+};
+
 @Injectable()
 export class ReviewsService {
   constructor(
@@ -252,12 +265,105 @@ export class ReviewsService {
     };
   }
 
-  async getMyReviews(userId: string) {
-    return await this.reviewRepo.find({
-      where: { user: { id: userId } },
-      relations: ['product'],
-      order: { createdAt: 'DESC' },
-    });
+  async getMyReviews(userId: string, options: GetMyReviewsOptions = {}) {
+    const page = Number.isFinite(options.page) ? Math.max(1, Math.trunc(options.page || 1)) : 1;
+    const limit = Number.isFinite(options.limit)
+      ? Math.min(Math.max(1, Math.trunc(options.limit || 8)), 60)
+      : 8;
+
+    const type =
+      options.type === ReviewType.REVIEW ||
+      options.type === ReviewType.QUESTION ||
+      options.type === ReviewType.REPLY
+        ? options.type
+        : 'all';
+
+    const query = this.reviewRepo
+      .createQueryBuilder('review')
+      .innerJoin('review.user', 'user', 'user.id = :userId', { userId })
+      .leftJoinAndSelect('review.product', 'product')
+      .leftJoinAndSelect('review.parent', 'parent')
+      .orderBy('review.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (type !== 'all') {
+      query.andWhere('review.type = :type', { type });
+    }
+
+    const [items, total] = await query.getManyAndCount();
+
+    const rawCounters = await this.reviewRepo
+      .createQueryBuilder('review')
+      .innerJoin('review.user', 'user', 'user.id = :userId', { userId })
+      .select('review.type', 'type')
+      .addSelect('COUNT(review.id)', 'count')
+      .groupBy('review.type')
+      .getRawMany<ProfileReviewCounterRow>();
+
+    const counters = rawCounters.reduce(
+      (acc, item) => {
+        const count = Number(item.count) || 0;
+        acc.all += count;
+
+        if (item.type === ReviewType.REVIEW) acc.review = count;
+        if (item.type === ReviewType.QUESTION) acc.question = count;
+        if (item.type === ReviewType.REPLY) acc.reply = count;
+
+        return acc;
+      },
+      {
+        all: 0,
+        review: 0,
+        question: 0,
+        reply: 0,
+      },
+    );
+
+    return {
+      items: items.map((item) => this.mapProfileReview(item)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+        hasMore: page * limit < total,
+      },
+      counters,
+    };
+  }
+
+  private mapProfileReview(review: ReviewsEntity): Record<string, unknown> {
+    const product = review.product;
+    const parent = review.parent || null;
+
+    return {
+      id: review.id,
+      type: review.type,
+      rating: review.rating || null,
+      comment: review.comment,
+      advantages: review.advantages || null,
+      disadvantages: review.disadvantages || null,
+      photos: review.photos || [],
+      isVerifiedPurchase: review.isVerifiedPurchase,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      product: product
+        ? {
+            id: product.id,
+            slug: product.slug,
+            name: product.name,
+            images: product.images || [],
+          }
+        : null,
+      parent: parent
+        ? {
+            id: parent.id,
+            type: parent.type,
+            comment: parent.comment,
+          }
+        : null,
+    };
   }
 
   private async hasVerifiedPurchase(userId: string, productId: string) {
