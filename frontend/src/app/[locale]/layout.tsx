@@ -36,32 +36,19 @@ export default async function LocaleLayout({
 	}
 
 	setRequestLocale(locale)
+
 	return (
 		<html
 			lang={locale}
 			className={`${inter.variable} h-full`}
 			suppressHydrationWarning
 		>
-			<head>
-				<script
-					dangerouslySetInnerHTML={{
-						__html: `
-							(function() {
-								try {
-									const theme = localStorage.getItem('theme') ||
-										(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-									document.documentElement.setAttribute('data-theme', theme);
-								} catch (e) {}
-							})();
-						`,
-					}}
-				/>
-			</head>
 			<body className='min-h-full flex flex-col'>
 				<NextThemesProvider
 					attribute='data-theme'
 					defaultTheme='system'
 					enableSystem
+					disableTransitionOnChange
 				>
 					<ClientI18nProvider initialLocale={locale}>
 						<BreadcrumbsProvider>

@@ -1149,5 +1149,12 @@
 		"cancel": "Cancel",
 		"save": "Save",
 		"move": "Move"
+	},
+	"NotFoundPage": {
+		"title": "Oops.. page not found!",
+		"description": "You may have entered the wrong address or followed an incorrect link.",
+		"homeButton": "Return to homepage",
+		"imageAlt": "404 page not found illustration",
+		"homeAriaLabel": "Return to homepage"
 	}
 }
