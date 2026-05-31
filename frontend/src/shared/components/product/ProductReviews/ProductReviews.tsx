@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
 	Box,
 	Button,
@@ -305,6 +306,31 @@ function updateReviewInTree(
 	})
 }
 
+type FeedbackScrollLocation = {
+	index: number
+	parentId?: string
+}
+
+const findFeedbackInList = (
+	items: ProductReview[],
+	feedbackId: string,
+	parentId?: string | null,
+): FeedbackScrollLocation | null => {
+	for (const [index, item] of items.entries()) {
+		if (item.id === feedbackId) return { index }
+
+		if (parentId && item.id === parentId) {
+			return { index, parentId: item.id }
+		}
+
+		if (item.replies?.some(reply => reply.id === feedbackId)) {
+			return { index, parentId: item.id }
+		}
+	}
+
+	return null
+}
+
 export function ProductReviews({
 	product,
 	locale,
@@ -314,7 +340,9 @@ export function ProductReviews({
 	labels,
 }: ProductReviewsProps) {
 	const router = useRouter()
+	const searchParams = useSearchParams()
 	const { token, user } = useAuthStore()
+	const feedbackScrollHandledRef = useRef(false)
 	const [tab, setTab] = useState<'reviews' | 'questions'>('reviews')
 	const [limit, setLimit] = useState(4)
 	const [ratingFilter, setRatingFilter] = useState<number | null>(null)
@@ -337,6 +365,56 @@ export function ProductReviews({
 	const [targetReview, setTargetReview] = useState<ProductReview | null>(null)
 	const [form, setForm] = useState<ReviewFormState>(emptyForm)
 
+	const scrollToFeedbackElement = useCallback(
+		(feedbackId: string, parentId?: string | null) => {
+			let attempts = 0
+			const maxAttempts = 36
+			const delay = 140
+
+			const tryScroll = () => {
+				attempts += 1
+
+				const target =
+					document.getElementById(`product-feedback-${feedbackId}`) ||
+					(parentId
+						? document.getElementById(`product-feedback-${parentId}`)
+						: null)
+
+				if (target) {
+					const headerOffset = window.innerWidth < 768 ? 92 : 120
+					const elementTop = target.getBoundingClientRect().top + window.scrollY
+
+					window.scrollTo({
+						top: Math.max(elementTop - headerOffset, 0),
+						behavior: 'smooth',
+					})
+
+					return
+				}
+
+				if (attempts < maxAttempts) {
+					window.setTimeout(tryScroll, delay)
+					return
+				}
+
+				const reviewsBlock = document.getElementById('product-reviews')
+				if (!reviewsBlock) return
+
+				const headerOffset = window.innerWidth < 768 ? 92 : 120
+				const elementTop =
+					reviewsBlock.getBoundingClientRect().top + window.scrollY
+
+				window.scrollTo({
+					top: Math.max(elementTop - headerOffset, 0),
+					behavior: 'smooth',
+				})
+			}
+
+			window.setTimeout(tryScroll, 420)
+		},
+		[],
+	)
+
 	useEffect(() => {
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setLocalReviews(reviews)
@@ -346,6 +424,69 @@ export function ProductReviews({
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setLocalQuestions(questions)
 	}, [questions])
+
+	useEffect(() => {
+		if (feedbackScrollHandledRef.current) return
+
+		const feedbackId = searchParams.get('feedbackId')
+		if (!feedbackId) return
+
+		const feedbackType = searchParams.get('feedbackType')
+		const parentId = searchParams.get('parentId')
+		const parentType = searchParams.get('parentType')
+		const preferredTab: 'reviews' | 'questions' =
+			feedbackType === 'question' || parentType === 'question'
+				? 'questions'
+				: 'reviews'
+
+		const preferredItems =
+			preferredTab === 'questions' ? localQuestions : localReviews
+		const fallbackTab = preferredTab === 'questions' ? 'reviews' : 'questions'
+		const fallbackItems =
+			fallbackTab === 'questions' ? localQuestions : localReviews
+
+		if (!preferredItems.length && !fallbackItems.length) return
+
+		let resolvedTab = preferredTab
+		let location = findFeedbackInList(preferredItems, feedbackId, parentId)
+
+		if (!location) {
+			const fallbackLocation = findFeedbackInList(
+				fallbackItems,
+				feedbackId,
+				parentId,
+			)
+
+			if (fallbackLocation) {
+				resolvedTab = fallbackTab
+				location = fallbackLocation
+			}
+		}
+
+		feedbackScrollHandledRef.current = true
+
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setTab(resolvedTab)
+		setRatingFilter(null)
+
+		if (location) {
+			const nextLimit = Math.max(4, Math.ceil((location.index + 1) / 4) * 4)
+			setLimit(currentLimit => Math.max(currentLimit, nextLimit))
+
+			if (location.parentId) {
+				setExpandedReplyIds(current => ({
+					...current,
+					[location.parentId as string]: true,
+				}))
+			}
+		}
+
+		window.setTimeout(() => {
+			requestAnimationFrame(() => {
+				scrollToFeedbackElement(feedbackId, parentId)
+			})
+		}, 180)
+	}, [localQuestions, localReviews, scrollToFeedbackElement, searchParams])
 
 	const computedRating = useMemo(
 		() =>
@@ -716,7 +857,9 @@ export function ProductReviews({
 		return (
 			<Box
 				key={item.id}
+				id={`product-feedback-${item.id}`}
 				sx={{
+					scrollMarginTop: { xs: '90px', md: '120px' },
 					display: 'grid',
 					gridTemplateColumns: { xs: '1fr', md: '120px minmax(0, 1fr) 120px' },
 					gap: { xs: '12px', md: '20px' },
@@ -845,7 +988,9 @@ export function ProductReviews({
 		return (
 			<Box
 				key={item.id}
+				id={`product-feedback-${item.id}`}
 				sx={{
+					scrollMarginTop: { xs: '90px', md: '120px' },
 					borderTop: '1px solid var(--card-border)',
 					py: '18px',
 				}}

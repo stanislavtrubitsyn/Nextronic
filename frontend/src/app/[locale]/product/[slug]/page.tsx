@@ -1337,7 +1337,13 @@ function ProductPageContent() {
 						}}
 					/>
 
-					<Box sx={{ mt: { xs: '34px', md: '44px' } }}>
+					<Box
+						id='product-reviews'
+						sx={{
+							mt: { xs: '34px', md: '44px' },
+							scrollMarginTop: { xs: '90px', md: '120px' },
+						}}
+					>
 						<ProductReviews
 							product={data.product}
 							locale={locale}
