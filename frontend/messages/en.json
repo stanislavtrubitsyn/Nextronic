@@ -323,6 +323,64 @@
 			"previous": "Previous",
 			"next": "Next",
 			"move": "Move to another list"
+		},
+		"orders": {
+			"pageTitle": "My orders",
+			"tabs": {
+				"all": "All",
+				"received": "Received",
+				"cancelled": "Cancelled"
+			},
+			"statuses": {
+				"pending": "Awaiting payment",
+				"processing": "Packing",
+				"confirmed": "Confirmed",
+				"shipped": "Sent to delivery",
+				"delivered": "Order received",
+				"cancelled": "Order cancelled"
+			},
+			"paymentMethods": {
+				"cash": "cash on delivery",
+				"card": "bank card"
+			},
+			"bonusAccount": "to your bonus account",
+			"unknownProduct": "Product",
+			"unknownDeliveryService": "Delivery service",
+			"leaveReview": "Leave a review",
+			"pieces": "pcs.",
+			"deliveryTitle": "Delivery",
+			"plannedDate": "Planned pickup date",
+			"deliveryService": "Delivery service",
+			"deliveryAddress": "Delivery address",
+			"recipient": "Recipient",
+			"paymentTitle": "Payment",
+			"paymentMethod": "Payment method",
+			"goodsTotal": "Goods",
+			"discount": "Discount",
+			"bonusesUsed": "Bonuses used",
+			"deliveryPrice": "Delivery",
+			"carrierRate": "according to carrier rates",
+			"total": "Total",
+			"emptyValue": "Not specified",
+			"errorTitle": "Could not load orders",
+			"errorDescription": "Check your connection and try again.",
+			"retry": "Try again",
+			"emptyTitle": "You do not have orders yet",
+			"emptyDescription": "Once you place an order, it will appear on this page.",
+			"goShopping": "Go shopping",
+			"loadMore": "Show more",
+			"showLess": "Show less",
+			"previous": "Back",
+			"next": "Next",
+			"timeline": {
+				"orderAccepted": "We received your order",
+				"confirmed": "Confirmed",
+				"processing": "Packing",
+				"handedToDelivery": "Handed to delivery service",
+				"delivering": "In delivery",
+				"received": "Order received",
+				"cancelled": "Order cancelled"
+			}
 		}
 	},
 	"Admin": {

@@ -326,6 +326,64 @@
 			"previous": "Назад",
 			"next": "Вперед",
 			"move": "Перемістити до іншого списку"
+		},
+		"orders": {
+			"pageTitle": "Мої замовлення",
+			"tabs": {
+				"all": "Всі",
+				"received": "Отримані",
+				"cancelled": "Скасовані"
+			},
+			"statuses": {
+				"pending": "Очікує оплати",
+				"processing": "Комплектуємо",
+				"confirmed": "Підтвердили",
+				"shipped": "Передано в доставку",
+				"delivered": "Замовлення отримано",
+				"cancelled": "Замовлення скасовано"
+			},
+			"paymentMethods": {
+				"cash": "оплата при отриманні",
+				"card": "банківська карта"
+			},
+			"bonusAccount": "на бонусний рахунок",
+			"unknownProduct": "Товар",
+			"unknownDeliveryService": "Служба доставки",
+			"leaveReview": "Залишити відгук",
+			"pieces": "шт.",
+			"deliveryTitle": "Доставка",
+			"plannedDate": "Запланована дата видачі",
+			"deliveryService": "Служба доставки",
+			"deliveryAddress": "Адреса доставки",
+			"recipient": "Отримувач",
+			"paymentTitle": "Оплата",
+			"paymentMethod": "Спосіб оплати",
+			"goodsTotal": "Товар",
+			"discount": "Знижка",
+			"bonusesUsed": "Списано бонусів",
+			"deliveryPrice": "Доставка",
+			"carrierRate": "за тарифом перевізника",
+			"total": "Всього",
+			"emptyValue": "Не вказано",
+			"errorTitle": "Не вдалося завантажити замовлення",
+			"errorDescription": "Перевірте підключення та спробуйте ще раз.",
+			"retry": "Спробувати ще раз",
+			"emptyTitle": "У вас ще немає замовлень",
+			"emptyDescription": "Після оформлення покупки вона зʼявиться на цій сторінці.",
+			"goShopping": "Перейти до покупок",
+			"loadMore": "Показати більше",
+			"showLess": "Показати менше",
+			"previous": "Назад",
+			"next": "Вперед",
+			"timeline": {
+				"orderAccepted": "Отримали ваше замовлення",
+				"confirmed": "Підтвердили",
+				"processing": "Комплектуємо",
+				"handedToDelivery": "Передали в службу доставки",
+				"delivering": "Доставляється",
+				"received": "Замовлення отримано",
+				"cancelled": "Замовлення скасовано"
+			}
 		}
 	},
 	"Admin": {
