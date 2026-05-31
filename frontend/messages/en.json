@@ -55,7 +55,13 @@
 		"resultsFor": "Search results for",
 		"errorLoading": "An error occurred while loading products. Please try again later.",
 		"notFound": "No products found for your request. Try changing the keywords.",
-		"buyBtn": "Buy"
+		"buyBtn": "Buy",
+		"emptyTitle": "Search",
+		"errorTitle": "Search failed",
+		"notFoundTitle": "No results found for \"{query}\"",
+		"notFoundDescription": "You may have entered an incorrect query. Check the spelling. Try using only keywords.",
+		"emptyDescription": "Enter a search query to find the products you need.",
+		"homeButton": "Go to homepage"
 	},
 	"AppCartButton": {
 		"label": "Cart"
