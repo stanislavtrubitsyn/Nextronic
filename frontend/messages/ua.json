@@ -384,6 +384,29 @@
 				"received": "Замовлення отримано",
 				"cancelled": "Замовлення скасовано"
 			}
+		},
+		"reviewsAndQuestions": {
+			"pageTitle": "Відгуки та питання",
+			"tabs": {
+				"all": "Всі",
+				"reviews": "Відгуки",
+				"questions": "Питання",
+				"replies": "Відповіді"
+			},
+			"reviewTitle": "Відгук до товару: {product}",
+			"questionTitle": "Питання до товару: {product}",
+			"replyTitle": "Відповідь до товару: {product}",
+			"unknownProduct": "Товар",
+			"view": "Переглянути",
+			"loadErrorTitle": "Не вдалося завантажити відгуки та питання",
+			"loadErrorDescription": "Спробуйте оновити сторінку або повторити запит трохи пізніше.",
+			"retry": "Повторити",
+			"emptyTitle": "Поки що немає активності",
+			"emptyDescription": "Тут зʼявляться ваші відгуки, питання та відповіді до товарів.",
+			"loadMore": "Показати більше",
+			"showLess": "Показати менше",
+			"previous": "Назад",
+			"next": "Вперед"
 		}
 	},
 	"Admin": {

@@ -381,6 +381,29 @@
 				"received": "Order received",
 				"cancelled": "Order cancelled"
 			}
+		},
+		"reviewsAndQuestions": {
+			"pageTitle": "Reviews & questions",
+			"tabs": {
+				"all": "All",
+				"reviews": "Reviews",
+				"questions": "Questions",
+				"replies": "Replies"
+			},
+			"reviewTitle": "Review for product: {product}",
+			"questionTitle": "Question for product: {product}",
+			"replyTitle": "Reply for product: {product}",
+			"unknownProduct": "Product",
+			"view": "View",
+			"loadErrorTitle": "Failed to load reviews and questions",
+			"loadErrorDescription": "Please refresh the page or try again a little later.",
+			"retry": "Retry",
+			"emptyTitle": "No activity yet",
+			"emptyDescription": "Your product reviews, questions, and replies will appear here.",
+			"loadMore": "Show more",
+			"showLess": "Show less",
+			"previous": "Back",
+			"next": "Next"
 		}
 	},
 	"Admin": {
