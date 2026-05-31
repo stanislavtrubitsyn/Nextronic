@@ -20,6 +20,7 @@ import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRound
 import StarIcon from '@mui/icons-material/Star'
 import { useAuthStore } from '@/entities/user/model/store'
 import { Link, useRouter } from '@/i18n/routing'
+import { WishlistSelectDialog } from '@/shared/components/ui/WishlistSelectDialog/WishlistSelectDialog'
 
 // Типи
 type Locale = 'ua' | 'en'
@@ -165,9 +166,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 	const [isFavorite, setIsFavorite] = useState(favoriteActive ?? false)
 	const [isCompared, setIsCompared] = useState(comparedActive ?? false)
 	const [isInCart, setIsInCart] = useState(false)
-	const [loadingFavorite, setLoadingFavorite] = useState(false)
+	const [loadingFavorite] = useState(false)
 	const [loadingCompare, setLoadingCompare] = useState(false)
 	const [loadingCart, setLoadingCart] = useState(false)
+	const [wishlistDialogOpen, setWishlistDialogOpen] = useState(false)
 	const [initializing, setInitializing] = useState(true)
 
 	const currentIsFavorite = favoriteActive ?? isFavorite
@@ -390,141 +392,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 		router.push(productHref)
 	}
 
-	// Додавання / видалення товару з обраного
-	const handleFavorite = async (e: React.MouseEvent) => {
+	// Відкриття вибору списків обраного
+	const handleFavorite = (e: React.MouseEvent) => {
 		e.preventDefault()
 		e.stopPropagation()
 
 		if (!requireAuth()) return
 
-		setLoadingFavorite(true)
-
-		try {
-			if (!currentIsFavorite) {
-				const wishlistsRes = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-					{
-						headers: { Authorization: `Bearer ${token}` },
-					},
-				)
-
-				if (!wishlistsRes.ok) {
-					throw new Error('Failed to fetch wishlists')
-				}
-
-				const wishlists = getArrayFromUnknown<{ id: string; name: string }>(
-					await wishlistsRes.json(),
-				)
-
-				let defaultWishlistId = wishlists.find(
-					wishlist => wishlist.name === 'Default',
-				)?.id
-
-				if (!defaultWishlistId) {
-					const createRes = await fetch(
-						`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-						{
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-								Authorization: `Bearer ${token}`,
-							},
-							body: JSON.stringify({ name: 'Default' }),
-						},
-					)
-
-					if (!createRes.ok) {
-						throw new Error('Failed to create wishlist')
-					}
-
-					const createdWishlist = (await createRes.json()) as { id?: string }
-
-					if (!createdWishlist.id) {
-						throw new Error('Created wishlist does not contain id')
-					}
-
-					defaultWishlistId = createdWishlist.id
-				}
-
-				const addRes = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${defaultWishlistId}/items`,
-					{
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ productId: product.id }),
-					},
-				)
-
-				if (!addRes.ok) {
-					throw new Error('Failed to add product to wishlist')
-				}
-
-				syncFavoriteState(true)
-				return
-			}
-
-			const wishlistsRes = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/wishlists`,
-				{
-					headers: { Authorization: `Bearer ${token}` },
-				},
-			)
-
-			if (!wishlistsRes.ok) {
-				throw new Error('Failed to fetch wishlists')
-			}
-
-			const wishlists = getArrayFromUnknown<{ id: string }>(
-				await wishlistsRes.json(),
-			)
-
-			for (const list of wishlists) {
-				const listRes = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${list.id}`,
-					{
-						headers: { Authorization: `Bearer ${token}` },
-					},
-				)
-
-				if (!listRes.ok) continue
-
-				const listDetail = await listRes.json()
-				const items = getArrayFromUnknown<{ product?: { id?: string } }>(
-					listDetail.items,
-				)
-				const item = items.find(
-					wishlistItem => wishlistItem.product?.id === product.id,
-				)
-
-				if (!item) continue
-
-				const removeRes = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/wishlists/${list.id}/items`,
-					{
-						method: 'DELETE',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ productId: product.id }),
-					},
-				)
-
-				if (!removeRes.ok) {
-					throw new Error('Failed to remove product from wishlist')
-				}
-
-				syncFavoriteState(false)
-				break
-			}
-		} catch (error) {
-			console.error('Favorite error:', error)
-		} finally {
-			setLoadingFavorite(false)
-		}
+		setWishlistDialogOpen(true)
 	}
 
 	// Додавання / видалення товару з порівняння
@@ -1274,78 +1149,91 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
 	// Основна обгортка картки
 	return (
-		<Box
-			role='link'
-			tabIndex={0}
-			onClick={handleCardClick}
-			onKeyDown={event => {
-				if (event.key === 'Enter') {
-					handleCardClick()
-				}
-			}}
-			sx={{
-				boxSizing: 'border-box',
-				// РОЗМІРИ ВСІЄЇ КАРТКИ:
-				width: stretch
-					? '100%'
-					: isMain
-						? '270px'
-						: isHistory
-							? '150px'
-							: '485px',
-				minWidth: stretch ? 0 : undefined,
-				height: isMain ? '550px' : isHistory ? '215px' : '785px',
-				flex: stretch
-					? '0 0 auto'
-					: isMain
-						? '0 0 270px'
-						: isHistory
-							? '0 0 140px'
-							: '0 0 156px',
-				p: isMain ? '10px' : isHistory ? '5px' : '10px',
-				display: 'flex',
-				flexDirection: 'column',
-				gap: isMain ? '8px' : isHistory ? '3px' : '8px',
-				borderRadius: isMain ? '20px' : isHistory ? '10px' : '20px',
-				border: '1px solid var(--card-border)',
-				bgcolor: 'var(--card-bg)',
-				textDecoration: 'none',
-				overflow: 'hidden',
-				cursor: 'pointer',
-				transition: 'none',
-				'&:hover': {
-					boxShadow: 'none',
-					borderColor: 'var(--card-border)',
-					transform: 'none',
-				},
-			}}
-		>
-			{renderImage()}
-
-			{/* Верхній текстово-інформаційний блок */}
+		<>
 			<Box
+				role='link'
+				tabIndex={0}
+				onClick={handleCardClick}
+				onKeyDown={event => {
+					if (event.key === 'Enter') {
+						handleCardClick()
+					}
+				}}
 				sx={{
+					boxSizing: 'border-box',
+					// РОЗМІРИ ВСІЄЇ КАРТКИ:
+					width: stretch
+						? '100%'
+						: isMain
+							? '270px'
+							: isHistory
+								? '150px'
+								: '485px',
+					minWidth: stretch ? 0 : undefined,
+					height: isMain ? '550px' : isHistory ? '215px' : '785px',
+					flex: stretch
+						? '0 0 auto'
+						: isMain
+							? '0 0 270px'
+							: isHistory
+								? '0 0 140px'
+								: '0 0 156px',
+					p: isMain ? '10px' : isHistory ? '5px' : '10px',
 					display: 'flex',
 					flexDirection: 'column',
-					gap: isMain ? '5px' : isHistory ? '2px' : '5px',
-					flex: '0 0 auto',
+					gap: isMain ? '8px' : isHistory ? '3px' : '8px',
+					borderRadius: isMain ? '20px' : isHistory ? '10px' : '20px',
+					border: '1px solid var(--card-border)',
+					bgcolor: 'var(--card-bg)',
+					textDecoration: 'none',
+					overflow: 'hidden',
+					cursor: 'pointer',
+					transition: 'none',
+					'&:hover': {
+						boxShadow: 'none',
+						borderColor: 'var(--card-border)',
+						transform: 'none',
+					},
 				}}
 			>
-				{renderName()}
-				{renderRating()}
-				{renderActions()}
-				{renderAvailability()}
+				{renderImage()}
+
+				{/* Верхній текстово-інформаційний блок */}
+				<Box
+					sx={{
+						display: 'flex',
+						flexDirection: 'column',
+						gap: isMain ? '5px' : isHistory ? '2px' : '5px',
+						flex: '0 0 auto',
+					}}
+				>
+					{renderName()}
+					{renderRating()}
+					{renderActions()}
+					{renderAvailability()}
+				</Box>
+
+				{/* Ціна, персональна ціна, бонуси */}
+				{renderPriceArea()}
+
+				{/* Гнучкий відступ, який тримає кнопку внизу */}
+				<Box sx={{ flex: 1 }} />
+
+				{/* Нижня кнопка або “Товар закінчився” */}
+				{renderBottomAction()}
 			</Box>
 
-			{/* Ціна, персональна ціна, бонуси */}
-			{renderPriceArea()}
-
-			{/* Гнучкий відступ, який тримає кнопку внизу */}
-			<Box sx={{ flex: 1 }} />
-
-			{/* Нижня кнопка або “Товар закінчився” */}
-			{renderBottomAction()}
-		</Box>
+			<WishlistSelectDialog
+				open={wishlistDialogOpen}
+				token={token}
+				productId={product.id}
+				mode='manage'
+				onClose={() => setWishlistDialogOpen(false)}
+				onSuccess={({ isFavorite }) => {
+					syncFavoriteState(isFavorite)
+				}}
+			/>
+		</>
 	)
 }
 
