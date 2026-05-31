@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { WishlistService } from './wishlists.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateWishlistDto, AddToWishlistDto } from './wishlists.dto';
+import { CreateWishlistDto, AddToWishlistDto, MoveWishlistItemDto } from './wishlists.dto';
 import { WishlistLangType } from './wishlists.i18n';
 import { Request } from 'express';
 
@@ -57,6 +57,15 @@ export class WishlistController {
     @Query('lang') lang: WishlistLangType = 'ua',
   ) {
     return await this.wishlistService.addItem(req.user.userId, id, dto, lang);
+  }
+
+  @Patch('items/move')
+  async moveItem(
+    @Req() req: RequestWithUser,
+    @Body() dto: MoveWishlistItemDto,
+    @Query('lang') lang: WishlistLangType = 'ua',
+  ) {
+    return await this.wishlistService.moveItem(req.user.userId, dto, lang);
   }
 
   @Patch(':id')
