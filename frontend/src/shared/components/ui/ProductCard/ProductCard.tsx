@@ -1224,7 +1224,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 								? '150px'
 								: '485px',
 					minWidth: stretch ? 0 : undefined,
-					height: isMain ? '550px' : isHistory ? '215px' : '785px',
+					height: isMain ? '550px' : isHistory ? '225px' : '785px',
 					flex: stretch
 						? '0 0 auto'
 						: isMain

@@ -1,30 +1,194 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import SearchIcon from '@mui/icons-material/Search'
 import { Box, Button, TextField, ClickAwayListener } from '@mui/material'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/routing'
-import { AppSearchDropdown, ProductPreview } from './AppSearchDropdown'
+import { useAuthStore } from '@/entities/user/model/store'
+import {
+	AppSearchDropdown,
+	ProductPreview,
+	ViewedProductPreview,
+} from './AppSearchDropdown'
+
+type SearchApiReview = {
+	id?: string | number
+	type?: string
+	rating?: number | string | null
+}
+
+type SearchApiProduct = {
+	id: string | number
+	name?: string | { ua?: string; en?: string }
+	slug?: string
+	price?: number | string | null
+	oldPrice?: number | string | null
+	stock?: number | string | null
+	images?: string[] | null
+	rating?: number | string | null
+	reviewsCount?: number | string | null
+	reviews?: SearchApiReview[]
+	category?: {
+		id?: string
+		slug?: string
+		name?: string | { ua?: string; en?: string }
+	}
+	catalog?: {
+		id?: string
+		slug?: string
+		name?: string | { ua?: string; en?: string }
+	}
+}
+
+type ViewedProductApiItem =
+	| SearchApiProduct
+	| {
+			id?: string | number
+			viewedAt?: string
+			product: SearchApiProduct | null
+	  }
+
+type SearchResolveResponse = {
+	href?: string
+	productsCount?: number
+	totalMatches?: number
+}
+
+const SEARCH_HISTORY_STORAGE_KEY = 'nextronic_search_history'
+const SEARCH_HISTORY_LIMIT = 15
+const VIEWED_PRODUCTS_LIMIT = 3
+
+const getLocalizedName = (
+	value: SearchApiProduct['name'],
+	locale: 'ua' | 'en',
+) => {
+	if (!value) return 'Unknown Product'
+	if (typeof value === 'string') return value
+
+	return value[locale] || value.ua || value.en || 'Unknown Product'
+}
+
+const toNumber = (value: unknown, fallback = 0) => {
+	const numericValue = Number(value)
+	return Number.isFinite(numericValue) ? numericValue : fallback
+}
+
+const getProductFromViewedItem = (
+	item: ViewedProductApiItem,
+): SearchApiProduct | null => {
+	if ('product' in item) return item.product || null
+	return item
+}
+
+const getReviewStats = (product: SearchApiProduct) => {
+	const explicitRating = toNumber(product.rating, NaN)
+	const explicitReviewsCount = toNumber(product.reviewsCount, NaN)
+
+	if (
+		Number.isFinite(explicitRating) &&
+		Number.isFinite(explicitReviewsCount)
+	) {
+		return {
+			rating: explicitRating,
+			reviewsCount: explicitReviewsCount,
+		}
+	}
+
+	const reviewItems = Array.isArray(product.reviews)
+		? product.reviews.filter(review => review.type === 'review')
+		: []
+	const ratingItems = reviewItems.filter(review => review.rating !== null)
+	const averageRating = ratingItems.length
+		? ratingItems.reduce((sum, review) => sum + toNumber(review.rating), 0) /
+			ratingItems.length
+		: 0
+
+	return {
+		rating: Number.isFinite(explicitRating) ? explicitRating : averageRating,
+		reviewsCount: Number.isFinite(explicitReviewsCount)
+			? explicitReviewsCount
+			: reviewItems.length,
+	}
+}
+
+const mapProductPreview = (
+	item: SearchApiProduct,
+	locale: 'ua' | 'en',
+): ProductPreview => ({
+	id: item.id,
+	name: getLocalizedName(item.name, locale),
+	slug: item.slug,
+	categorySlug: item.category?.slug,
+	catalogSlug: item.catalog?.slug,
+})
+
+const mapViewedProduct = (
+	item: ViewedProductApiItem,
+	locale: 'ua' | 'en',
+): ViewedProductPreview | null => {
+	const product = getProductFromViewedItem(item)
+	if (!product?.id || !product.slug) return null
+
+	const { rating, reviewsCount } = getReviewStats(product)
+
+	return {
+		id: String(product.id),
+		name: product.name || getLocalizedName(product.name, locale),
+		slug: product.slug,
+		price: toNumber(product.price),
+		oldPrice:
+			product.oldPrice === null || product.oldPrice === undefined
+				? null
+				: toNumber(product.oldPrice),
+		stock: toNumber(product.stock),
+		images: Array.isArray(product.images) ? product.images : [],
+		rating,
+		reviewsCount,
+		category: product.category?.id
+			? {
+					id: product.category.id,
+					name: product.category.name || '',
+				}
+			: undefined,
+	}
+}
+
+const normalizeHistory = (value: unknown): string[] => {
+	if (!Array.isArray(value)) return []
+
+	return value
+		.map(item => (typeof item === 'string' ? item.trim() : ''))
+		.filter(Boolean)
+		.slice(0, SEARCH_HISTORY_LIMIT)
+}
 
 export const AppSearch = () => {
 	const t = useTranslations('AppSearch')
 	const locale = useLocale() as 'ua' | 'en'
 	const router = useRouter()
+	const authToken = useAuthStore(state => state.token)
 
 	const [searchHistory, setSearchHistory] = useState<string[]>([])
 	const [inputValue, setInputValue] = useState('')
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 	const [foundProducts, setFoundProducts] = useState<ProductPreview[]>([])
-	const [viewedProducts, setViewedProducts] = useState<ProductPreview[]>([])
+	const [viewedProducts, setViewedProducts] = useState<ViewedProductPreview[]>(
+		[],
+	)
+	const [userBonuses, setUserBonuses] = useState(0)
 
 	useEffect(() => {
-		const savedHistory = localStorage.getItem('nextronic_search_history')
+		const savedHistory = localStorage.getItem(SEARCH_HISTORY_STORAGE_KEY)
 		if (savedHistory) {
-			const parsedHistory = JSON.parse(savedHistory)
-			const frame = requestAnimationFrame(() => {
-				setSearchHistory(parsedHistory)
-			})
-			return () => cancelAnimationFrame(frame)
+			try {
+				const parsedHistory = JSON.parse(savedHistory)
+				const frame = requestAnimationFrame(() => {
+					setSearchHistory(normalizeHistory(parsedHistory))
+				})
+				return () => cancelAnimationFrame(frame)
+			} catch {
+				localStorage.removeItem(SEARCH_HISTORY_STORAGE_KEY)
+			}
 		}
 	}, [])
 
@@ -32,34 +196,89 @@ export const AppSearch = () => {
 		const fetchViewedProducts = async () => {
 			try {
 				const apiUrl = process.env.NEXT_PUBLIC_API_URL
-				const token = localStorage.getItem('token')
+				const token = authToken || localStorage.getItem('token')
 
-				if (!token) return
-
-				const res = await fetch(`${apiUrl}/products/history/recent`, {
-					headers: {
-						Authorization: `Bearer ${token}`,
-					},
-				})
-
-				if (res.ok) {
-					const data = await res.json()
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const mappedData = data.map((item: any) => ({
-						id: item.id,
-						name: item.name[locale] || item.name.ua || 'Unknown Product',
-					}))
-
-					setViewedProducts(mappedData)
+				if (!apiUrl || !token) {
+					setViewedProducts([])
+					return
 				}
+
+				const res = await fetch(
+					`${apiUrl}/products/history/recent?limit=${VIEWED_PRODUCTS_LIMIT}`,
+					{
+						headers: {
+							Authorization: `Bearer ${token}`,
+						},
+					},
+				)
+
+				if (!res.ok) {
+					setViewedProducts([])
+					return
+				}
+
+				const data = (await res.json()) as
+					| ViewedProductApiItem[]
+					| { items?: ViewedProductApiItem[] }
+				const items = Array.isArray(data) ? data : data.items || []
+				const mappedData = items
+					.map(item => mapViewedProduct(item, locale))
+					.filter((item): item is ViewedProductPreview => Boolean(item))
+					.slice(0, VIEWED_PRODUCTS_LIMIT)
+
+				setViewedProducts(mappedData)
 			} catch (error) {
 				console.error('Failed to fetch viewed products:', error)
+				setViewedProducts([])
 			}
 		}
-		fetchViewedProducts()
-	}, [locale])
 
-	// Живий пошук по БД з debounce
+		void fetchViewedProducts()
+	}, [authToken, locale])
+
+	useEffect(() => {
+		let isCancelled = false
+
+		const fetchUserBonuses = async () => {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL
+			const token = authToken || localStorage.getItem('token')
+
+			if (!apiUrl || !token) {
+				setUserBonuses(0)
+				return
+			}
+
+			try {
+				const response = await fetch(`${apiUrl}/bonus/balance`, {
+					headers: { Authorization: `Bearer ${token}` },
+				})
+
+				if (!response.ok) throw new Error('Failed to load bonus balance')
+
+				const payload: unknown = await response.json()
+				const balance =
+					typeof payload === 'number'
+						? payload
+						: payload && typeof payload === 'object' && 'balance' in payload
+							? Number((payload as { balance?: unknown }).balance)
+							: Number(payload)
+
+				if (!isCancelled) {
+					setUserBonuses(Number.isFinite(balance) ? balance : 0)
+				}
+			} catch (error) {
+				console.error('Bonus balance loading error:', error)
+				if (!isCancelled) setUserBonuses(0)
+			}
+		}
+
+		void fetchUserBonuses()
+
+		return () => {
+			isCancelled = true
+		}
+	}, [authToken])
+
 	useEffect(() => {
 		const delayDebounceFn = setTimeout(async () => {
 			if (inputValue.trim().length >= 3) {
@@ -70,13 +289,8 @@ export const AppSearch = () => {
 					)
 
 					if (res.ok) {
-						const data = await res.json()
-
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const mappedData = data.map((item: any) => ({
-							id: item.id,
-							name: item.name[locale] || item.name.ua || 'Unknown Product',
-						}))
+						const data = (await res.json()) as SearchApiProduct[]
+						const mappedData = data.map(item => mapProductPreview(item, locale))
 
 						setFoundProducts(mappedData)
 					} else {
@@ -94,36 +308,77 @@ export const AppSearch = () => {
 		return () => clearTimeout(delayDebounceFn)
 	}, [inputValue, locale])
 
-	const handleSearch = (e?: React.FormEvent, value?: string) => {
-		if (e) e.preventDefault()
-		const query = value || inputValue
-		if (!query.trim()) return
+	const saveSearchHistory = useCallback(
+		(query: string) => {
+			const normalizedQuery = query.trim()
+			if (!normalizedQuery) return
 
-		const newHistory = [
-			query,
-			...searchHistory.filter(item => item !== query),
-		].slice(0, 15)
-		setSearchHistory(newHistory)
-		localStorage.setItem('nextronic_search_history', JSON.stringify(newHistory))
+			const newHistory = [
+				normalizedQuery,
+				...searchHistory.filter(item => item !== normalizedQuery),
+			].slice(0, SEARCH_HISTORY_LIMIT)
 
-		if (foundProducts.length === 0 || query.trim().length < 3) {
-			setIsDropdownOpen(true)
-			return
-		}
+			setSearchHistory(newHistory)
+			localStorage.setItem(
+				SEARCH_HISTORY_STORAGE_KEY,
+				JSON.stringify(newHistory),
+			)
+		},
+		[searchHistory],
+	)
 
-		setIsDropdownOpen(false)
-		router.push(`/search?q=${encodeURIComponent(query)}`)
+	const navigateToSearchResults = useCallback(
+		async (query: string) => {
+			const normalizedQuery = query.trim()
+
+			if (normalizedQuery.length < 3) return
+
+			saveSearchHistory(normalizedQuery)
+
+			try {
+				const apiUrl = process.env.NEXT_PUBLIC_API_URL
+				const response = await fetch(
+					`${apiUrl}/products/search/resolve?q=${encodeURIComponent(
+						normalizedQuery,
+					)}&lang=${locale}`,
+				)
+
+				if (response.ok) {
+					const payload = (await response.json()) as SearchResolveResponse
+
+					if (payload.href && (payload.productsCount || payload.totalMatches)) {
+						setIsDropdownOpen(false)
+						router.push(payload.href)
+						return
+					}
+				}
+			} catch (error) {
+				console.error('Search navigation resolve error:', error)
+			}
+
+			setIsDropdownOpen(false)
+			router.push(`/search?q=${encodeURIComponent(normalizedQuery)}`)
+		},
+		[locale, router, saveSearchHistory],
+	)
+
+	const handleSearch = (event?: React.FormEvent) => {
+		if (event) event.preventDefault()
+
+		if (inputValue.trim().length < 3) return
+
+		void navigateToSearchResults(inputValue)
 	}
 
 	const handleClearHistory = () => {
 		setSearchHistory([])
-		localStorage.removeItem('nextronic_search_history')
+		localStorage.removeItem(SEARCH_HISTORY_STORAGE_KEY)
 	}
 
 	const handleRemoveHistoryItem = (itemToRemove: string) => {
 		const newHistory = searchHistory.filter(item => item !== itemToRemove)
 		setSearchHistory(newHistory)
-		localStorage.setItem('nextronic_search_history', JSON.stringify(newHistory))
+		localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(newHistory))
 	}
 
 	return (
@@ -245,12 +500,13 @@ export const AppSearch = () => {
 					searchHistory={searchHistory}
 					onClearHistory={handleClearHistory}
 					onRemoveHistoryItem={handleRemoveHistoryItem}
-					onSelectHistory={q => {
-						setInputValue(q)
-						handleSearch(undefined, q)
+					onSelectHistory={query => {
+						setInputValue(query)
+						void navigateToSearchResults(query)
 					}}
 					viewedProducts={viewedProducts}
 					foundProducts={foundProducts}
+					userBonuses={userBonuses}
 				/>
 			</Box>
 		</ClickAwayListener>
