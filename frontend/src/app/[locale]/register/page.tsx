@@ -1,11 +1,53 @@
 'use client'
+
 import React, { useState } from 'react'
-import { Box, Button, TextField, Typography, Divider } from '@mui/material'
+import {
+	Box,
+	Button,
+	TextField,
+	Typography,
+	Divider,
+	InputAdornment,
+} from '@mui/material'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/routing'
 import { useAuthStore } from '@/entities/user/model/store'
 import Image from 'next/image'
 import { GoogleIcon } from '@/shared/components/ui/icons/GoogleIcon'
+import { UA } from 'country-flag-icons/react/3x2'
+
+const formatPhoneInput = (input: string) => {
+	const digits = input.replace(/\D/g, '')
+
+	let coreDigits = digits
+	if (digits.startsWith('380')) {
+		coreDigits = digits.slice(3)
+	} else if (digits.startsWith('38')) {
+		coreDigits = digits.slice(2)
+	}
+
+	if (coreDigits.startsWith('0')) {
+		coreDigits = coreDigits.slice(1)
+	}
+
+	coreDigits = coreDigits.substring(0, 9)
+
+	let formatted = '+38 (0'
+	if (coreDigits.length > 0) formatted += coreDigits.substring(0, 2)
+	if (coreDigits.length >= 3) formatted += `) ${coreDigits.substring(2, 5)}`
+	if (coreDigits.length >= 6) formatted += `-${coreDigits.substring(5, 7)}`
+	if (coreDigits.length >= 8) formatted += `-${coreDigits.substring(7, 9)}`
+
+	return formatted
+}
+
+const getErrorMessage = (value: unknown, fallback: string) => {
+	if (!value) return fallback
+	if (Array.isArray(value)) return value.join(' ')
+	if (typeof value === 'string') return value
+
+	return fallback
+}
 
 export default function RegisterPage() {
 	const t = useTranslations('RegisterPage')
@@ -14,7 +56,7 @@ export default function RegisterPage() {
 
 	const [firstName, setFirstName] = useState('')
 	const [lastName, setLastName] = useState('')
-	const [phone, setPhone] = useState('')
+	const [phone, setPhone] = useState('+38 (0')
 	const [email, setEmail] = useState('')
 	const [password, setPassword] = useState('')
 
@@ -29,10 +71,10 @@ export default function RegisterPage() {
 		try {
 			const apiUrl = process.env.NEXT_PUBLIC_API_URL
 			const payload = {
-				firstName,
-				lastName,
+				firstName: firstName.trim(),
+				lastName: lastName.trim(),
 				phone,
-				email,
+				email: email.trim().toLowerCase(),
 				password,
 			}
 
@@ -44,17 +86,16 @@ export default function RegisterPage() {
 
 			if (res.ok) {
 				const data = await res.json()
-				// Якщо бекенд при реєстрації одразу повертає токен і юзера:
+
 				if (data.access_token && data.user) {
 					setAuth(data.user, data.access_token)
 					router.push('/profile')
 				} else {
-					// Якщо потрібно окремо логінитися після реєстрації
 					router.push('/login')
 				}
 			} else {
 				const errData = await res.json()
-				setError(errData.message || 'Помилка реєстрації')
+				setError(getErrorMessage(errData.message, 'Помилка реєстрації'))
 			}
 		} catch (err) {
 			console.error('Register error:', err)
@@ -90,6 +131,14 @@ export default function RegisterPage() {
 		},
 		'& .MuiInputBase-input': {
 			color: '#6D28D9',
+		},
+	}
+
+	const phoneInputStyles = {
+		...inputStyles,
+		'& .MuiInputBase-input': {
+			color: '#6D28D9',
+			paddingLeft: '4px',
 		},
 	}
 
@@ -162,10 +211,25 @@ export default function RegisterPage() {
 						label={t('phone')}
 						type='tel'
 						value={phone}
-						onChange={e => setPhone(e.target.value)}
+						onChange={e => setPhone(formatPhoneInput(e.target.value))}
 						required
 						autoComplete='tel'
-						sx={inputStyles}
+						sx={phoneInputStyles}
+						slotProps={{
+							input: {
+								startAdornment: (
+									<InputAdornment position='start' sx={{ ml: 0.5, mr: '4px' }}>
+										<UA
+											style={{
+												width: '20px',
+												borderRadius: '2px',
+												display: 'block',
+											}}
+										/>
+									</InputAdornment>
+								),
+							},
+						}}
 					/>
 
 					<TextField
@@ -223,7 +287,7 @@ export default function RegisterPage() {
 						fontWeight: 500,
 						'&::before, &::after': {
 							borderTop: 'none',
-							height: '2px',
+							height: '1px',
 							backgroundColor: '#4E525C',
 							borderRadius: '99px',
 						},

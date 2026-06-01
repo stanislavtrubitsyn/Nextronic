@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AUTH_I18N, AuthLangType } from './auth.i18n';
+import { LoginDto, RegisterDto } from './auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -11,20 +12,39 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(email: string, password: string) {
-    const user = await this.usersService.create(email, password);
+  async register(data: RegisterDto, lang: AuthLangType = 'ua') {
+    const phone = this.normalizePhone(data.phone);
+
+    const user = await this.usersService.create(
+      data.email.trim().toLowerCase(),
+      data.password,
+      undefined,
+      phone,
+      lang,
+      {
+        firstName: data.firstName?.trim() || undefined,
+        lastName: data.lastName?.trim() || undefined,
+      },
+    );
+
     return this.generateToken(user);
   }
 
-  async login(identifier: string, pass: string, lang: AuthLangType = 'ua') {
-    const user = await this.usersService.findByIdentifier(identifier);
+  async login(data: LoginDto, lang: AuthLangType = 'ua') {
+    const identifier = data.email?.trim().toLowerCase() || this.normalizePhone(data.phone);
     const t = AUTH_I18N[lang];
+
+    if (!identifier) {
+      throw new BadRequestException(t.invalidAuth);
+    }
+
+    const user = await this.usersService.findByIdentifier(identifier);
 
     if (!user || !user.password) {
       throw new UnauthorizedException(t.invalidAuth);
     }
 
-    const isMatch = await bcrypt.compare(pass, user.password);
+    const isMatch = await bcrypt.compare(data.password, user.password);
     if (!isMatch) {
       throw new UnauthorizedException(t.invalidAuth);
     }
@@ -45,6 +65,31 @@ export class AuthService {
     const user = await this.usersService.findOrCreateGoogleUser(googleUser);
 
     return this.generateToken(user);
+  }
+
+  private normalizePhone(phone?: string): string | undefined {
+    if (!phone) return undefined;
+
+    const digits = phone.replace(/\D/g, '');
+    if (!digits) return undefined;
+
+    if (digits.startsWith('380') && digits.length >= 12) {
+      return `+${digits.slice(0, 12)}`;
+    }
+
+    if (digits.startsWith('0') && digits.length >= 10) {
+      return `+38${digits.slice(0, 10)}`;
+    }
+
+    if (digits.length === 9) {
+      return `+380${digits}`;
+    }
+
+    if (digits.startsWith('38') && digits.length >= 12) {
+      return `+${digits.slice(0, 12)}`;
+    }
+
+    return `+${digits}`;
   }
 
   private generateToken(user: any) {
