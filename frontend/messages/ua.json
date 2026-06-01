@@ -780,6 +780,129 @@
 				"ua": "(копія)",
 				"en": "(copy)"
 			}
+		},
+		"orders": {
+			"title": "Замовлення",
+			"searchPlaceholder": "Пошук",
+			"unknownProduct": "Товар без назви",
+			"emptyValue": "Не вказано",
+			"moreProducts": "{count} товарів у замовленні",
+			"estimatedDelivery": "Планова видача",
+			"notFound": "Замовлення не знайдено",
+			"columns": {
+				"index": "№",
+				"products": "Товари",
+				"orderNumber": "Номер",
+				"amount": "Сума",
+				"recipient": "Отримувач",
+				"delivery": "Доставка",
+				"payment": "Оплата",
+				"createdAt": "Дата створення",
+				"status": "Статус",
+				"actions": "Дії"
+			},
+			"statusFilters": {
+				"all": "Всі",
+				"pending": "Очікує",
+				"processing": "Комплектується",
+				"confirmed": "Підтверджено",
+				"shipped": "Доставляється",
+				"delivered": "Отримане",
+				"cancelled": "Скасовано"
+			},
+			"statuses": {
+				"pending": "Очікує",
+				"processing": "Комплектується",
+				"confirmed": "Підтверджено",
+				"shipped": "Доставляється",
+				"delivered": "Отримане",
+				"cancelled": "Скасовано"
+			},
+			"paymentMethods": {
+				"cash": "Готівка / післяплата",
+				"card": "Банківська картка"
+			},
+			"paymentStatus": {
+				"paid": "Оплачено",
+				"unpaid": "Не оплачено"
+			},
+			"actions": {
+				"confirm": "Підтвердити",
+				"cancel": "Скасувати замовлення",
+				"changeStatus": "Змінити статус",
+				"editDetails": "Редагувати дані",
+				"delete": "Видалити"
+			},
+			"sort": {
+				"button": "За статусом",
+				"date-desc": "Нові спочатку",
+				"date-asc": "Старі спочатку",
+				"amount-desc": "Сума: від більшої",
+				"amount-asc": "Сума: від меншої",
+				"status-asc": "Статус: А-Я",
+				"status-desc": "Статус: Я-А",
+				"orderNumber-desc": "Номер: від більшого",
+				"orderNumber-asc": "Номер: від меншого",
+				"customer-asc": "Отримувач: А-Я",
+				"customer-desc": "Отримувач: Я-А"
+			},
+			"form": {
+				"customerName": "ПІБ отримувача",
+				"customerPhone": "Телефон отримувача",
+				"shippingAddress": "Адреса доставки",
+				"paymentMethod": "Спосіб оплати",
+				"isPaid": "Статус оплати",
+				"paymentProvider": "Платіжний провайдер",
+				"paymentStatus": "Статус платежу",
+				"paymentTransactionId": "ID транзакції / інвойсу",
+				"liqpayOrderId": "ID LiqPay / Mono",
+				"estimatedDeliveryDate": "Планова дата видачі",
+				"deliveryDate": "Дата доставки"
+			},
+			"modals": {
+				"statusTitle": "Зміна статусу замовлення",
+				"statusField": "Статус",
+				"detailsTitle": "Редагування даних замовлення",
+				"cancelOrderTitle": "Скасування замовлення",
+				"cancelOrderMessage": "Ви впевнені, що хочете скасувати замовлення №{orderNumber}?",
+				"deleteTitle": "Видалення замовлення",
+				"deleteMessage": "Ви впевнені, що хочете видалити замовлення №{orderNumber}? Цю дію неможливо скасувати.",
+				"cancel": "Скасувати",
+				"confirm": "Підтвердити",
+				"save": "Зберегти",
+				"delete": "Видалити"
+			},
+			"pagination": {
+				"showMore": "Показати ще",
+				"showLess": "Приховати",
+				"previous": "Назад",
+				"next": "Вперед"
+			},
+			"errors": {
+				"load": "Помилка завантаження замовлень",
+				"update": "Помилка оновлення замовлення",
+				"updateStatus": "Помилка зміни статусу",
+				"delete": "Помилка видалення замовлення",
+				"generic": "Сталася помилка"
+			},
+			"notifications": {
+				"statusUpdated": "Статус замовлення оновлено",
+				"detailsUpdated": "Дані замовлення оновлено",
+				"deleted": "Замовлення видалено"
+			},
+			"amountDetails": {
+				"base": "Стара сума",
+				"discount": "Знижка",
+				"bonuses": "Списано бонусів",
+				"total": "До сплати"
+			},
+			"paymentProviders": {
+				"none": "Не вказано",
+				"liqpay": "LiqPay",
+				"monobank": "Monobank",
+				"mono": "MonoPay",
+				"manual": "Ручна оплата"
+			}
 		}
 	},
 	"CatalogOverviewPage": {

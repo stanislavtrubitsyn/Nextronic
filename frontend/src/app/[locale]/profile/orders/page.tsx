@@ -830,8 +830,19 @@ const buildTimelineDates = (order: OrderData) => {
 		dates.confirmed = order.paidAt as string
 	}
 
+	if (dates.shipped) {
+		if (!dates.processing) dates.processing = dates.shipped
+		if (!dates.delivering) dates.delivering = dates.shipped
+	}
+
 	if (!dates.delivered && isValidDate(order.deliveryDate)) {
 		dates.delivered = order.deliveryDate as string
+	}
+
+	if (dates.delivered) {
+		if (!dates.processing) dates.processing = dates.delivered
+		if (!dates.shipped) dates.shipped = dates.delivered
+		if (!dates.delivering) dates.delivering = dates.delivered
 	}
 
 	if (!dates.received && isValidDate(order.deliveryDate)) {

@@ -777,6 +777,129 @@
 				"ua": "(копія)",
 				"en": "(copy)"
 			}
+		},
+		"orders": {
+			"title": "Orders",
+			"searchPlaceholder": "Search",
+			"unknownProduct": "Unnamed product",
+			"emptyValue": "Not specified",
+			"moreProducts": "{count} products in order",
+			"estimatedDelivery": "Estimated pickup",
+			"notFound": "No orders found",
+			"columns": {
+				"index": "No.",
+				"products": "Products",
+				"orderNumber": "Number",
+				"amount": "Amount",
+				"recipient": "Recipient",
+				"delivery": "Delivery",
+				"payment": "Payment",
+				"createdAt": "Created at",
+				"status": "Status",
+				"actions": "Actions"
+			},
+			"statusFilters": {
+				"all": "All",
+				"pending": "Pending",
+				"processing": "Packing",
+				"confirmed": "Confirmed",
+				"shipped": "In delivery",
+				"delivered": "Received",
+				"cancelled": "Cancelled"
+			},
+			"statuses": {
+				"pending": "Pending",
+				"processing": "Packing",
+				"confirmed": "Confirmed",
+				"shipped": "In delivery",
+				"delivered": "Received",
+				"cancelled": "Cancelled"
+			},
+			"paymentMethods": {
+				"cash": "Cash / COD",
+				"card": "Bank card"
+			},
+			"paymentStatus": {
+				"paid": "Paid",
+				"unpaid": "Unpaid"
+			},
+			"actions": {
+				"confirm": "Confirm",
+				"cancel": "Cancel order",
+				"changeStatus": "Change status",
+				"editDetails": "Edit details",
+				"delete": "Delete"
+			},
+			"sort": {
+				"button": "By status",
+				"date-desc": "Newest first",
+				"date-asc": "Oldest first",
+				"amount-desc": "Amount: high to low",
+				"amount-asc": "Amount: low to high",
+				"status-asc": "Status: A-Z",
+				"status-desc": "Status: Z-A",
+				"orderNumber-desc": "Number: high to low",
+				"orderNumber-asc": "Number: low to high",
+				"customer-asc": "Recipient: A-Z",
+				"customer-desc": "Recipient: Z-A"
+			},
+			"form": {
+				"customerName": "Recipient full name",
+				"customerPhone": "Recipient phone",
+				"shippingAddress": "Delivery address",
+				"paymentMethod": "Payment method",
+				"isPaid": "Payment status",
+				"paymentProvider": "Payment provider",
+				"paymentStatus": "Payment status text",
+				"paymentTransactionId": "Transaction / invoice ID",
+				"liqpayOrderId": "LiqPay / Mono ID",
+				"estimatedDeliveryDate": "Estimated pickup date",
+				"deliveryDate": "Delivery date"
+			},
+			"modals": {
+				"statusTitle": "Change order status",
+				"statusField": "Status",
+				"detailsTitle": "Edit order details",
+				"cancelOrderTitle": "Cancel order",
+				"cancelOrderMessage": "Are you sure you want to cancel order No. {orderNumber}?",
+				"deleteTitle": "Delete order",
+				"deleteMessage": "Are you sure you want to delete order No. {orderNumber}? This action cannot be undone.",
+				"cancel": "Cancel",
+				"confirm": "Confirm",
+				"save": "Save",
+				"delete": "Delete"
+			},
+			"pagination": {
+				"showMore": "Show more",
+				"showLess": "Show less",
+				"previous": "Back",
+				"next": "Next"
+			},
+			"errors": {
+				"load": "Error loading orders",
+				"update": "Error updating order",
+				"updateStatus": "Error changing status",
+				"delete": "Error deleting order",
+				"generic": "Something went wrong"
+			},
+			"notifications": {
+				"statusUpdated": "Order status updated",
+				"detailsUpdated": "Order details updated",
+				"deleted": "Order deleted"
+			},
+			"amountDetails": {
+				"base": "Original amount",
+				"discount": "Discount",
+				"bonuses": "Bonuses used",
+				"total": "Total"
+			},
+			"paymentProviders": {
+				"none": "Not specified",
+				"liqpay": "LiqPay",
+				"monobank": "Monobank",
+				"mono": "MonoPay",
+				"manual": "Manual payment"
+			}
 		}
 	},
 	"CatalogOverviewPage": {
