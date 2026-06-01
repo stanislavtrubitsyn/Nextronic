@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
+import { OWNER_ROLES } from '../auth/role-groups';
 import { AdminAddBonusDto, AdminSubtractBonusDto } from './bonus.dto';
 
 interface RequestWithUser extends Request {
@@ -30,14 +31,14 @@ export class BonusController {
 
   @Post('add')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(...OWNER_ROLES)
   async adminAdd(@Body() dto: AdminAddBonusDto) {
     return await this.bonusService.adminAddBonus(dto);
   }
 
   @Post('subtract')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(...OWNER_ROLES)
   async adminSubtract(@Body() dto: AdminSubtractBonusDto) {
     return await this.bonusService.adminSubtractBonus(dto);
   }

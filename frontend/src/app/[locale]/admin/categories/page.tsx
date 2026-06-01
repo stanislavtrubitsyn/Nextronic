@@ -129,7 +129,11 @@ export default function AdminCategoriesPage() {
 
 	useEffect(() => {
 		if (!token) return router.push('/login')
-		if (currentUser?.role !== 'admin' && currentUser?.role !== 'moderator')
+		if (
+			currentUser?.role !== 'owner' &&
+			currentUser?.role !== 'admin' &&
+			currentUser?.role !== 'moderator'
+		)
 			return router.push('/')
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		fetchInitialData()

@@ -121,7 +121,11 @@ export default function AdminCatalogsPage() {
 			router.push('/login')
 			return
 		}
-		if (currentUser?.role !== 'admin' && currentUser?.role !== 'moderator') {
+		if (
+			currentUser?.role !== 'owner' &&
+			currentUser?.role !== 'admin' &&
+			currentUser?.role !== 'moderator'
+		) {
 			router.push('/')
 			return
 		}

@@ -41,7 +41,7 @@ interface User {
 	id: string
 	email: string
 	phone?: string
-	role: 'admin' | 'moderator' | 'user'
+	role: 'owner' | 'admin' | 'moderator' | 'user'
 	isBlocked: boolean
 	createdAt: string
 	assignedAt?: string
@@ -126,7 +126,7 @@ export default function AdminModeratorsPage() {
 			router.push('/login')
 			return
 		}
-		if (currentUser?.role !== 'admin' && currentUser?.role !== 'moderator') {
+		if (currentUser?.role !== 'owner' && currentUser?.role !== 'admin') {
 			router.push('/')
 			return
 		}
@@ -831,7 +831,12 @@ export default function AdminModeratorsPage() {
 					},
 				]}
 			>
-				<UserForm formData={formData} setFormData={setFormData} mode='create' />
+				<UserForm
+					formData={formData}
+					setFormData={setFormData}
+					mode='create'
+					allowedRoles={['moderator']}
+				/>
 			</AppModal>
 
 			{/* Модалка редагування */}
@@ -859,7 +864,12 @@ export default function AdminModeratorsPage() {
 					},
 				]}
 			>
-				<UserForm formData={formData} setFormData={setFormData} mode='edit' />
+				<UserForm
+					formData={formData}
+					setFormData={setFormData}
+					mode='edit'
+					allowedRoles={['moderator']}
+				/>
 			</AppModal>
 
 			{/* Модалка блокування/розблокування */}

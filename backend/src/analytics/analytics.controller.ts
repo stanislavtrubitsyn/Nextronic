@@ -3,7 +3,7 @@ import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/users.entity';
+import { OWNER_ADMIN_ROLES } from '../auth/role-groups';
 
 @Controller('admin/analytics')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -11,7 +11,7 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Get('dashboard')
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...OWNER_ADMIN_ROLES)
   async getDashboard(
     @Query('period') period?: '24h' | 'week' | 'month' | 'year' | 'all' | 'custom',
     @Query('startDate') startDate?: string,

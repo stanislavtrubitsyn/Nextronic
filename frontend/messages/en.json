@@ -172,6 +172,7 @@
 			"client": "Client",
 			"admin": "Administrator",
 			"moderator": "Moderator",
+			"owner": "Owner",
 			"phoneLabel": "Phone number:",
 			"emailLabel": "E-mail:",
 			"bonusBalance": "On bonus account:",
@@ -455,7 +456,8 @@
 			"roles": {
 				"admin": "Administrator",
 				"moderator": "Moderator",
-				"user": "User"
+				"user": "User",
+				"owner": "Owner"
 			},
 			"status": {
 				"active": "Active",
@@ -517,7 +519,8 @@
 			"roles": {
 				"admin": "Administrator",
 				"moderator": "Moderator",
-				"user": "User"
+				"user": "User",
+				"owner": "Owner"
 			},
 			"status": {
 				"active": "Active",
@@ -577,7 +580,8 @@
 			"roles": {
 				"admin": "Administrator",
 				"moderator": "Moderator",
-				"user": "User"
+				"user": "User",
+				"owner": "Owner"
 			},
 			"status": {
 				"active": "Active",
@@ -938,7 +942,8 @@
 		"roles": {
 			"user": "User",
 			"moderator": "Moderator",
-			"admin": "Administrator"
+			"admin": "Administrator",
+			"owner": "Owner"
 		}
 	},
 	"CatalogForm": {

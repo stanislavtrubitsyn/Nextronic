@@ -16,6 +16,8 @@ import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownR
 import { useTranslations } from 'next-intl'
 import { UA } from 'country-flag-icons/react/3x2'
 
+export type UserRoleOption = 'owner' | 'admin' | 'moderator' | 'user'
+
 export interface UserFormData {
 	email: string
 	password?: string
@@ -24,13 +26,14 @@ export interface UserFormData {
 	middleName: string
 	birthday: string
 	phone: string
-	role: 'admin' | 'moderator' | 'user'
+	role: UserRoleOption
 }
 
 interface UserFormProps {
 	formData: UserFormData
 	setFormData: React.Dispatch<React.SetStateAction<UserFormData>>
 	mode: 'create' | 'edit'
+	allowedRoles?: readonly UserRoleOption[]
 }
 
 const inputStyles = {
@@ -100,6 +103,7 @@ export const UserForm: React.FC<UserFormProps> = ({
 	formData,
 	setFormData,
 	mode,
+	allowedRoles = ['user', 'moderator', 'admin', 'owner'],
 }) => {
 	const t = useTranslations('UserForm')
 
@@ -342,16 +346,18 @@ export const UserForm: React.FC<UserFormProps> = ({
 					onChange={e =>
 						setFormData({
 							...formData,
-							role: e.target.value as 'admin' | 'moderator' | 'user',
+							role: e.target.value as UserRoleOption,
 						})
 					}
 					IconComponent={KeyboardArrowDownRoundedIcon}
 					MenuProps={dropdownMenuProps}
 					sx={{ color: '#6D28D9' }}
 				>
-					<MenuItem value='user'>{t('roles.user')}</MenuItem>
-					<MenuItem value='moderator'>{t('roles.moderator')}</MenuItem>
-					<MenuItem value='admin'>{t('roles.admin')}</MenuItem>
+					{allowedRoles.map(role => (
+						<MenuItem key={role} value={role}>
+							{t(`roles.${role}`)}
+						</MenuItem>
+					))}
 				</Select>
 			</FormControl>
 		</Box>

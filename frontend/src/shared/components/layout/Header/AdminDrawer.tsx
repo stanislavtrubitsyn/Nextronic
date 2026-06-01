@@ -16,6 +16,9 @@ import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded'
 import StoreMallDirectoryRoundedIcon from '@mui/icons-material/StoreMallDirectoryRounded'
 import { useTranslations } from 'next-intl'
 import { useRouter, usePathname } from '@/i18n/routing'
+import { useAuthStore } from '@/entities/user/model/store'
+
+type AdminRole = 'owner' | 'admin' | 'moderator'
 
 interface AdminDrawerProps {
 	onClose: () => void
@@ -25,6 +28,8 @@ export const AdminDrawer = ({ onClose }: AdminDrawerProps) => {
 	const t = useTranslations('Admin.menu')
 	const router = useRouter()
 	const pathname = usePathname()
+	const { user } = useAuthStore()
+	const currentRole = user?.role as AdminRole | undefined
 
 	const menuItems = [
 		{
@@ -32,50 +37,62 @@ export const AdminDrawer = ({ onClose }: AdminDrawerProps) => {
 			label: t('dashboard'),
 			icon: <DashboardIcon />,
 			path: '/admin/dashboard',
+			roles: ['owner', 'admin'] as AdminRole[],
 		},
 		{
 			id: 'administrators',
 			label: t('administrators'),
 			icon: <AdminPanelSettingsIcon />,
 			path: '/admin/administrators',
+			roles: ['owner'] as AdminRole[],
 		},
 		{
 			id: 'moderators',
 			label: t('moderators'),
 			icon: <ModeratIcon />,
 			path: '/admin/moderators',
+			roles: ['owner', 'admin'] as AdminRole[],
 		},
 		{
 			id: 'users',
 			label: t('users'),
 			icon: <PeopleIcon />,
 			path: '/admin/users',
+			roles: ['owner', 'admin'] as AdminRole[],
 		},
 		{
 			id: 'catalog',
 			label: t('catalog'),
 			icon: <StoreMallDirectoryRoundedIcon />,
 			path: '/admin/catalogs',
+			roles: ['owner', 'admin', 'moderator'] as AdminRole[],
 		},
 		{
 			id: 'categories',
 			label: t('categories'),
 			icon: <CategoryIcon />,
 			path: '/admin/categories',
+			roles: ['owner', 'admin', 'moderator'] as AdminRole[],
 		},
 		{
 			id: 'products',
 			label: t('products'),
 			icon: <InventoryIcon />,
 			path: '/admin/products',
+			roles: ['owner', 'admin', 'moderator'] as AdminRole[],
 		},
 		{
 			id: 'orders',
 			label: t('orders'),
 			icon: <ShoppingCartRoundedIcon />,
 			path: '/admin/orders',
+			roles: ['owner', 'admin', 'moderator'] as AdminRole[],
 		},
 	]
+
+	const visibleMenuItems = menuItems.filter(item =>
+		currentRole ? item.roles.includes(currentRole) : false,
+	)
 
 	const handleNavigation = (path: string) => {
 		router.push(path)
@@ -105,7 +122,7 @@ export const AdminDrawer = ({ onClose }: AdminDrawerProps) => {
 					width: '100%',
 				}}
 			>
-				{menuItems.map(item => {
+				{visibleMenuItems.map(item => {
 					// Визначаємо, чи поточний шлях є активним для підсвітки (враховує вкладені роути)
 					const isActive =
 						pathname === item.path || pathname.startsWith(item.path + '/')

@@ -1,4 +1,5 @@
 'use client'
+
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
 	Box,
@@ -37,11 +38,47 @@ import {
 	UserFormData,
 } from '@/shared/components/forms/UserForm/UserForm'
 
+type UserRole = 'owner' | 'admin' | 'moderator' | 'user'
+
+const ROLE_PRIORITY: Record<UserRole, number> = {
+	owner: 4,
+	admin: 3,
+	moderator: 2,
+	user: 1,
+}
+
+const ROLE_OPTIONS: readonly UserRole[] = [
+	'user',
+	'moderator',
+	'admin',
+	'owner',
+]
+
+const getRolePriority = (role?: string | null) => {
+	if (!role) return -1
+
+	return ROLE_PRIORITY[role as UserRole] ?? -1
+}
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+	if (typeof error !== 'object' || error === null || !('message' in error)) {
+		return fallback
+	}
+
+	const message = (error as { message?: string | string[] }).message
+
+	if (Array.isArray(message)) {
+		return message.join(' ')
+	}
+
+	return message || fallback
+}
+
 interface User {
 	id: string
 	email: string
 	phone?: string
-	role: 'admin' | 'moderator' | 'user'
+	role: UserRole
 	isBlocked: boolean
 	createdAt: string
 	profile?: {
@@ -102,11 +139,29 @@ export default function AdminUsersPage() {
 		[],
 	)
 
+	const canManageTargetUser = useCallback(
+		(targetUser: User) => {
+			return (
+				getRolePriority(currentUser?.role) > getRolePriority(targetUser.role)
+			)
+		},
+		[currentUser?.role],
+	)
+
+	const allowedRoles = useMemo(
+		() =>
+			ROLE_OPTIONS.filter(
+				role => getRolePriority(currentUser?.role) > getRolePriority(role),
+			),
+		[currentUser?.role],
+	)
+
 	const fetchUsers = useCallback(async () => {
 		try {
 			const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
 				headers: { Authorization: `Bearer ${token}` },
 			})
+
 			if (res.ok) {
 				const data = await res.json()
 				setUsers(data)
@@ -125,16 +180,19 @@ export default function AdminUsersPage() {
 			router.push('/login')
 			return
 		}
-		if (currentUser?.role !== 'admin' && currentUser?.role !== 'moderator') {
+
+		if (currentUser?.role !== 'owner' && currentUser?.role !== 'admin') {
 			router.push('/')
 			return
 		}
+
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		fetchUsers()
 	}, [token, currentUser, router, fetchUsers])
 
 	const handleCreateUser = async () => {
 		setModalState(prev => ({ ...prev, loading: true }))
+
 		try {
 			const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
 				method: 'POST',
@@ -144,6 +202,7 @@ export default function AdminUsersPage() {
 				},
 				body: JSON.stringify(formData),
 			})
+
 			if (res.ok) {
 				showSnackbar(t('notifications.userCreated'), 'success')
 				fetchUsers()
@@ -159,8 +218,8 @@ export default function AdminUsersPage() {
 					role: 'user',
 				})
 			} else {
-				const err = await res.json()
-				showSnackbar(err.message || t('errors.generic'), 'error')
+				const err = await res.json().catch(() => null)
+				showSnackbar(getApiErrorMessage(err, t('errors.generic')), 'error')
 				setModalState(prev => ({ ...prev, loading: false }))
 			}
 		} catch {
@@ -171,7 +230,14 @@ export default function AdminUsersPage() {
 
 	const handleUpdateUser = async () => {
 		if (!modalState.selectedUser) return
+
+		if (!canManageTargetUser(modalState.selectedUser)) {
+			showSnackbar(t('errors.update'), 'error')
+			return
+		}
+
 		setModalState(prev => ({ ...prev, loading: true }))
+
 		try {
 			const payload = {
 				role: formData.role,
@@ -184,6 +250,7 @@ export default function AdminUsersPage() {
 					email: formData.email,
 				},
 			}
+
 			const res = await fetch(
 				`${process.env.NEXT_PUBLIC_API_URL}/users/${modalState.selectedUser.id}`,
 				{
@@ -195,12 +262,14 @@ export default function AdminUsersPage() {
 					body: JSON.stringify(payload),
 				},
 			)
+
 			if (res.ok) {
 				showSnackbar(t('notifications.userUpdated'), 'success')
 				fetchUsers()
 				setModalState({ type: null, selectedUser: null, loading: false })
 			} else {
-				showSnackbar(t('errors.update'), 'error')
+				const err = await res.json().catch(() => null)
+				showSnackbar(getApiErrorMessage(err, t('errors.update')), 'error')
 				setModalState(prev => ({ ...prev, loading: false }))
 			}
 		} catch {
@@ -211,12 +280,20 @@ export default function AdminUsersPage() {
 
 	const handleBlockToggle = async () => {
 		if (!modalState.selectedUser) return
+
+		if (!canManageTargetUser(modalState.selectedUser)) {
+			showSnackbar(t('errors.generic'), 'error')
+			return
+		}
+
 		setModalState(prev => ({ ...prev, loading: true }))
+
 		try {
 			const res = await fetch(
 				`${process.env.NEXT_PUBLIC_API_URL}/users/${modalState.selectedUser.id}/block`,
 				{ method: 'PATCH', headers: { Authorization: `Bearer ${token}` } },
 			)
+
 			if (res.ok) {
 				showSnackbar(
 					modalState.selectedUser.isBlocked
@@ -226,7 +303,8 @@ export default function AdminUsersPage() {
 				)
 				fetchUsers()
 			} else {
-				showSnackbar(t('errors.generic'), 'error')
+				const err = await res.json().catch(() => null)
+				showSnackbar(getApiErrorMessage(err, t('errors.generic')), 'error')
 			}
 		} catch {
 			showSnackbar(t('errors.generic'), 'error')
@@ -237,17 +315,26 @@ export default function AdminUsersPage() {
 
 	const handleDelete = async () => {
 		if (!modalState.selectedUser) return
+
+		if (!canManageTargetUser(modalState.selectedUser)) {
+			showSnackbar(t('errors.delete'), 'error')
+			return
+		}
+
 		setModalState(prev => ({ ...prev, loading: true }))
+
 		try {
 			const res = await fetch(
 				`${process.env.NEXT_PUBLIC_API_URL}/users/${modalState.selectedUser.id}`,
 				{ method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
 			)
+
 			if (res.ok) {
 				showSnackbar(t('notifications.userDeleted'), 'success')
 				fetchUsers()
 			} else {
-				showSnackbar(t('errors.delete'), 'error')
+				const err = await res.json().catch(() => null)
+				showSnackbar(getApiErrorMessage(err, t('errors.delete')), 'error')
 			}
 		} catch {
 			showSnackbar(t('errors.generic'), 'error')
@@ -259,57 +346,75 @@ export default function AdminUsersPage() {
 	const getUserFullName = (user: User) => {
 		const firstName = user.profile?.firstName || ''
 		const lastName = user.profile?.lastName || ''
+
 		return `${lastName} ${firstName}`.trim() || user.email
 	}
 
 	const filteredUsers = useMemo(() => {
 		let filtered = [...users]
+
 		if (search) {
 			const lower = search.toLowerCase()
+
 			filtered = filtered.filter(
-				u =>
-					u.email.toLowerCase().includes(lower) ||
-					u.profile?.firstName?.toLowerCase().includes(lower) ||
-					u.profile?.lastName?.toLowerCase().includes(lower) ||
-					u.phone?.toLowerCase().includes(lower),
+				user =>
+					user.email.toLowerCase().includes(lower) ||
+					user.profile?.firstName?.toLowerCase().includes(lower) ||
+					user.profile?.lastName?.toLowerCase().includes(lower) ||
+					user.phone?.toLowerCase().includes(lower),
 			)
 		}
 
 		filtered.sort((a, b) => {
 			const nameA = getUserFullName(a).toLowerCase()
 			const nameB = getUserFullName(b).toLowerCase()
+			const nameCompare = nameA.localeCompare(nameB)
 
 			switch (sortOption) {
 				case 'name-asc':
-					return nameA.localeCompare(nameB)
+					return nameCompare
+
 				case 'name-desc':
 					return nameB.localeCompare(nameA)
-				case 'role-asc':
-					return a.role.localeCompare(b.role)
-				case 'role-desc':
-					return b.role.localeCompare(a.role)
+
+				case 'role-asc': {
+					const roleCompare = ROLE_PRIORITY[b.role] - ROLE_PRIORITY[a.role]
+					return roleCompare || nameCompare
+				}
+
+				case 'role-desc': {
+					const roleCompare = ROLE_PRIORITY[a.role] - ROLE_PRIORITY[b.role]
+					return roleCompare || nameCompare
+				}
+
 				case 'status-asc':
 					return a.isBlocked === b.isBlocked ? 0 : a.isBlocked ? 1 : -1
+
 				case 'status-desc':
 					return a.isBlocked === b.isBlocked ? 0 : a.isBlocked ? -1 : 1
+
 				case 'date-asc':
 					return (
 						new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
 					)
+
 				case 'date-desc':
 					return (
 						new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 					)
+
 				default:
 					return 0
 			}
 		})
+
 		return filtered
 	}, [users, search, sortOption])
 
 	const getUserInitials = (user: User) => {
 		const first = user.profile?.firstName?.[0] || ''
 		const last = user.profile?.lastName?.[0] || ''
+
 		return `${first}${last}`.toUpperCase() || user.email[0].toUpperCase()
 	}
 
@@ -355,12 +460,13 @@ export default function AdminUsersPage() {
 		},
 	}
 
-	if (loading)
+	if (loading) {
 		return (
 			<Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
 				<CircularProgress sx={{ color: '#6D28D9' }} />
 			</Box>
 		)
+	}
 
 	return (
 		<Box
@@ -393,6 +499,7 @@ export default function AdminUsersPage() {
 					>
 						{t('title')}
 					</Typography>
+
 					<Button
 						variant='contained'
 						startIcon={<AddIcon />}
@@ -433,7 +540,7 @@ export default function AdminUsersPage() {
 					<Button
 						variant='outlined'
 						startIcon={<SortRoundedIcon />}
-						onClick={e => setSortAnchor(e.currentTarget)}
+						onClick={event => setSortAnchor(event.currentTarget)}
 						sx={{
 							borderRadius: '10px',
 							textTransform: 'none',
@@ -450,6 +557,7 @@ export default function AdminUsersPage() {
 					>
 						{t('sort.button')}
 					</Button>
+
 					<Menu
 						anchorEl={sortAnchor}
 						open={Boolean(sortAnchor)}
@@ -476,6 +584,7 @@ export default function AdminUsersPage() {
 						>
 							{t('sort.nameAsc')}
 						</MenuItem>
+
 						<MenuItem
 							onClick={() => {
 								setSortOption('name-desc')
@@ -485,6 +594,7 @@ export default function AdminUsersPage() {
 						>
 							{t('sort.nameDesc')}
 						</MenuItem>
+
 						<MenuItem
 							onClick={() => {
 								setSortOption('role-asc')
@@ -494,6 +604,7 @@ export default function AdminUsersPage() {
 						>
 							{t('sort.roleAsc')}
 						</MenuItem>
+
 						<MenuItem
 							onClick={() => {
 								setSortOption('status-desc')
@@ -503,6 +614,7 @@ export default function AdminUsersPage() {
 						>
 							{t('sort.statusDesc')}
 						</MenuItem>
+
 						<MenuItem
 							onClick={() => {
 								setSortOption('status-asc')
@@ -512,6 +624,7 @@ export default function AdminUsersPage() {
 						>
 							{t('sort.statusAsc')}
 						</MenuItem>
+
 						<MenuItem
 							onClick={() => {
 								setSortOption('date-desc')
@@ -521,6 +634,7 @@ export default function AdminUsersPage() {
 						>
 							{t('sort.dateDesc')}
 						</MenuItem>
+
 						<MenuItem
 							onClick={() => {
 								setSortOption('date-asc')
@@ -538,7 +652,7 @@ export default function AdminUsersPage() {
 				fullWidth
 				label={t('searchPlaceholder')}
 				value={search}
-				onChange={e => setSearch(e.target.value)}
+				onChange={event => setSearch(event.target.value)}
 				sx={{ mb: 3, ...inputStyles }}
 			/>
 
@@ -577,209 +691,252 @@ export default function AdminUsersPage() {
 							))}
 						</TableRow>
 					</TableHead>
+
 					<TableBody>
-						{filteredUsers.map((user, idx) => (
-							<TableRow key={user.id}>
-								<TableCell
-									sx={{
-										fontSize: '20px',
-										fontWeight: 500,
-										border: '1px solid var(--color-card-border)',
-										alignItems: 'center',
-									}}
-								>
-									{idx + 1}
-								</TableCell>
-								<TableCell
-									sx={{ border: '1px solid var(--color-card-border)' }}
-								>
-									<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-										<Box
+						{filteredUsers.map((user, idx) => {
+							const canManage = canManageTargetUser(user)
+
+							const disabledActionSx = {
+								opacity: canManage ? 1 : 0.35,
+								cursor: canManage ? 'pointer' : 'not-allowed',
+								'&.Mui-disabled': {
+									pointerEvents: 'auto',
+								},
+							} as const
+
+							return (
+								<TableRow key={user.id}>
+									<TableCell
+										sx={{
+											fontSize: '20px',
+											fontWeight: 500,
+											border: '1px solid var(--color-card-border)',
+											alignItems: 'center',
+										}}
+									>
+										{idx + 1}
+									</TableCell>
+
+									<TableCell
+										sx={{ border: '1px solid var(--color-card-border)' }}
+									>
+										<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+											<Box
+												sx={{
+													width: '50px',
+													height: '50px',
+													borderRadius: '50%',
+													border: '2px solid #23262F',
+													bgcolor: '#6D28D9',
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'center',
+													color: 'white',
+													fontWeight: 500,
+												}}
+											>
+												{getUserInitials(user)}
+											</Box>
+
+											<Box>
+												<Typography sx={{ fontWeight: 500, fontSize: '16px' }}>
+													{getUserFullName(user)}
+												</Typography>
+
+												<Typography
+													variant='caption'
+													sx={{ color: '#6D28D9', fontSize: '14px' }}
+												>
+													{user.email}
+												</Typography>
+											</Box>
+										</Box>
+									</TableCell>
+
+									<TableCell
+										sx={{
+											fontSize: '16px',
+											border: '1px solid var(--color-card-border)',
+										}}
+									>
+										{new Date(user.createdAt).toLocaleDateString('uk-UA')}
+									</TableCell>
+
+									<TableCell
+										sx={{ border: '1px solid var(--color-card-border)' }}
+									>
+										<Chip
+											label={t(`roles.${user.role}`)}
+											size='small'
 											sx={{
-												width: '50px',
-												height: '50px',
-												borderRadius: '50%',
-												border: '2px solid #23262F',
-												bgcolor: '#6D28D9',
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center',
-												color: 'white',
+												bgcolor:
+													user.role === 'owner'
+														? '#FACC1533'
+														: user.role === 'admin'
+															? '#6D28D933'
+															: user.role === 'moderator'
+																? '#FF6A0033'
+																: '#0095FF33',
+												color:
+													user.role === 'owner'
+														? '#FACC15'
+														: user.role === 'admin'
+															? '#6D28D9'
+															: user.role === 'moderator'
+																? '#FF6A00'
+																: '#0095FF',
 												fontWeight: 500,
+												fontSize: '14px',
+												transition: 'all 0.2s ease-in-out',
+												'&:hover': {
+													transform: 'translateY(-1px)',
+													filter: 'brightness(0.95)',
+												},
+											}}
+										/>
+									</TableCell>
+
+									<TableCell
+										sx={{ border: '1px solid var(--color-card-border)' }}
+									>
+										<Chip
+											label={
+												user.isBlocked
+													? t('status.blocked')
+													: t('status.active')
+											}
+											size='small'
+											sx={{
+												bgcolor: user.isBlocked ? '#FF090B33' : '#14E91433',
+												color: user.isBlocked ? '#FF090B' : '#14E914',
+												fontWeight: 500,
+												fontSize: '14px',
+												transition: 'all 0.2s ease-in-out',
+												'&:hover': {
+													transform: 'translateY(-1px)',
+													filter: 'brightness(0.95)',
+												},
+											}}
+										/>
+									</TableCell>
+
+									<TableCell
+										sx={{ border: '1px solid var(--color-card-border)' }}
+									>
+										<IconButton
+											disabled={!canManage}
+											onClick={() => {
+												if (!canManage) return
+
+												setFormData({
+													email: user.email,
+													password: '',
+													firstName: user.profile?.firstName || '',
+													lastName: user.profile?.lastName || '',
+													middleName: user.profile?.middleName || '',
+													birthday: user.profile?.birthday || '',
+													phone: user.phone || user.profile?.phone || '',
+													role: user.role,
+												})
+												setModalState({
+													type: 'edit',
+													selectedUser: user,
+													loading: false,
+												})
+											}}
+											disableRipple
+											sx={{
+												...disabledActionSx,
+												transition: 'color 0.2s',
+												'&:hover': {
+													backgroundColor: 'transparent',
+													color: canManage ? '#5B21B6' : 'inherit',
+												},
 											}}
 										>
-											{getUserInitials(user)}
-										</Box>
-										<Box>
-											<Typography sx={{ fontWeight: 500, fontSize: '16px' }}>
-												{getUserFullName(user)}
-											</Typography>
-											<Typography
-												variant='caption'
-												sx={{ color: '#6D28D9', fontSize: '14px' }}
-											>
-												{user.email}
-											</Typography>
-										</Box>
-									</Box>
-								</TableCell>
-								<TableCell
-									sx={{
-										fontSize: '16px',
-										border: '1px solid var(--color-card-border)',
-									}}
-								>
-									{new Date(user.createdAt).toLocaleDateString('uk-UA')}
-								</TableCell>
-								<TableCell
-									sx={{ border: '1px solid var(--color-card-border)' }}
-								>
-									<Chip
-										label={t(`roles.${user.role}`)}
-										size='small'
-										sx={{
-											bgcolor:
-												user.role === 'admin'
-													? '#6D28D933'
-													: user.role === 'moderator'
-														? '#FF6A0033'
-														: '#0095FF33',
-											color:
-												user.role === 'admin'
-													? '#6D28D9'
-													: user.role === 'moderator'
-														? '#FF6A00'
-														: '#0095FF',
-											fontWeight: 500,
-											fontSize: '14px',
-											transition: 'all 0.2s ease-in-out',
-											'&:hover': {
-												transform: 'translateY(-1px)',
-												filter: 'brightness(0.95)',
-											},
-										}}
-									/>
-								</TableCell>
-								<TableCell
-									sx={{ border: '1px solid var(--color-card-border)' }}
-								>
-									<Chip
-										label={
-											user.isBlocked ? t('status.blocked') : t('status.active')
-										}
-										size='small'
-										sx={{
-											bgcolor: user.isBlocked ? '#FF090B33' : '#14E91433',
-											color: user.isBlocked ? '#FF090B' : '#14E914',
-											fontWeight: 500,
-											fontSize: '14px',
-											transition: 'all 0.2s ease-in-out',
-											'&:hover': {
-												transform: 'translateY(-1px)',
-												filter: 'brightness(0.95)',
-											},
-										}}
-									/>
-								</TableCell>
-								<TableCell
-									sx={{ border: '1px solid var(--color-card-border)' }}
-								>
-									<IconButton
-										onClick={() => {
-											setFormData({
-												email: user.email,
-												password: '',
-												firstName: user.profile?.firstName || '',
-												lastName: user.profile?.lastName || '',
-												middleName: user.profile?.middleName || '',
-												birthday: user.profile?.birthday || '',
-												phone: user.phone || user.profile?.phone || '',
-												role: user.role,
-											})
-											setModalState({
-												type: 'edit',
-												selectedUser: user,
-												loading: false,
-											})
-										}}
-										disableRipple
-										sx={{
-											transition: 'color 0.2s',
-											'&:hover': {
-												backgroundColor: 'transparent',
-												color: '#5B21B6',
-											},
-										}}
-									>
-										<DriveFileRenameOutlineRoundedIcon
-											sx={{
-												color: '#6D28D9',
-												width: '25px',
-												height: '25px',
-												transition: 'color 0.2s',
+											<DriveFileRenameOutlineRoundedIcon
+												sx={{
+													color: '#6D28D9',
+													width: '25px',
+													height: '25px',
+													transition: 'color 0.2s',
+												}}
+											/>
+										</IconButton>
+
+										<IconButton
+											disabled={!canManage}
+											onClick={() => {
+												if (!canManage) return
+
+												setModalState({
+													type: 'block',
+													selectedUser: user,
+													loading: false,
+												})
 											}}
-										/>
-									</IconButton>
-									<IconButton
-										onClick={() =>
-											setModalState({
-												type: 'block',
-												selectedUser: user,
-												loading: false,
-											})
-										}
-										disableRipple
-										sx={{
-											transition: 'color 0.2s',
-											'&:hover': { backgroundColor: 'transparent' },
-										}}
-									>
-										{user.isBlocked ? (
-											<CheckCircleIcon
-												sx={{
-													color: '#14E914',
-													width: '25px',
-													height: '25px',
-													transition: 'color 0.2s',
-												}}
+											disableRipple
+											sx={{
+												...disabledActionSx,
+												transition: 'color 0.2s',
+												'&:hover': { backgroundColor: 'transparent' },
+											}}
+										>
+											{user.isBlocked ? (
+												<CheckCircleIcon
+													sx={{
+														color: '#14E914',
+														width: '25px',
+														height: '25px',
+														transition: 'color 0.2s',
+													}}
+												/>
+											) : (
+												<BlockIcon
+													sx={{
+														color: '#FF090B',
+														width: '25px',
+														height: '25px',
+														transition: 'color 0.2s',
+													}}
+												/>
+											)}
+										</IconButton>
+
+										<IconButton
+											disabled={!canManage}
+											onClick={() => {
+												if (!canManage) return
+
+												setModalState({
+													type: 'delete',
+													selectedUser: user,
+													loading: false,
+												})
+											}}
+											disableRipple
+											sx={{
+												...disabledActionSx,
+												transition: 'background-color 0.3s ease',
+												'&:hover': { backgroundColor: 'transparent' },
+												'& .MuiSvgIcon-root': {
+													color: '#4E525C',
+													transition: 'color 0.3s ease-in-out',
+												},
+												'&:hover .MuiSvgIcon-root': {
+													color: canManage ? '#FF090B' : '#4E525C',
+												},
+											}}
+										>
+											<DeleteForeverRoundedIcon
+												sx={{ width: '25px', height: '25px' }}
 											/>
-										) : (
-											<BlockIcon
-												sx={{
-													color: '#FF090B',
-													width: '25px',
-													height: '25px',
-													transition: 'color 0.2s',
-												}}
-											/>
-										)}
-									</IconButton>
-									<IconButton
-										onClick={() =>
-											setModalState({
-												type: 'delete',
-												selectedUser: user,
-												loading: false,
-											})
-										}
-										disableRipple
-										sx={{
-											transition: 'background-color 0.3s ease',
-											'&:hover': { backgroundColor: 'transparent' },
-											'& .MuiSvgIcon-root': {
-												color: '#4E525C',
-												transition: 'color 0.3s ease-in-out',
-											},
-											'&:hover .MuiSvgIcon-root': { color: '#FF090B' },
-										}}
-									>
-										<DeleteForeverRoundedIcon
-											sx={{ width: '25px', height: '25px' }}
-										/>
-									</IconButton>
-								</TableCell>
-							</TableRow>
-						))}
+										</IconButton>
+									</TableCell>
+								</TableRow>
+							)
+						})}
+
 						{filteredUsers.length === 0 && (
 							<TableRow>
 								<TableCell
@@ -798,7 +955,6 @@ export default function AdminUsersPage() {
 				</Table>
 			</TableContainer>
 
-			{/* Модалка створення */}
 			<AppModal
 				open={modalState.type === 'create'}
 				onClose={() =>
@@ -823,10 +979,14 @@ export default function AdminUsersPage() {
 					},
 				]}
 			>
-				<UserForm formData={formData} setFormData={setFormData} mode='create' />
+				<UserForm
+					formData={formData}
+					setFormData={setFormData}
+					mode='create'
+					allowedRoles={allowedRoles}
+				/>
 			</AppModal>
 
-			{/* Модалка редагування */}
 			<AppModal
 				open={modalState.type === 'edit'}
 				onClose={() =>
@@ -851,10 +1011,14 @@ export default function AdminUsersPage() {
 					},
 				]}
 			>
-				<UserForm formData={formData} setFormData={setFormData} mode='edit' />
+				<UserForm
+					formData={formData}
+					setFormData={setFormData}
+					mode='edit'
+					allowedRoles={allowedRoles}
+				/>
 			</AppModal>
 
-			{/* Модалка блокування/розблокування */}
 			<AppModal
 				open={modalState.type === 'block'}
 				onClose={() =>
@@ -876,9 +1040,7 @@ export default function AdminUsersPage() {
 						sx: modalActionStyles.cancel,
 					},
 					{
-						label: modalState.selectedUser?.isBlocked
-							? t('modals.confirm')
-							: t('modals.confirm'),
+						label: t('modals.confirm'),
 						onClick: handleBlockToggle,
 						variant: 'contained',
 						sx: modalActionStyles.confirm,
@@ -900,7 +1062,6 @@ export default function AdminUsersPage() {
 				</Typography>
 			</AppModal>
 
-			{/* Модалка видалення */}
 			<AppModal
 				open={modalState.type === 'delete'}
 				onClose={() =>

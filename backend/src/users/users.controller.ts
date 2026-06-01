@@ -22,9 +22,10 @@ import { ProfilesEntity } from './profiles.entity';
 import { UserLangType, USERS_I18N } from './users.i18n';
 import { Request } from 'express';
 import { CreateUserAdminDto } from './users.dto';
+import { OWNER_ADMIN_ROLES } from '../auth/role-groups';
 
 interface RequestWithUser extends Request {
-  user: { userId: string };
+  user: { userId: string; role: UserRole };
 }
 
 @Controller('users')
@@ -69,68 +70,73 @@ export class UsersController {
     const isValid = await this.usersService.verifyPassword(req.user.userId, body.password);
     if (!isValid) throw new BadRequestException('Невірний пароль для підтвердження');
 
-    await this.usersService.remove(req.user.userId, req.user.userId, lang);
+    await this.usersService.remove(req.user.userId, req.user.userId, req.user.role, lang);
     return { success: true, message: USERS_I18N[lang].accountDeleted };
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(...OWNER_ADMIN_ROLES)
   async getAllUsers() {
     return await this.usersService.findAll();
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...OWNER_ADMIN_ROLES)
   async getProfile(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('lang') lang: UserLangType = 'ua',
   ) {
     const user = await this.usersService.findOne(id);
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
+
     return user;
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(...OWNER_ADMIN_ROLES)
   async adminUpdateUser(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateData: { role?: UserRole; profile?: Partial<ProfilesEntity> },
     @Req() req: RequestWithUser,
     @Query('lang') lang: UserLangType = 'ua',
   ): Promise<UsersEntity> {
-    return await this.usersService.adminUpdate(id, updateData, req.user.userId, lang);
+    return await this.usersService.adminUpdate(
+      id,
+      updateData,
+      req.user.userId,
+      req.user.role,
+      lang,
+    );
   }
 
-  // Блокування/розблокування
   @Patch(':id/block')
-  @Roles(UserRole.ADMIN)
+  @Roles(...OWNER_ADMIN_ROLES)
   async blockUser(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: RequestWithUser,
     @Query('lang') lang: UserLangType = 'ua',
   ) {
-    return this.usersService.toggleBlock(id, req.user.userId, lang);
+    return await this.usersService.toggleBlock(id, req.user.userId, req.user.role, lang);
   }
 
-  // Створення користувача адміном
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(...OWNER_ADMIN_ROLES)
   async createUser(
     @Body() dto: CreateUserAdminDto,
     @Req() req: RequestWithUser,
     @Query('lang') lang: UserLangType = 'ua',
   ) {
-    return this.usersService.createByAdmin(dto, req.user.userId, lang);
+    return await this.usersService.createByAdmin(dto, req.user.userId, req.user.role, lang);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(...OWNER_ADMIN_ROLES)
   async removeUser(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: RequestWithUser,
     @Query('lang') lang: UserLangType = 'ua',
   ) {
-    await this.usersService.remove(id, req.user.userId, lang);
+    await this.usersService.remove(id, req.user.userId, req.user.role, lang);
     return { success: true };
   }
 }

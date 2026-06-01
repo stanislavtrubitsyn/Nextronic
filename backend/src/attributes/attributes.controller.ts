@@ -4,7 +4,7 @@ import { ReplaceCategoryAttributesDto } from './attributes.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/users.entity';
+import { STAFF_ROLES } from '../auth/role-groups';
 @Controller('attributes')
 export class AttributesController {
   constructor(private readonly attributesService: AttributesService) {}
@@ -16,7 +16,7 @@ export class AttributesController {
 
   @Post('category/:categoryId/schema')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   async replaceCategorySchema(
     @Param('categoryId') categoryId: string,
     @Body() body: Omit<ReplaceCategoryAttributesDto, 'categoryId'>,

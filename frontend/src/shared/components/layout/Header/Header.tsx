@@ -20,7 +20,9 @@ export const Header = () => {
 	const [drawerOpen, setDrawerOpen] = useState(false)
 
 	const isAdminOrModerator =
-		user?.role === 'admin' || user?.role === 'moderator'
+		user?.role === 'owner' ||
+		user?.role === 'admin' ||
+		user?.role === 'moderator'
 
 	return (
 		<AppBar

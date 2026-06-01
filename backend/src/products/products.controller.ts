@@ -19,6 +19,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
+import { STAFF_ROLES } from '../auth/role-groups';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 import { ActivityAction } from '../recommendations/user-activity.entity';
 import { Request } from 'express';
@@ -175,14 +176,14 @@ export class ProductsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   create(@Body() body: CreateProductDto, @Req() req: RequestWithUser): Promise<ProductsEntity> {
     return this.productsService.create(body, req.user!.userId);
   }
 
   @Post(':id/duplicate')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   duplicate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: DuplicateProductDto,
@@ -193,7 +194,7 @@ export class ProductsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateProductDto,
@@ -204,7 +205,7 @@ export class ProductsController {
 
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   toggleStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: RequestWithUser,
@@ -229,7 +230,7 @@ export class ProductsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(...STAFF_ROLES)
   remove(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: RequestWithUser,

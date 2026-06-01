@@ -224,7 +224,12 @@ export class ReviewsService {
 
     if (!review) throw new NotFoundException(t.notFound);
 
-    if (role !== UserRole.ADMIN && role !== UserRole.MODERATOR && review.user.id !== userId) {
+    if (
+      role !== UserRole.OWNER &&
+      role !== UserRole.ADMIN &&
+      role !== UserRole.MODERATOR &&
+      review.user.id !== userId
+    ) {
       throw new ForbiddenException(t.accessDenied);
     }
 
@@ -232,7 +237,7 @@ export class ReviewsService {
 
     await this.reviewRepo.remove(review);
 
-    if (role === UserRole.ADMIN || role === UserRole.MODERATOR) {
+    if (role === UserRole.OWNER || role === UserRole.ADMIN || role === UserRole.MODERATOR) {
       await this.auditService.logAction(
         userId,
         AuditAction.DELETE,

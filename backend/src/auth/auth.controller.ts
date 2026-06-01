@@ -1,15 +1,15 @@
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
   Get,
-  UseGuards,
+  Post,
   Req,
   Res,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { AuthDto } from './auth.dto';
+import { LoginDto, RegisterDto } from './auth.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
@@ -31,13 +31,13 @@ export class AuthController {
   ) {}
 
   @Post('register')
-  async register(@Body() body: AuthDto) {
-    return this.authService.register(body.email, body.password);
+  async register(@Body() body: RegisterDto) {
+    return this.authService.register(body);
   }
 
   @Post('login')
-  async login(@Body() body: AuthDto) {
-    return this.authService.login(body.email, body.password);
+  async login(@Body() body: LoginDto) {
+    return this.authService.login(body);
   }
 
   @Get('google')

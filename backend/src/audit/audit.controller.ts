@@ -3,11 +3,11 @@ import { AuditService } from './audit.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/users.entity';
+import { OWNER_ROLES } from '../auth/role-groups';
 
 @Controller('admin/audit')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles(...OWNER_ROLES)
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 

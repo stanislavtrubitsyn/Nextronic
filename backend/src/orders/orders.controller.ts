@@ -24,6 +24,7 @@ import { OrderLangType } from './orders.i18n';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
+import { STAFF_ROLES } from '../auth/role-groups';
 
 interface RequestWithUser extends Request {
   user: {
@@ -69,7 +70,7 @@ export class OrdersController {
 
   @Get('admin/all')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   async getAllOrders(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -97,14 +98,14 @@ export class OrdersController {
 
   @Get('admin/:id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   async getAdminOrder(@Param('id') id: string, @Query('lang') lang: OrderLangType = 'ua') {
     return await this.ordersService.findOne(id, lang);
   }
 
   @Patch('admin/:id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   async updateOrderDetails(
     @Param('id') id: string,
     @Body() dto: UpdateOrderDetailsDto,
@@ -116,7 +117,7 @@ export class OrdersController {
 
   @Delete('admin/:id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   async deleteOrder(
     @Param('id') id: string,
     @Req() req: RequestWithUser,
@@ -126,6 +127,8 @@ export class OrdersController {
   }
 
   @Patch(':id/status')
+  @UseGuards(RolesGuard)
+  @Roles(...STAFF_ROLES)
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,

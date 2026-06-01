@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
+import { STAFF_ROLES } from '../auth/role-groups';
 import { CatalogLangType } from './catalogs.i18n';
 import { Request } from 'express';
 
@@ -57,7 +58,7 @@ export class CatalogsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   create(
     @Body() body: CreateCatalogDto,
     @Req() req: RequestWithUser,
@@ -68,7 +69,7 @@ export class CatalogsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateCatalogDto,
@@ -80,7 +81,7 @@ export class CatalogsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(...STAFF_ROLES)
   remove(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: RequestWithUser,

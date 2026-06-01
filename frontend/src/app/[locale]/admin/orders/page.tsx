@@ -486,7 +486,11 @@ export default function AdminOrdersPage() {
 			return
 		}
 
-		if (currentUser?.role !== 'admin' && currentUser?.role !== 'moderator') {
+		if (
+			currentUser?.role !== 'owner' &&
+			currentUser?.role !== 'admin' &&
+			currentUser?.role !== 'moderator'
+		) {
 			router.push('/')
 			return
 		}

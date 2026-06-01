@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
+import { STAFF_ROLES } from '../auth/role-groups';
 import { CategoryLangType } from './categories.i18n';
 import { Request } from 'express';
 
@@ -47,7 +48,7 @@ export class CategoriesController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   create(
     @Body() body: CreateCategoriesDto,
     @Req() req: RequestWithUser,
@@ -58,7 +59,7 @@ export class CategoriesController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateCategoriesDto,
@@ -70,7 +71,7 @@ export class CategoriesController {
 
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(...STAFF_ROLES)
   toggleStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: RequestWithUser,
@@ -81,7 +82,7 @@ export class CategoriesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(...STAFF_ROLES)
   remove(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: RequestWithUser,

@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsersEntity, UserRole } from './users.entity';
@@ -8,6 +13,7 @@ import { USERS_I18N, UserLangType } from './users.i18n';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-log.entity';
 import { CreateUserAdminDto } from './users.dto';
+import { canAssignUserRole, canManageUserRole, isPrivilegedRole } from '../auth/role-groups';
 
 @Injectable()
 export class UsersService {
@@ -25,6 +31,10 @@ export class UsersService {
     googleId?: string,
     phone?: string,
     lang: UserLangType = 'ua',
+    profileData?: {
+      firstName?: string;
+      lastName?: string;
+    },
   ): Promise<UsersEntity> {
     const existingUser = await this.userRepo.findOne({
       where: [{ email }, { phone: phone || 'never-match' }],
@@ -44,7 +54,12 @@ export class UsersService {
       phone,
       password: hashedPassword,
       googleId,
-      profile: { email, phone },
+      profile: {
+        email,
+        phone,
+        firstName: profileData?.firstName,
+        lastName: profileData?.lastName,
+      },
     });
 
     return await this.userRepo.save(user);
@@ -86,30 +101,51 @@ export class UsersService {
     id: string,
     data: { role?: UserRole; profile?: Partial<ProfilesEntity> },
     adminId: string,
+    actorRole: UserRole,
     lang: UserLangType = 'ua',
   ): Promise<UsersEntity> {
     const user = await this.userRepo.findOne({ where: { id }, relations: ['profile'] });
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
 
+    const actualActorRole = await this.resolveActorRole(adminId, actorRole, lang);
+
+    this.assertCanManageUser(actualActorRole, user.role, lang);
+
+    if (data.role && data.role !== user.role) {
+      this.assertCanAssignRole(actualActorRole, data.role, lang);
+    }
+
     const oldUserSnapshot = { ...user, profile: { ...user.profile } };
 
-    // Оновлена логіка зміни ролі та дати призначення
     if (data.role && data.role !== user.role) {
       user.role = data.role;
-      if (data.role === UserRole.ADMIN || data.role === UserRole.MODERATOR) {
-        user.assignedAt = new Date();
-      } else {
-        user.assignedAt = null as any; // Очищаємо, якщо це більше не адмін/модератор
-      }
+      user.assignedAt = isPrivilegedRole(data.role) ? new Date() : (null as any);
     }
 
     if (data.profile) {
+      if (!user.profile) {
+        user.profile = this.profileRepo.create({
+          email: user.email,
+          phone: user.phone,
+          user,
+        });
+      }
+
       Object.assign(user.profile, data.profile);
-      if (data.profile.email) user.email = data.profile.email;
-      if (data.profile.phone) user.phone = data.profile.phone;
+
+      if (data.profile.email) {
+        user.email = data.profile.email;
+        user.profile.email = data.profile.email;
+      }
+
+      if (data.profile.phone) {
+        user.phone = data.profile.phone;
+        user.profile.phone = data.profile.phone;
+      }
     }
 
     const savedUser = await this.userRepo.save(user);
+
     await this.auditService.logAction(
       adminId,
       AuditAction.UPDATE,
@@ -118,6 +154,7 @@ export class UsersService {
       oldUserSnapshot,
       savedUser,
     );
+
     return savedUser;
   }
 
@@ -176,17 +213,29 @@ export class UsersService {
     return isMatch === true;
   }
 
-  async remove(id: string, adminId?: string, lang: UserLangType = 'ua'): Promise<UsersEntity> {
+  async remove(
+    id: string,
+    actorId?: string,
+    actorRole?: UserRole,
+    lang: UserLangType = 'ua',
+  ): Promise<UsersEntity> {
     const user = await this.userRepo.findOne({ where: { id }, relations: ['profile'] });
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
+
+    const isSelfAction = actorId === id;
+
+    if (!isSelfAction) {
+      const actualActorRole = await this.resolveActorRole(actorId, actorRole, lang);
+      this.assertCanManageUser(actualActorRole, user.role, lang);
+    }
 
     const oldUserSnapshot = { ...user, profile: { ...user.profile } };
 
     await this.userRepo.remove(user);
 
-    if (adminId) {
+    if (actorId) {
       await this.auditService.logAction(
-        adminId,
+        actorId,
         AuditAction.DELETE,
         'UsersEntity',
         id,
@@ -194,6 +243,7 @@ export class UsersService {
         null,
       );
     }
+
     return user;
   }
 
@@ -226,7 +276,12 @@ export class UsersService {
   }
 
   async findAll(): Promise<UsersEntity[]> {
-    return await this.userRepo.find({ relations: ['profile'] });
+    return await this.userRepo.find({
+      relations: ['profile'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
   }
 
   async findByIdentifier(identifier: string): Promise<UsersEntity | null> {
@@ -237,12 +292,25 @@ export class UsersService {
     });
   }
 
-  async toggleBlock(id: string, adminId: string, lang: UserLangType = 'ua'): Promise<UsersEntity> {
+  async toggleBlock(
+    id: string,
+    adminId: string,
+    actorRole: UserRole,
+    lang: UserLangType = 'ua',
+  ): Promise<UsersEntity> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException(USERS_I18N[lang].notFound);
+
+    const actualActorRole = await this.resolveActorRole(adminId, actorRole, lang);
+
+    this.assertCanManageUser(actualActorRole, user.role, lang);
+
     const oldSnapshot = { ...user };
+
     user.isBlocked = !user.isBlocked;
+
     const saved = await this.userRepo.save(user);
+
     await this.auditService.logAction(
       adminId,
       AuditAction.UPDATE,
@@ -251,27 +319,35 @@ export class UsersService {
       oldSnapshot,
       saved,
     );
+
     return saved;
   }
 
-  // Оновлений метод для створення користувача адміністратором
   async createByAdmin(
     dto: CreateUserAdminDto,
     adminId: string,
+    actorRole: UserRole,
     lang: UserLangType = 'ua',
   ): Promise<UsersEntity> {
     const { email, password, role, firstName, lastName, middleName, birthday, phone } = dto;
-    const existing = await this.userRepo.findOne({ where: { email } });
+    const actualActorRole = await this.resolveActorRole(adminId, actorRole, lang);
+
+    this.assertCanAssignRole(actualActorRole, role, lang);
+
+    const existing = await this.userRepo.findOne({
+      where: [{ email }, { phone: phone || 'never-match' }],
+    });
+
     if (existing) throw new BadRequestException(USERS_I18N[lang].exists);
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = this.userRepo.create({
       email,
       password: hashedPassword,
       phone,
       role,
-      // Встановлюємо дату, якщо створюють адміна або модератора
-      assignedAt: role === UserRole.ADMIN || role === UserRole.MODERATOR ? new Date() : undefined,
+      assignedAt: isPrivilegedRole(role) ? new Date() : undefined,
       profile: {
         firstName,
         lastName,
@@ -281,7 +357,9 @@ export class UsersService {
         phone,
       },
     });
+
     const saved = await this.userRepo.save(user);
+
     await this.auditService.logAction(
       adminId,
       AuditAction.CREATE,
@@ -290,6 +368,50 @@ export class UsersService {
       null,
       saved,
     );
+
     return saved;
+  }
+
+  private async resolveActorRole(
+    actorId?: string,
+    fallbackRole?: UserRole,
+    lang: UserLangType = 'ua',
+  ): Promise<UserRole> {
+    if (actorId) {
+      const actor = await this.userRepo.findOne({
+        where: { id: actorId },
+        select: ['id', 'role'],
+      });
+
+      if (!actor) {
+        throw new ForbiddenException(USERS_I18N[lang].accessDenied);
+      }
+
+      return actor.role;
+    }
+
+    if (fallbackRole) return fallbackRole;
+
+    throw new ForbiddenException(USERS_I18N[lang].accessDenied);
+  }
+
+  private assertCanManageUser(
+    actorRole: UserRole,
+    targetRole: UserRole,
+    lang: UserLangType = 'ua',
+  ) {
+    if (!canManageUserRole(actorRole, targetRole)) {
+      throw new ForbiddenException(USERS_I18N[lang].accessDenied);
+    }
+  }
+
+  private assertCanAssignRole(
+    actorRole: UserRole,
+    targetRole: UserRole,
+    lang: UserLangType = 'ua',
+  ) {
+    if (!canAssignUserRole(actorRole, targetRole)) {
+      throw new ForbiddenException(USERS_I18N[lang].accessDenied);
+    }
   }
 }
