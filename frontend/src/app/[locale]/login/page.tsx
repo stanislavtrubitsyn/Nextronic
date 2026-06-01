@@ -1,13 +1,69 @@
 'use client'
+
 import React, { useState } from 'react'
-import { Box, Button, TextField, Typography, Divider } from '@mui/material'
+import {
+	Box,
+	Button,
+	TextField,
+	Typography,
+	Divider,
+	InputAdornment,
+} from '@mui/material'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/routing'
 import { useAuthStore } from '@/entities/user/model/store'
 import Image from 'next/image'
 import { GoogleIcon } from '@/shared/components/ui/icons/GoogleIcon'
+import { UA } from 'country-flag-icons/react/3x2'
 
 type LoginMethod = 'phone' | 'email'
+
+const formatPhoneInput = (input: string) => {
+	const digits = input.replace(/\D/g, '')
+
+	let coreDigits = digits
+	if (digits.startsWith('380')) {
+		coreDigits = digits.slice(3)
+	} else if (digits.startsWith('38')) {
+		coreDigits = digits.slice(2)
+	}
+
+	if (coreDigits.startsWith('0')) {
+		coreDigits = coreDigits.slice(1)
+	}
+
+	coreDigits = coreDigits.substring(0, 9)
+
+	let formatted = '+38 (0'
+	if (coreDigits.length > 0) formatted += coreDigits.substring(0, 2)
+	if (coreDigits.length >= 3) formatted += `) ${coreDigits.substring(2, 5)}`
+	if (coreDigits.length >= 6) formatted += `-${coreDigits.substring(5, 7)}`
+	if (coreDigits.length >= 8) formatted += `-${coreDigits.substring(7, 9)}`
+
+	return formatted
+}
+
+const getPhoneCoreDigits = (input: string) => {
+	const digits = input.replace(/\D/g, '')
+
+	if (digits.startsWith('380')) return digits.slice(3)
+	if (digits.startsWith('38')) return digits.slice(2)
+	if (digits.startsWith('0')) return digits.slice(1)
+
+	return digits
+}
+
+const isPhoneComplete = (input: string) => {
+	return getPhoneCoreDigits(input).length === 9
+}
+
+const getErrorMessage = (value: unknown, fallback: string) => {
+	if (!value) return fallback
+	if (Array.isArray(value)) return value.join(' ')
+	if (typeof value === 'string') return value
+
+	return fallback
+}
 
 export default function LoginPage() {
 	const t = useTranslations('LoginPage')
@@ -15,22 +71,39 @@ export default function LoginPage() {
 	const { setAuth } = useAuthStore()
 
 	const [loginMethod, setLoginMethod] = useState<LoginMethod>('phone')
-	const [identifier, setIdentifier] = useState('') // Сюди пишемо або телефон, або пошту
+	const [identifier, setIdentifier] = useState('+38 (0')
 	const [password, setPassword] = useState('')
 	const [error, setError] = useState('')
 	const [isLoading, setIsLoading] = useState(false)
 
+	const handleLoginMethodChange = (method: LoginMethod) => {
+		setLoginMethod(method)
+		setIdentifier(method === 'phone' ? '+38 (0' : '')
+		setError('')
+	}
+
+	const handleIdentifierChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value
+
+		setIdentifier(loginMethod === 'phone' ? formatPhoneInput(value) : value)
+	}
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		setError('')
+
+		if (loginMethod === 'phone' && !isPhoneComplete(identifier)) {
+			setError(t('phoneIncomplete'))
+			return
+		}
+
 		setIsLoading(true)
 
 		try {
 			const apiUrl = process.env.NEXT_PUBLIC_API_URL
-			// Формуємо тіло запиту залежно від обраного методу
 			const payload =
 				loginMethod === 'email'
-					? { email: identifier, password }
+					? { email: identifier.trim().toLowerCase(), password }
 					: { phone: identifier, password }
 
 			const res = await fetch(`${apiUrl}/auth/login`, {
@@ -41,12 +114,12 @@ export default function LoginPage() {
 
 			if (res.ok) {
 				const data = await res.json()
-				// Зберігаємо юзера і токен в zustand
+
 				setAuth(data.user, data.access_token)
-				router.push('/profile') // Або на головну '/'
+				router.push('/profile')
 			} else {
 				const errData = await res.json()
-				setError(errData.message || 'Помилка авторизації')
+				setError(getErrorMessage(errData.message, 'Помилка авторизації'))
 			}
 		} catch (err) {
 			console.error('Login error:', err)
@@ -57,12 +130,10 @@ export default function LoginPage() {
 	}
 
 	const handleGoogleLogin = () => {
-		// Редірект на бекенд для Google OAuth
 		const apiUrl = process.env.NEXT_PUBLIC_API_URL
 		window.location.href = `${apiUrl}/auth/google`
 	}
 
-	// Спільні стилі для інпутів
 	const inputStyles = {
 		width: '100%',
 		'& .MuiOutlinedInput-root': {
@@ -86,11 +157,20 @@ export default function LoginPage() {
 			color: '#6D28D9',
 		},
 	}
+
+	const phoneInputStyles = {
+		...inputStyles,
+		'& .MuiInputBase-input': {
+			color: '#6D28D9',
+			paddingLeft: '4px',
+		},
+	}
+
 	return (
 		<Box
 			sx={{
 				display: 'flex',
-				minHeight: 'calc(100vh - 100px)', // Віднімаємо висоту хедера
+				minHeight: 'calc(100vh - 100px)',
 				alignItems: 'center',
 				justifyContent: 'center',
 				px: { xs: 2, md: 5 },
@@ -98,7 +178,6 @@ export default function LoginPage() {
 				gap: { md: '100px', lg: '150px' },
 			}}
 		>
-			{/* Ілюстрація  */}
 			<Box
 				sx={{
 					display: { xs: 'none', md: 'block' },
@@ -116,7 +195,6 @@ export default function LoginPage() {
 				/>
 			</Box>
 
-			{/* Форма логіну */}
 			<Box
 				sx={{
 					display: 'flex',
@@ -138,7 +216,6 @@ export default function LoginPage() {
 					{t('title')}
 				</Typography>
 
-				{/* Перемикач методів входу */}
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
 					<Typography
 						sx={{
@@ -150,15 +227,12 @@ export default function LoginPage() {
 					>
 						{t('loginMethod')}
 					</Typography>
+
 					<Box sx={{ display: 'flex', gap: 2 }}>
 						{(['phone', 'email'] as LoginMethod[]).map(method => (
 							<Typography
 								key={method}
-								onClick={() => {
-									setLoginMethod(method)
-									setIdentifier('') // Очищаємо поле при перемиканні
-									setError('')
-								}}
+								onClick={() => handleLoginMethodChange(method)}
 								sx={{
 									fontFamily: 'var(--font-inter)',
 									fontWeight: 500,
@@ -179,7 +253,6 @@ export default function LoginPage() {
 					</Box>
 				</Box>
 
-				{/* Сама форма */}
 				<Box
 					component='form'
 					onSubmit={handleSubmit}
@@ -189,10 +262,32 @@ export default function LoginPage() {
 						label={loginMethod === 'phone' ? t('phone') : t('email')}
 						type={loginMethod === 'phone' ? 'tel' : 'email'}
 						value={identifier}
-						onChange={e => setIdentifier(e.target.value)}
+						onChange={handleIdentifierChange}
 						required
 						autoComplete={loginMethod === 'phone' ? 'tel' : 'email'}
-						sx={inputStyles}
+						sx={loginMethod === 'phone' ? phoneInputStyles : inputStyles}
+						slotProps={
+							loginMethod === 'phone'
+								? {
+										input: {
+											startAdornment: (
+												<InputAdornment
+													position='start'
+													sx={{ ml: 0.5, mr: '4px' }}
+												>
+													<UA
+														style={{
+															width: '20px',
+															borderRadius: '2px',
+															display: 'block',
+														}}
+													/>
+												</InputAdornment>
+											),
+										},
+									}
+								: undefined
+						}
 					/>
 
 					<TextField
@@ -272,11 +367,11 @@ export default function LoginPage() {
 					{t('google')}
 				</Button>
 
-				{/* Кнопка реєстрації */}
 				<Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2 }}>
 					<Typography sx={{ color: 'var(--theme-icon-dim)', fontSize: '14px' }}>
 						{t('noAccount')}
 					</Typography>
+
 					<Typography
 						component={Link}
 						href='/register'

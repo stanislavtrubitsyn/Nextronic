@@ -13,7 +13,12 @@ export class AuthService {
   ) {}
 
   async register(data: RegisterDto, lang: AuthLangType = 'ua') {
+    const t = AUTH_I18N[lang];
     const phone = this.normalizePhone(data.phone);
+
+    if (data.phone && !phone) {
+      throw new BadRequestException(t.phoneFormat);
+    }
 
     const user = await this.usersService.create(
       data.email.trim().toLowerCase(),
@@ -31,8 +36,14 @@ export class AuthService {
   }
 
   async login(data: LoginDto, lang: AuthLangType = 'ua') {
-    const identifier = data.email?.trim().toLowerCase() || this.normalizePhone(data.phone);
     const t = AUTH_I18N[lang];
+    const email = data.email?.trim().toLowerCase();
+    const phone = data.phone ? this.normalizePhone(data.phone) : undefined;
+    const identifier = email || phone;
+
+    if (data.phone && !phone && !email) {
+      throw new BadRequestException(t.phoneFormat);
+    }
 
     if (!identifier) {
       throw new BadRequestException(t.invalidAuth);
@@ -73,27 +84,28 @@ export class AuthService {
     const digits = phone.replace(/\D/g, '');
     if (!digits) return undefined;
 
-    if (digits.startsWith('380') && digits.length >= 12) {
-      return `+${digits.slice(0, 12)}`;
+    if (digits.length === 12 && digits.startsWith('380')) {
+      return `+${digits}`;
     }
 
-    if (digits.startsWith('0') && digits.length >= 10) {
-      return `+38${digits.slice(0, 10)}`;
+    if (digits.length === 10 && digits.startsWith('0')) {
+      return `+38${digits}`;
     }
 
     if (digits.length === 9) {
       return `+380${digits}`;
     }
 
-    if (digits.startsWith('38') && digits.length >= 12) {
-      return `+${digits.slice(0, 12)}`;
+    if (digits.length === 13 && digits.startsWith('0380')) {
+      return `+${digits.slice(1)}`;
     }
 
-    return `+${digits}`;
+    return undefined;
   }
 
   private generateToken(user: any) {
     const payload = { email: user.email, sub: user.id, role: user.role };
+
     return {
       access_token: this.jwtService.sign(payload),
       user: {

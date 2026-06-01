@@ -144,7 +144,8 @@
 		"or": "Or",
 		"google": "Continue with Google",
 		"noAccount": "Don't have an account?",
-		"register": "Register right now"
+		"register": "Register right now",
+		"phoneIncomplete": "Enter a complete phone number"
 	},
 	"RegisterPage": {
 		"title": "Register an account",
