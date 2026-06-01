@@ -16,6 +16,7 @@ import RemoveRedEyeOutlinedIcon from '@mui/icons-material/RemoveRedEyeOutlined'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
 
 const getRoleName = (role?: string) => {
+	if (role === 'owner') return 'owner'
 	if (role === 'admin') return 'admin'
 	if (role === 'moderator') return 'moderator'
 	return 'client'

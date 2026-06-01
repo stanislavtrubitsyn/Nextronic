@@ -849,6 +849,7 @@ export function ProductReviews({
 	const canEdit = (item: ProductReview) => user?.id === item.author.id
 	const canDelete = (item: ProductReview) =>
 		user?.id === item.author.id ||
+		user?.role === 'owner' ||
 		user?.role === 'admin' ||
 		user?.role === 'moderator'
 

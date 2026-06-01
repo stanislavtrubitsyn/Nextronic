@@ -1,4 +1,5 @@
 'use client'
+
 import React from 'react'
 import {
 	Dialog,
@@ -60,9 +61,9 @@ export const AppModal: React.FC<AppModalProps> = ({
 			)
 		}
 
-		// Якщо ми передали actions (масив або компонент), рендеримо їх
 		if (actions) {
 			if (React.isValidElement(actions)) return actions
+
 			if (Array.isArray(actions)) {
 				return actions.map((action, idx) => (
 					<Button
@@ -79,7 +80,6 @@ export const AppModal: React.FC<AppModalProps> = ({
 			}
 		}
 
-		// Дефолтна кнопка, якщо нічого не передали
 		return (
 			<Button onClick={onClose} variant='outlined' color='primary'>
 				Закрити
@@ -94,11 +94,49 @@ export const AppModal: React.FC<AppModalProps> = ({
 			maxWidth={maxWidth}
 			fullWidth={fullWidth}
 			slotProps={{
-				paper: { sx: { borderRadius: '20px', ...(paperSx || {}) } },
+				paper: {
+					sx: {
+						borderRadius: '20px',
+						overflow: 'visible',
+						...(paperSx || {}),
+					},
+				},
 			}}
 		>
-			{title && <DialogTitle>{title}</DialogTitle>}
-			<DialogContent>{children}</DialogContent>
+			{title && (
+				<DialogTitle
+					sx={{
+						pb: 1,
+					}}
+				>
+					{title}
+				</DialogTitle>
+			)}
+
+			<DialogContent
+				sx={{
+					pt: '16px !important',
+					overflowY: 'auto',
+					overflowX: 'visible',
+
+					'& .MuiTextField-root:first-of-type, & .MuiFormControl-root:first-of-type':
+						{
+							mt: '8px',
+						},
+
+					'& .MuiInputLabel-root': {
+						lineHeight: 1.15,
+						zIndex: 2,
+					},
+
+					'& .MuiOutlinedInput-root': {
+						overflow: 'visible',
+					},
+				}}
+			>
+				{children}
+			</DialogContent>
+
 			<DialogActions sx={{ p: 3, pt: 2 }}>{renderActions()}</DialogActions>
 		</Dialog>
 	)
