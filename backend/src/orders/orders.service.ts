@@ -4,7 +4,7 @@ import { Repository, DataSource } from 'typeorm';
 import { OrderEntity, OrderStatus, PaymentMethod, OrderStatusHistory } from './orders.entity';
 import { OrderItemEntity } from './order-item.entity';
 import { CartService } from '../cart/cart.service';
-import { CreateOrderDto, UpdateOrderStatusDto } from './orders.dto';
+import { CreateOrderDto, UpdateOrderDetailsDto, UpdateOrderStatusDto } from './orders.dto';
 import { BonusService } from '../bonus/bonus.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ORDERS_I18N, OrderLangType } from './orders.i18n';
@@ -58,6 +58,29 @@ export type MyOrdersQueryOptions = {
   page?: number;
   limit?: number;
   status?: MyOrdersStatusFilter;
+  paginated?: boolean;
+};
+
+export type AdminOrdersStatusFilter = 'all' | OrderStatus;
+
+export type AdminOrdersSortBy =
+  | 'date'
+  | 'amount'
+  | 'status'
+  | 'orderNumber'
+  | 'customer'
+  | 'payment'
+  | 'delivery';
+
+export type AdminOrdersSortOrder = 'asc' | 'desc';
+
+export type AdminOrdersQueryOptions = {
+  page?: number;
+  limit?: number;
+  status?: AdminOrdersStatusFilter;
+  search?: string;
+  sortBy?: AdminOrdersSortBy;
+  sortOrder?: AdminOrdersSortOrder;
   paginated?: boolean;
 };
 
@@ -710,6 +733,27 @@ export class OrdersService {
         : isoDate;
     }
 
+    if (
+      [OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED].includes(status) &&
+      !history[OrderStatus.CONFIRMED]
+    ) {
+      history[OrderStatus.CONFIRMED] = isoDate;
+    }
+
+    if ([OrderStatus.SHIPPED, OrderStatus.DELIVERED].includes(status)) {
+      if (!history[OrderStatus.PROCESSING]) {
+        history[OrderStatus.PROCESSING] = isoDate;
+      }
+
+      if (!history[OrderStatus.SHIPPED]) {
+        history[OrderStatus.SHIPPED] = isoDate;
+      }
+
+      if (!history.delivering) {
+        history.delivering = isoDate;
+      }
+    }
+
     history[status] = isoDate;
 
     if (status === OrderStatus.DELIVERED) {
@@ -737,10 +781,247 @@ export class OrdersService {
     return Math.floor(value);
   }
 
-  async findAllOrders() {
-    return await this.orderRepo.find({
-      relations: ['user', 'items', 'items.product'],
+  async findAllOrders(options: AdminOrdersQueryOptions = {}) {
+    const orders = await this.orderRepo.find({
+      relations: ['user', 'user.profile', 'items', 'items.product', 'items.product.category'],
       order: { createdAt: 'DESC' },
     });
+
+    if (!options.paginated) {
+      return orders;
+    }
+
+    const status = options.status || 'all';
+    const search = (options.search || '').trim().toLowerCase();
+    const sortBy = options.sortBy || 'date';
+    const sortOrder = options.sortOrder || 'desc';
+    const page = this.normalizePositiveInteger(options.page, 1);
+    const limit = Math.min(this.normalizePositiveInteger(options.limit, 8), 50);
+
+    let filtered = [...orders];
+
+    if (status !== 'all') {
+      filtered = filtered.filter((order) => order.status === status);
+    }
+
+    if (search) {
+      filtered = filtered.filter((order) => this.getAdminOrderSearchText(order).includes(search));
+    }
+
+    filtered.sort((a, b) => {
+      const direction = sortOrder === 'asc' ? 1 : -1;
+
+      if (sortBy === 'amount') {
+        return (Number(a.totalAmount) - Number(b.totalAmount)) * direction;
+      }
+
+      if (sortBy === 'status') {
+        return a.status.localeCompare(b.status) * direction;
+      }
+
+      if (sortBy === 'orderNumber') {
+        return a.orderNumber.localeCompare(b.orderNumber) * direction;
+      }
+
+      if (sortBy === 'customer') {
+        return a.customerName.localeCompare(b.customerName) * direction;
+      }
+
+      if (sortBy === 'payment') {
+        const paymentA = `${a.paymentMethod} ${a.paymentStatus || ''} ${a.isPaid ? 'paid' : 'unpaid'}`;
+        const paymentB = `${b.paymentMethod} ${b.paymentStatus || ''} ${b.isPaid ? 'paid' : 'unpaid'}`;
+        return paymentA.localeCompare(paymentB) * direction;
+      }
+
+      if (sortBy === 'delivery') {
+        return a.shippingAddress.localeCompare(b.shippingAddress) * direction;
+      }
+
+      return (
+        (this.getOrderTimestamp(a.createdAt) - this.getOrderTimestamp(b.createdAt)) * direction
+      );
+    });
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(page, totalPages);
+    const skip = (safePage - 1) * limit;
+
+    const counters = {
+      all: orders.length,
+      pending: orders.filter((order) => order.status === OrderStatus.PENDING).length,
+      processing: orders.filter((order) => order.status === OrderStatus.PROCESSING).length,
+      confirmed: orders.filter((order) => order.status === OrderStatus.CONFIRMED).length,
+      shipped: orders.filter((order) => order.status === OrderStatus.SHIPPED).length,
+      delivered: orders.filter((order) => order.status === OrderStatus.DELIVERED).length,
+      cancelled: orders.filter((order) => order.status === OrderStatus.CANCELLED).length,
+    };
+
+    return {
+      items: filtered.slice(skip, skip + limit),
+      pagination: {
+        page: safePage,
+        limit,
+        total,
+        totalPages,
+        hasMore: safePage < totalPages,
+      },
+      counters,
+    };
+  }
+
+  async updateOrderDetails(
+    id: string,
+    dto: UpdateOrderDetailsDto,
+    adminId: string,
+    lang: OrderLangType = 'ua',
+  ) {
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['user', 'items', 'items.product'],
+    });
+
+    if (!order) {
+      throw new NotFoundException(ORDERS_I18N[lang].orderNotFound);
+    }
+
+    const oldOrderSnapshot = JSON.parse(JSON.stringify(order));
+
+    if (dto.customerName !== undefined) {
+      order.customerName = dto.customerName;
+    }
+
+    if (dto.customerPhone !== undefined) {
+      order.customerPhone = dto.customerPhone;
+    }
+
+    if (dto.shippingAddress !== undefined) {
+      order.shippingAddress = dto.shippingAddress;
+    }
+
+    if (dto.paymentMethod !== undefined) {
+      order.paymentMethod = dto.paymentMethod;
+    }
+
+    if (dto.paymentProvider !== undefined) {
+      order.paymentProvider = dto.paymentProvider || null;
+    }
+
+    if (dto.paymentStatus !== undefined) {
+      order.paymentStatus = dto.paymentStatus || null;
+    }
+
+    if (dto.paymentTransactionId !== undefined) {
+      order.paymentTransactionId = dto.paymentTransactionId || null;
+    }
+
+    if (dto.liqpayOrderId !== undefined) {
+      order.liqpayOrderId = dto.liqpayOrderId || null;
+    }
+
+    if (dto.estimatedDeliveryDate !== undefined) {
+      order.estimatedDeliveryDate = dto.estimatedDeliveryDate
+        ? new Date(dto.estimatedDeliveryDate)
+        : undefined;
+    }
+
+    if (dto.deliveryDate !== undefined) {
+      order.deliveryDate = dto.deliveryDate ? new Date(dto.deliveryDate) : undefined;
+    }
+
+    if (dto.isPaid !== undefined) {
+      order.isPaid = dto.isPaid;
+
+      if (dto.isPaid && !order.paidAt) {
+        order.paidAt = new Date();
+      }
+
+      if (!dto.isPaid) {
+        order.paidAt = null;
+      }
+    }
+
+    const savedOrder = await this.orderRepo.save(order);
+
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.UPDATE,
+      'OrderEntity',
+      savedOrder.id,
+      oldOrderSnapshot,
+      savedOrder,
+    );
+
+    return savedOrder;
+  }
+
+  async deleteOrder(id: string, adminId: string, lang: OrderLangType = 'ua') {
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['user', 'items', 'items.product'],
+    });
+
+    if (!order) {
+      throw new NotFoundException(ORDERS_I18N[lang].orderNotFound);
+    }
+
+    const oldOrderSnapshot = JSON.parse(JSON.stringify(order));
+    await this.orderRepo.remove(order);
+
+    await this.auditService.logAction(
+      adminId,
+      AuditAction.DELETE,
+      'OrderEntity',
+      id,
+      oldOrderSnapshot,
+      null,
+    );
+
+    return { success: true };
+  }
+
+  private getAdminOrderSearchText(order: OrderEntity) {
+    const productsText = (order.items || [])
+      .map((item) => {
+        const product = item.product;
+        const name = product?.name ? `${product.name.ua || ''} ${product.name.en || ''}` : '';
+        const category = product?.category?.name
+          ? `${product.category.name.ua || ''} ${product.category.name.en || ''}`
+          : '';
+
+        return `${name} ${category} ${product?.sku || ''} ${product?.slug || ''}`;
+      })
+      .join(' ');
+
+    const userText = order.user
+      ? `${order.user.email || ''} ${order.user.phone || ''} ${order.user.profile?.firstName || ''} ${order.user.profile?.lastName || ''}`
+      : '';
+
+    return [
+      order.orderNumber,
+      order.customerName,
+      order.customerPhone,
+      order.shippingAddress,
+      order.paymentMethod,
+      order.paymentProvider,
+      order.paymentStatus,
+      order.paymentTransactionId,
+      order.baseAmount,
+      order.discountAmount,
+      order.usedBonuses,
+      order.totalAmount,
+      order.liqpayOrderId,
+      order.status,
+      userText,
+      productsText,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+  }
+
+  private getOrderTimestamp(date: Date | string | undefined | null) {
+    if (!date) return 0;
+    return new Date(date).getTime();
   }
 }

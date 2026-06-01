@@ -1,13 +1,34 @@
-import { Controller, Post, Get, Patch, Body, Param, Req, UseGuards, Query } from '@nestjs/common';
-import { MyOrdersStatusFilter, OrdersService } from './orders.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  AdminOrdersStatusFilter,
+  AdminOrdersSortBy,
+  AdminOrdersSortOrder,
+  MyOrdersStatusFilter,
+  OrdersService,
+} from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateOrderDto, UpdateOrderStatusDto } from './orders.dto';
+import { CreateOrderDto, UpdateOrderDetailsDto, UpdateOrderStatusDto } from './orders.dto';
 import { Request } from 'express';
 import { OrderLangType } from './orders.i18n';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/users.entity';
 
 interface RequestWithUser extends Request {
   user: {
     userId: string;
+    role?: UserRole;
   };
 }
 
@@ -47,8 +68,61 @@ export class OrdersController {
   }
 
   @Get('admin/all')
-  async getAllOrders() {
-    return await this.ordersService.findAllOrders();
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async getAllOrders(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: AdminOrdersStatusFilter,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: AdminOrdersSortBy,
+    @Query('sortOrder') sortOrder?: AdminOrdersSortOrder,
+  ) {
+    const hasQuery = Boolean(page || limit || status || search || sortBy || sortOrder);
+
+    if (!hasQuery) {
+      return await this.ordersService.findAllOrders();
+    }
+
+    return await this.ordersService.findAllOrders({
+      page: Number(page),
+      limit: Number(limit),
+      status,
+      search,
+      sortBy,
+      sortOrder,
+      paginated: true,
+    });
+  }
+
+  @Get('admin/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async getAdminOrder(@Param('id') id: string, @Query('lang') lang: OrderLangType = 'ua') {
+    return await this.ordersService.findOne(id, lang);
+  }
+
+  @Patch('admin/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async updateOrderDetails(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderDetailsDto,
+    @Req() req: RequestWithUser,
+    @Query('lang') lang: OrderLangType = 'ua',
+  ) {
+    return await this.ordersService.updateOrderDetails(id, dto, req.user.userId, lang);
+  }
+
+  @Delete('admin/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async deleteOrder(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+    @Query('lang') lang: OrderLangType = 'ua',
+  ) {
+    return await this.ordersService.deleteOrder(id, req.user.userId, lang);
   }
 
   @Patch(':id/status')
