@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
 import { ProductsEntity } from '../products/products.entity';
 import { OrderItemEntity } from '../orders/order-item.entity';
+import { OrderStatus } from '../orders/orders.entity';
 import { ReviewType } from '../reviews/reviews.entity';
 import { UserActivityEntity, ActivityAction } from './user-activity.entity';
 
@@ -27,6 +28,15 @@ export interface ProductRecommendationItem {
     slug: string;
     name: LocalizedText;
   };
+}
+
+export interface HomeRecommendationsResponse {
+  specialOffers: ProductRecommendationItem[];
+  newArrivals: ProductRecommendationItem[];
+  topSelling: ProductRecommendationItem[];
+  smartphones: ProductRecommendationItem[];
+  laptops: ProductRecommendationItem[];
+  refrigerators: ProductRecommendationItem[];
 }
 
 type ProductFilterValue = string | number | boolean | string[] | number[] | boolean[] | null;
@@ -256,6 +266,189 @@ export class RecommendationsService {
       .filter((product): product is ProductsEntity => Boolean(product));
 
     return this.mapUniqueProducts(sortedProducts, safeLimit, excluded);
+  }
+
+  async getHomeSections(limit = 12): Promise<HomeRecommendationsResponse> {
+    const safeLimit = this.normalizeLimit(limit);
+    const activeProducts = await this.getActiveProducts(safeLimit * 20);
+
+    const specialOffers = this.mapUniqueProducts(
+      this.sortProductsByDiscount(activeProducts),
+      safeLimit,
+    );
+    const newArrivals = this.mapUniqueProducts(
+      this.sortProductsByNewest(activeProducts),
+      safeLimit,
+    );
+    const topSelling = await this.getTopSellingProducts(safeLimit, activeProducts);
+    const smartphones = this.mapUniqueProducts(
+      this.filterProductsByKeywords(activeProducts, [
+        'smartphone',
+        'phone',
+        'telefon',
+        'iphone',
+        'айфон',
+        'смартфон',
+        'телефон',
+        'мобільн',
+      ]),
+      safeLimit,
+    );
+    const laptops = this.mapUniqueProducts(
+      this.filterProductsByKeywords(activeProducts, [
+        'laptop',
+        'notebook',
+        'noutbuk',
+        'macbook',
+        'lenovo loq',
+        'ноутбук',
+        'компьютер',
+        "комп'ютер",
+        'компʼютер',
+      ]),
+      safeLimit,
+    );
+    const refrigerators = this.mapUniqueProducts(
+      this.filterProductsByKeywords(activeProducts, [
+        'refrigerator',
+        'fridge',
+        'holodylnyk',
+        'холодильник',
+        'холодильн',
+      ]),
+      safeLimit,
+    );
+
+    return {
+      specialOffers,
+      newArrivals,
+      topSelling,
+      smartphones,
+      laptops,
+      refrigerators,
+    };
+  }
+
+  private async getActiveProducts(take: number): Promise<ProductsEntity[]> {
+    return await this.productRepo.find({
+      where: { isActive: true },
+      relations: ['catalog', 'category', 'reviews'],
+      order: { createdAt: 'DESC' },
+      take,
+    });
+  }
+
+  private sortProductsByDiscount(products: ProductsEntity[]): ProductsEntity[] {
+    return products
+      .filter((product) => this.getDiscountAmount(product) > 0)
+      .sort((left, right) => {
+        const discountCompare = this.getDiscountAmount(right) - this.getDiscountAmount(left);
+        if (discountCompare !== 0) return discountCompare;
+
+        return this.getTime(right.createdAt) - this.getTime(left.createdAt);
+      });
+  }
+
+  private sortProductsByNewest(products: ProductsEntity[]): ProductsEntity[] {
+    return [...products].sort(
+      (left, right) => this.getTime(right.createdAt) - this.getTime(left.createdAt),
+    );
+  }
+
+  private async getTopSellingProducts(
+    limit: number,
+    fallbackProducts: ProductsEntity[] = [],
+  ): Promise<ProductRecommendationItem[]> {
+    const rows = await this.orderItemRepo
+      .createQueryBuilder('item')
+      .innerJoin('item.product', 'product')
+      .innerJoin('item.order', 'order')
+      .select('product.id', 'productId')
+      .addSelect('SUM(item.quantity)', 'soldCount')
+      .where('product.isActive = :isActive', { isActive: true })
+      .andWhere('order.status != :cancelled', { cancelled: OrderStatus.CANCELLED })
+      .groupBy('product.id')
+      .orderBy('SUM(item.quantity)', 'DESC')
+      .limit(limit)
+      .getRawMany<{ productId: string; soldCount: string }>();
+
+    const productIds = rows.map((row) => row.productId).filter(Boolean);
+
+    if (productIds.length) {
+      const products = await this.productRepo.find({
+        where: { id: In(productIds), isActive: true },
+        relations: ['catalog', 'category', 'reviews'],
+      });
+
+      const productById = new Map(products.map((product) => [product.id, product]));
+      const sortedProducts = productIds
+        .map((id) => productById.get(id))
+        .filter((product): product is ProductsEntity => Boolean(product));
+
+      return this.mapUniqueProducts(sortedProducts, limit);
+    }
+
+    // Для локальної розробки блок не буде зникати повністю, навіть якщо ще немає реальних продажів.
+    // Коли з'являться order items, вище автоматично повернеться реальний топ продажів.
+    return this.mapUniqueProducts(this.sortProductsByPopularity(fallbackProducts), limit);
+  }
+
+  private sortProductsByPopularity(products: ProductsEntity[]): ProductsEntity[] {
+    return [...products].sort((left, right) => {
+      const leftStats = this.getReviewStats(left);
+      const rightStats = this.getReviewStats(right);
+      const rightScore = rightStats.reviewsCount * 10 + rightStats.averageRating;
+      const leftScore = leftStats.reviewsCount * 10 + leftStats.averageRating;
+      const scoreCompare = rightScore - leftScore;
+
+      if (scoreCompare !== 0) return scoreCompare;
+
+      return this.getTime(right.createdAt) - this.getTime(left.createdAt);
+    });
+  }
+
+  private filterProductsByKeywords(
+    products: ProductsEntity[],
+    keywords: string[],
+  ): ProductsEntity[] {
+    const normalizedKeywords = keywords.map((keyword) => this.normalizeValue(keyword));
+
+    return products.filter((product) => {
+      const haystack = this.getProductSearchText(product);
+      return normalizedKeywords.some((keyword) => keyword && haystack.includes(keyword));
+    });
+  }
+
+  private getProductSearchText(product: ProductsEntity): string {
+    const values = [
+      product.slug,
+      product.sku,
+      product.name?.ua,
+      product.name?.en,
+      product.category?.slug,
+      product.category?.name?.ua,
+      product.category?.name?.en,
+      product.catalog?.slug,
+      product.catalog?.name?.ua,
+      product.catalog?.name?.en,
+      ...Object.values(product.filters || {}).map((value) => this.valueToString(value)),
+    ];
+
+    return values.map((value) => this.normalizeValue(this.valueToString(value))).join(' ');
+  }
+
+  private getDiscountAmount(product: ProductsEntity): number {
+    const oldPrice = Number(product.oldPrice || 0);
+    const price = Number(product.price || 0);
+
+    return oldPrice > price ? oldPrice - price : 0;
+  }
+
+  private getTime(value?: Date): number {
+    const date = value ? new Date(value) : null;
+    const time = date?.getTime() ?? 0;
+
+    return Number.isNaN(time) ? 0 : time;
   }
 
   private async getFallbackProducts(

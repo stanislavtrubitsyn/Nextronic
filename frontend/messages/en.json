@@ -1,7 +1,19 @@
 {
 	"HomePage": {
 		"title": "Welcome to Nextronic!",
-		"description": "Your favorite electronics store"
+		"description": "Your favorite electronics store",
+		"heroAlt": "Nextronic homepage illustration",
+		"viewAll": "View all >",
+		"sections": {
+			"recentlyViewed": "Recently viewed 👀",
+			"specialOffers": "Special offers 🔥",
+			"newArrivals": "New arrivals ☺️",
+			"forYou": "Recommended for you 🥰️",
+			"topSelling": "Top selling products 💯",
+			"smartphones": "Smartphones",
+			"laptops": "Laptops",
+			"refrigerators": "Refrigerators"
+		}
 	},
 	"LocaleSwitcher": {
 		"ua": "Ukrainian",

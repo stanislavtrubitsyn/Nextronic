@@ -1,7 +1,19 @@
 {
 	"HomePage": {
 		"title": "Вітаємо в Nextronic!",
-		"description": "Ваш улюблений магазин електроніки"
+		"description": "Ваш улюблений магазин електроніки",
+		"heroAlt": "Ілюстрація головної сторінки Nextronic",
+		"viewAll": "Дивитись всі >",
+		"sections": {
+			"recentlyViewed": "Нещодавно переглянуті 👀",
+			"specialOffers": "Спеціальні пропозиції 🔥",
+			"newArrivals": "Новинки в нашому асортименті ☺️",
+			"forYou": "Спеціально для Вас 🥰️️",
+			"topSelling": "Топ продажів 💯",
+			"smartphones": "Смартфони",
+			"laptops": "Ноутбуки",
+			"refrigerators": "Холодильники"
+		}
 	},
 	"LocaleSwitcher": {
 		"ua": "Українська",

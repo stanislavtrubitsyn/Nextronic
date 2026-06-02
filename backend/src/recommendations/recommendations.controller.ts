@@ -1,7 +1,11 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ProductRecommendationItem, RecommendationsService } from './recommendations.service';
+import {
+  HomeRecommendationsResponse,
+  ProductRecommendationItem,
+  RecommendationsService,
+} from './recommendations.service';
 
 interface RequestWithUser extends Request {
   user?: { userId: string };
@@ -10,6 +14,11 @@ interface RequestWithUser extends Request {
 @Controller('recommendations')
 export class RecommendationsController {
   constructor(private readonly recommendationsService: RecommendationsService) {}
+
+  @Get('home')
+  async getHomeSections(@Query('limit') limit?: string): Promise<HomeRecommendationsResponse> {
+    return await this.recommendationsService.getHomeSections(this.parseLimit(limit));
+  }
 
   @Get('personal')
   @UseGuards(JwtAuthGuard)

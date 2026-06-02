@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
 	Box,
 	Button,
@@ -48,6 +48,10 @@ interface Catalog {
 	menuGroups?: MenuGroup[]
 }
 
+interface AppCatalogProps {
+	variant?: 'button' | 'embedded'
+}
+
 const getLocalizedName = (
 	value: { ua?: string; en?: string } | undefined,
 	locale: 'ua' | 'en',
@@ -67,7 +71,7 @@ const compareByLocalizedLabel = <T extends { label: LocalizedString }>(
 	)
 }
 
-export const AppCatalog = () => {
+export const AppCatalog = ({ variant = 'button' }: AppCatalogProps) => {
 	const t = useTranslations('AppCatalog')
 	const locale = useLocale() as 'ua' | 'en'
 	const router = useRouter()
@@ -76,6 +80,8 @@ export const AppCatalog = () => {
 	const [loading, setLoading] = useState(false)
 	const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null)
 	const [activeCatalog, setActiveCatalog] = useState<Catalog | null>(null)
+
+	const isEmbedded = variant === 'embedded'
 
 	useEffect(() => {
 		const fetchCatalogs = async () => {
@@ -132,20 +138,299 @@ export const AppCatalog = () => {
 
 	const open = Boolean(anchorEl)
 	const id = open ? 'catalog-popover' : undefined
-	const groupsToRender = (
-		activeCatalog?.menuGroups?.length
-			? activeCatalog.menuGroups
-			: activeCatalog?.categories.map(category => ({
-					id: category.id,
-					label: category.name,
-					categorySlug: category.slug,
-					categoryId: category.id,
-					filters: {},
-					links: category.menuLinks || [],
-				})) || []
+	const groupsToRender = useMemo(
+		() =>
+			(activeCatalog?.menuGroups?.length
+				? activeCatalog.menuGroups
+				: activeCatalog?.categories.map(category => ({
+						id: category.id,
+						label: category.name,
+						categorySlug: category.slug,
+						categoryId: category.id,
+						filters: {},
+						links: category.menuLinks || [],
+					})) || []
+			)
+				.slice()
+				.sort((a, b) => compareByLocalizedLabel(a, b, locale)),
+		[activeCatalog, locale],
 	)
-		.slice()
-		.sort((a, b) => compareByLocalizedLabel(a, b, locale))
+
+	const renderCatalogBody = () => {
+		if (loading) {
+			return (
+				<Box
+					sx={{
+						width: '100%',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+					}}
+				>
+					<CircularProgress sx={{ color: '#6D28D9' }} />
+				</Box>
+			)
+		}
+
+		return (
+			<>
+				<Box
+					sx={{
+						width: { xs: '100%', md: isEmbedded ? '260px' : '285px' },
+						flex: {
+							xs: '0 0 auto',
+							md: isEmbedded ? '0 0 260px' : '0 0 285px',
+						},
+						display: 'flex',
+						flexDirection: 'column',
+						overflow: 'hidden',
+					}}
+				>
+					{catalogs.map(catalog => {
+						const isActive = activeCatalog?.id === catalog.id
+
+						return (
+							<Box
+								key={catalog.id}
+								onMouseEnter={() => setActiveCatalog(catalog)}
+								onClick={() => navigateWithFilters(catalog.slug)}
+								sx={{
+									px: '8px',
+									py: '5px',
+									borderRadius: '5px',
+									width: '100%',
+									height: '30px',
+									display: 'flex',
+									alignItems: 'center',
+									cursor: 'pointer',
+									transition: 'background-color 0.2s ease, color 0.2s ease',
+									backgroundColor: isActive
+										? 'rgba(109, 40, 217, 0.12)'
+										: 'transparent',
+									color: isActive ? '#6D28D9' : '#4E525C',
+									'&:hover': {
+										backgroundColor: 'rgba(109, 40, 217, 0.12)',
+										color: '#6D28D9',
+									},
+								}}
+							>
+								<Box
+									sx={{
+										display: 'flex',
+										alignItems: 'center',
+										gap: 1.5,
+										minWidth: 0,
+									}}
+								>
+									<DynamicMuiIcon
+										iconName={catalog.icon}
+										sx={{
+											width: '20px',
+											height: '20px',
+											flexShrink: 0,
+											transition: 'color 0.2s ease',
+											color: isActive ? '#6D28D9' : '#4E525C',
+										}}
+									/>
+
+									<Typography
+										sx={{
+											fontFamily: 'var(--font-inter)',
+											fontWeight: 600,
+											fontSize: '15px',
+											whiteSpace: 'nowrap',
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+										}}
+									>
+										{getLocalizedName(catalog.name, locale)}
+									</Typography>
+								</Box>
+							</Box>
+						)
+					})}
+				</Box>
+
+				<Box
+					sx={{
+						width: { xs: '100%', md: isEmbedded ? 'auto' : '690px' },
+						flex: {
+							xs: '1 1 auto',
+							md: isEmbedded ? '1 1 auto' : '0 0 690px',
+						},
+						height: '100%',
+						display: 'flex',
+						flexDirection: 'column',
+						overflow: 'hidden',
+					}}
+				>
+					{activeCatalog && (
+						<>
+							<Box
+								sx={{
+									flex: 1,
+									display: 'grid',
+									gridTemplateColumns: {
+										xs: 'repeat(1, minmax(0, 1fr))',
+										sm: 'repeat(2, minmax(0, 1fr))',
+										lg: 'repeat(3, minmax(0, 1fr))',
+									},
+									columnGap: { xs: '24px', md: isEmbedded ? '42px' : '70px' },
+									rowGap: '22px',
+									alignContent: 'start',
+									overflow: 'hidden',
+								}}
+							>
+								{groupsToRender.map(group => (
+									<Box
+										key={group.id}
+										sx={{
+											minWidth: 0,
+											display: 'flex',
+											flexDirection: 'column',
+											gap: '6px',
+										}}
+									>
+										<Typography
+											onClick={() =>
+												navigateWithFilters(
+													activeCatalog.slug,
+													group.categorySlug,
+													group.filters,
+												)
+											}
+											sx={{
+												fontFamily: 'var(--font-inter)',
+												fontWeight: 700,
+												fontSize: '16px',
+												lineHeight: 1.2,
+												color: '#6D28D9',
+												cursor: 'pointer',
+												whiteSpace: 'nowrap',
+												overflow: 'hidden',
+												textOverflow: 'ellipsis',
+												transition: 'text-decoration-color 0.2s ease',
+												textDecoration: 'underline',
+												textDecorationColor: 'transparent',
+												'&:hover': { textDecorationColor: '#6D28D9' },
+											}}
+										>
+											{getLocalizedName(group.label, locale)}
+										</Typography>
+
+										<Box
+											sx={{
+												display: 'flex',
+												flexDirection: 'column',
+												gap: '3px',
+											}}
+										>
+											{group.links?.slice(0, 5).map(link => (
+												<Typography
+													key={`${group.id}-${JSON.stringify(link.filters)}`}
+													onClick={() =>
+														navigateWithFilters(
+															activeCatalog.slug,
+															group.categorySlug,
+															link.filters,
+														)
+													}
+													sx={{
+														fontFamily: 'var(--font-inter)',
+														fontWeight: 500,
+														fontSize: '15px',
+														lineHeight: 1.25,
+														color: 'var(--theme-text)',
+														cursor: 'pointer',
+														whiteSpace: 'nowrap',
+														overflow: 'hidden',
+														textOverflow: 'ellipsis',
+														transition: 'color 0.2s ease',
+														'&:hover': { color: '#6D28D9' },
+													}}
+												>
+													{getLocalizedName(link.label, locale)}
+												</Typography>
+											))}
+										</Box>
+
+										<Typography
+											onClick={() =>
+												navigateWithFilters(
+													activeCatalog.slug,
+													group.categorySlug,
+													group.filters,
+												)
+											}
+											sx={{
+												fontFamily: 'var(--font-inter)',
+												fontWeight: 700,
+												fontSize: '15px',
+												lineHeight: 1.2,
+												color: 'var(--theme-text)',
+												cursor: 'pointer',
+												transition: 'color 0.2s ease',
+												'&:hover': { color: '#6D28D9' },
+											}}
+										>
+											{t('viewAll')}
+										</Typography>
+									</Box>
+								))}
+							</Box>
+
+							<Typography
+								onClick={() => {
+									handleClose()
+									router.push(`/catalog/${activeCatalog.slug}`)
+								}}
+								sx={{
+									mt: 'auto',
+									pt: '12px',
+									fontFamily: 'var(--font-inter)',
+									fontWeight: 700,
+									fontSize: '16px',
+									lineHeight: 1.2,
+									color: '#6D28D9',
+									cursor: 'pointer',
+									alignSelf: 'flex-start',
+									transition: 'color 0.2s ease',
+									'&:hover': { color: '#5B21B6' },
+								}}
+							>
+								{t('allCategories')}
+							</Typography>
+						</>
+					)}
+				</Box>
+			</>
+		)
+	}
+
+	if (isEmbedded) {
+		return (
+			<Box
+				sx={{
+					px: { xs: 2, md: '50px' },
+					py: '20px',
+					borderRadius: '20px',
+					backgroundColor: 'var(--color-block-bg)',
+					boxShadow: 'none',
+					display: 'flex',
+					flexDirection: { xs: 'column', md: 'row' },
+					gap: { xs: 3, md: '42px' },
+					width: '100%',
+					// maxWidth: '1120px',
+					minWidth: 0,
+					height: { xs: 'auto', md: '525px' },
+					minHeight: { xs: 'auto', md: '525px' },
+					overflow: 'hidden',
+				}}
+			>
+				{renderCatalogBody()}
+			</Box>
+		)
+	}
 
 	return (
 		<>
@@ -204,240 +489,7 @@ export const AppCatalog = () => {
 					},
 				}}
 			>
-				{loading ? (
-					<Box
-						sx={{
-							width: '100%',
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-						}}
-					>
-						<CircularProgress sx={{ color: '#6D28D9' }} />
-					</Box>
-				) : (
-					<>
-						<Box
-							sx={{
-								width: '285px',
-								flex: '0 0 285px',
-								display: 'flex',
-								flexDirection: 'column',
-								overflow: 'hidden',
-							}}
-						>
-							{catalogs.map(catalog => {
-								const isActive = activeCatalog?.id === catalog.id
-
-								return (
-									<Box
-										key={catalog.id}
-										onMouseEnter={() => setActiveCatalog(catalog)}
-										onClick={() => navigateWithFilters(catalog.slug)}
-										sx={{
-											px: '8px',
-											py: '5px',
-											borderRadius: '5px',
-											width: '100%',
-											height: '30px',
-											display: 'flex',
-											alignItems: 'center',
-											cursor: 'pointer',
-											transition: 'background-color 0.2s ease, color 0.2s ease',
-											backgroundColor: isActive
-												? 'rgba(109, 40, 217, 0.12)'
-												: 'transparent',
-											color: isActive ? '#6D28D9' : '#4E525C',
-											'&:hover': {
-												backgroundColor: 'rgba(109, 40, 217, 0.12)',
-												color: '#6D28D9',
-											},
-										}}
-									>
-										<Box
-											sx={{
-												display: 'flex',
-												alignItems: 'center',
-												gap: 1.5,
-												minWidth: 0,
-											}}
-										>
-											<DynamicMuiIcon
-												iconName={catalog.icon}
-												sx={{
-													width: '20px',
-													height: '20px',
-													flexShrink: 0,
-													transition: 'color 0.2s ease',
-													color: isActive ? '#6D28D9' : '#4E525C',
-												}}
-											/>
-
-											<Typography
-												sx={{
-													fontFamily: 'var(--font-inter)',
-													fontWeight: 600,
-													fontSize: '15px',
-													whiteSpace: 'nowrap',
-													overflow: 'hidden',
-													textOverflow: 'ellipsis',
-												}}
-											>
-												{getLocalizedName(catalog.name, locale)}
-											</Typography>
-										</Box>
-									</Box>
-								)
-							})}
-						</Box>
-
-						<Box
-							sx={{
-								width: '690px',
-								flex: '0 0 690px',
-								height: '100%',
-								display: 'flex',
-								flexDirection: 'column',
-								overflow: 'hidden',
-							}}
-						>
-							{activeCatalog && (
-								<>
-									<Box
-										sx={{
-											flex: 1,
-											display: 'grid',
-											gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-											columnGap: '70px',
-											rowGap: '22px',
-											alignContent: 'start',
-											overflow: 'hidden',
-										}}
-									>
-										{groupsToRender.map(group => (
-											<Box
-												key={group.id}
-												sx={{
-													minWidth: 0,
-													display: 'flex',
-													flexDirection: 'column',
-													gap: '6px',
-												}}
-											>
-												<Typography
-													onClick={() =>
-														navigateWithFilters(
-															activeCatalog.slug,
-															group.categorySlug,
-															group.filters,
-														)
-													}
-													sx={{
-														fontFamily: 'var(--font-inter)',
-														fontWeight: 700,
-														fontSize: '16px',
-														lineHeight: 1.2,
-														color: '#6D28D9',
-														cursor: 'pointer',
-														whiteSpace: 'nowrap',
-														overflow: 'hidden',
-														textOverflow: 'ellipsis',
-														transition: 'text-decoration-color 0.2s ease',
-														textDecoration: 'underline',
-														textDecorationColor: 'transparent',
-														'&:hover': { textDecorationColor: '#6D28D9' },
-													}}
-												>
-													{getLocalizedName(group.label, locale)}
-												</Typography>
-
-												<Box
-													sx={{
-														display: 'flex',
-														flexDirection: 'column',
-														gap: '3px',
-													}}
-												>
-													{group.links?.slice(0, 5).map(link => (
-														<Typography
-															key={`${group.id}-${JSON.stringify(link.filters)}`}
-															onClick={() =>
-																navigateWithFilters(
-																	activeCatalog.slug,
-																	group.categorySlug,
-																	link.filters,
-																)
-															}
-															sx={{
-																fontFamily: 'var(--font-inter)',
-																fontWeight: 500,
-																fontSize: '15px',
-																lineHeight: 1.25,
-																color: 'var(--theme-text)',
-																cursor: 'pointer',
-																whiteSpace: 'nowrap',
-																overflow: 'hidden',
-																textOverflow: 'ellipsis',
-																transition: 'color 0.2s ease',
-																'&:hover': { color: '#6D28D9' },
-															}}
-														>
-															{getLocalizedName(link.label, locale)}
-														</Typography>
-													))}
-												</Box>
-
-												<Typography
-													onClick={() =>
-														navigateWithFilters(
-															activeCatalog.slug,
-															group.categorySlug,
-															group.filters,
-														)
-													}
-													sx={{
-														fontFamily: 'var(--font-inter)',
-														fontWeight: 700,
-														fontSize: '15px',
-														lineHeight: 1.2,
-														color: 'var(--theme-text)',
-														cursor: 'pointer',
-														transition: 'color 0.2s ease',
-														'&:hover': { color: '#6D28D9' },
-													}}
-												>
-													{t('viewAll')}
-												</Typography>
-											</Box>
-										))}
-									</Box>
-
-									<Typography
-										onClick={() => {
-											handleClose()
-											router.push(`/catalog/${activeCatalog.slug}`)
-										}}
-										sx={{
-											mt: 'auto',
-											pt: '12px',
-											fontFamily: 'var(--font-inter)',
-											fontWeight: 700,
-											fontSize: '16px',
-											lineHeight: 1.2,
-											color: '#6D28D9',
-											cursor: 'pointer',
-											alignSelf: 'flex-start',
-											transition: 'color 0.2s ease',
-											'&:hover': { color: '#5B21B6' },
-										}}
-									>
-										{t('allCategories')}
-									</Typography>
-								</>
-							)}
-						</Box>
-					</>
-				)}
+				{renderCatalogBody()}
 			</Popover>
 		</>
 	)
