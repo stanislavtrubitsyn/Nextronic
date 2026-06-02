@@ -27,6 +27,7 @@
 		"ariaLabel": "Breadcrumbs",
 		"home": "Home",
 		"admin": "Admin panel",
+		"dashboard": "Dashboard",
 		"administrators": "Administrators",
 		"bonuses": "Bonuses",
 		"catalog": "Catalog",
@@ -255,9 +256,9 @@
 				"refundTitle": "Bonus Refund",
 				"refundBody": "{amount} bonuses have been refunded for your cancelled order.",
 				"orderCreatedTitle": "Order Accepted",
-				"orderCreatedBody": "Your order #{num} for {amount} UAH has been successfully created.",
+				"orderCreatedBody": "Your order {num} for {amount} UAH has been successfully created.",
 				"orderCancelledTitle": "Order Cancelled",
-				"orderCancelledBody": "Order #{num} has been cancelled. Bonuses refunded (if any were used).",
+				"orderCancelledBody": "Order {num} has been cancelled. Bonuses refunded (if any were used).",
 				"replyTitle": "New Reply",
 				"replyBody": "Someone replied to your review of the product «{product}»."
 			}
@@ -273,13 +274,13 @@
 			"labelActivation": "Activation",
 			"labelValidUntil": "Valid until",
 			"purchaseText": "Accrued for completed order",
-			"purchaseWithOrder": "Accrued for order #{orderNumber}",
+			"purchaseWithOrder": "Accrued for order {orderNumber}",
 			"birthdayText": "Birthday bonus",
 			"adminText": "Admin accrual",
 			"refundText": "Refund for cancelled order",
 			"accrualText": "Bonus accrual",
 			"spentText": "Used for order payment",
-			"spentWithOrder": "Used for order #{orderNumber}",
+			"spentWithOrder": "Used for order {orderNumber}",
 			"adminSubtractText": "Administrator deducted bonuses",
 			"expiredText": "Bonus validity period has expired",
 			"viewOrder": "View order"
@@ -916,6 +917,93 @@
 				"monobank": "Monobank",
 				"mono": "MonoPay",
 				"manual": "Manual payment"
+			}
+		},
+		"dashboard": {
+			"title": "Statistics",
+			"errors": {
+				"load": "Failed to load dashboard statistics",
+				"retry": "Retry"
+			},
+			"period": {
+				"title": "Period:",
+				"startDate": "Start date",
+				"endDate": "End date",
+				"options": {
+					"24h": "24 hours",
+					"week": "Week",
+					"month": "Month",
+					"year": "Year",
+					"custom": "Custom period"
+				}
+			},
+			"kpi": {
+				"online": "Online now:",
+				"users": "Total users:",
+				"orders": "Orders:",
+				"reviews": "Reviews:",
+				"revenue": "Revenue:"
+			},
+			"charts": {
+				"sales": "Sales chart:",
+				"activity": "User activity chart:",
+				"unit": "pcs.",
+				"salesTooltip": "Sales",
+				"activityTooltip": "Activity"
+			},
+			"categories": {
+				"title": "Popular categories:",
+				"topTitle": "Top 20 categories:",
+				"bestsellers": "Bestsellers:",
+				"empty": "—",
+				"noData": "No data yet"
+			},
+			"tops": {
+				"title": "Top selections:",
+				"viewed": "Top by views:",
+				"ordered": "Top by orders:",
+				"reviewed": "Top by reviews:",
+				"wishlisted": "Top by wishlist:",
+				"countViewed": "{count} views",
+				"countOrdered": "{count} orders",
+				"countReviewed": "{count} reviews",
+				"countWishlisted": "{count} wishlisted",
+				"unknownProduct": "Product",
+				"noData": "No data yet"
+			},
+			"activity": {
+				"title": "Recent activity",
+				"searchPlaceholder": "Search",
+				"employee": "Employee",
+				"action": "Action",
+				"view": "View >",
+				"showMore": "Show more",
+				"noData": "No activity yet",
+				"detailsTitle": "Activity details",
+				"close": "Close",
+				"openRecord": "Open record",
+				"historyUnavailable": "Change history is not available for this record",
+				"historyLoadError": "Failed to load change history",
+				"noHistory": "No change history yet",
+				"before": "Before",
+				"after": "After",
+				"noChanges": "No differences were found in the stored data",
+				"revert": "Restore this version",
+				"reverting": "Restoring.",
+				"revertUnavailable": "Create actions cannot be reverted",
+				"revertSuccess": "Version restored successfully",
+				"revertError": "Failed to restore version",
+				"auditActions": {
+					"create": "Created",
+					"update": "Updated",
+					"delete": "Deleted"
+				}
+			},
+			"roles": {
+				"owner": "Owner",
+				"admin": "Administrator",
+				"moderator": "Moderator",
+				"user": "User"
 			}
 		}
 	},

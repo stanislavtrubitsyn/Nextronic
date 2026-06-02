@@ -13,26 +13,22 @@ export class AuditLogEntity {
   id!: string;
 
   @ManyToOne(() => UsersEntity, { onDelete: 'SET NULL', nullable: true })
-  admin!: UsersEntity;
+  admin?: UsersEntity | null;
 
   @Column({ type: 'enum', enum: AuditAction })
   action!: AuditAction;
 
-  // Назва таблиці або сутності
   @Column()
   entityName!: string;
 
-  // ID запису, який змінили
   @Column('uuid')
   entityId!: string;
 
-  // Стан ДО зміни
   @Column({ type: 'jsonb', nullable: true })
-  oldValues?: any;
+  oldValues?: unknown;
 
-  // Стан ПІСЛЯ зміни
   @Column({ type: 'jsonb', nullable: true })
-  newValues?: any;
+  newValues?: unknown;
 
   @CreateDateColumn()
   createdAt!: Date;

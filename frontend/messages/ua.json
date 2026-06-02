@@ -27,6 +27,7 @@
 		"ariaLabel": "Хлібні крошки",
 		"home": "Головна",
 		"admin": "Адмін-панель",
+		"dashboard": "Дашборд",
 		"administrators": "Адміністратори",
 		"bonuses": "Бонуси",
 		"catalog": "Каталог",
@@ -258,9 +259,9 @@
 				"refundTitle": "Повернення бонусів",
 				"refundBody": "Вам повернуто {amount} бонусів за скасоване замовлення.",
 				"orderCreatedTitle": "Замовлення прийнято",
-				"orderCreatedBody": "Ваше замовлення №{num} на суму {amount} грн успішно створено.",
+				"orderCreatedBody": "Ваше замовлення {num} на суму {amount} грн успішно створено.",
 				"orderCancelledTitle": "Замовлення скасовано",
-				"orderCancelledBody": "Замовлення №{num} скасовано. Бонуси повернуто (якщо були використані).",
+				"orderCancelledBody": "Замовлення {num} скасовано. Бонуси повернуто (якщо були використані).",
 				"replyTitle": "Нова відповідь",
 				"replyBody": "Хтось відповів на ваш відгук про товар «{product}»."
 			}
@@ -276,13 +277,13 @@
 			"labelActivation": "Активація",
 			"labelValidUntil": "Дійсні до",
 			"purchaseText": "Нараховано за оформлене замовлення",
-			"purchaseWithOrder": "Нараховано за замовленням №{orderNumber}",
+			"purchaseWithOrder": "Нараховано за замовленням {orderNumber}",
 			"birthdayText": "Бонуси до вашого Дня Народження",
 			"adminText": "Нарахування адміністратором",
 			"refundText": "Повернення бонусів за скасоване замовлення",
 			"accrualText": "Нарахування бонусів",
 			"spentText": "Списання бонусів за замовлення",
-			"spentWithOrder": "Списання бонусів за замовленням №{orderNumber}",
+			"spentWithOrder": "Списання бонусів за замовленням {orderNumber}",
 			"adminSubtractText": "Адміністратор списав бонуси",
 			"expiredText": "Строк дії бонусів закінчився",
 			"viewOrder": "Переглянути замовлення"
@@ -881,9 +882,9 @@
 				"statusField": "Статус",
 				"detailsTitle": "Редагування даних замовлення",
 				"cancelOrderTitle": "Скасування замовлення",
-				"cancelOrderMessage": "Ви впевнені, що хочете скасувати замовлення №{orderNumber}?",
+				"cancelOrderMessage": "Ви впевнені, що хочете скасувати замовлення {orderNumber}?",
 				"deleteTitle": "Видалення замовлення",
-				"deleteMessage": "Ви впевнені, що хочете видалити замовлення №{orderNumber}? Цю дію неможливо скасувати.",
+				"deleteMessage": "Ви впевнені, що хочете видалити замовлення {orderNumber}? Цю дію неможливо скасувати.",
 				"cancel": "Скасувати",
 				"confirm": "Підтвердити",
 				"save": "Зберегти",
@@ -919,6 +920,93 @@
 				"monobank": "Monobank",
 				"mono": "MonoPay",
 				"manual": "Ручна оплата"
+			}
+		},
+		"dashboard": {
+			"title": "Статистика",
+			"errors": {
+				"load": "Не вдалося завантажити статистику",
+				"retry": "Повторити"
+			},
+			"period": {
+				"title": "Період:",
+				"startDate": "Дата початку",
+				"endDate": "Дата завершення",
+				"options": {
+					"24h": "24 години",
+					"week": "Тиждень",
+					"month": "Місяць",
+					"year": "Рік",
+					"custom": "Обрати період"
+				}
+			},
+			"kpi": {
+				"online": "Онлайн зараз:",
+				"users": "Всього користувачів:",
+				"orders": "Замовлень:",
+				"reviews": "Відгуків:",
+				"revenue": "Дохід:"
+			},
+			"charts": {
+				"sales": "Графік продажів:",
+				"activity": "Графік активності користувачів:",
+				"unit": "од.",
+				"salesTooltip": "Продажів",
+				"activityTooltip": "Активність"
+			},
+			"categories": {
+				"title": "Популярні категорії:",
+				"topTitle": "Топ 20 категорій:",
+				"bestsellers": "Бестселери:",
+				"empty": "—",
+				"noData": "Даних поки немає"
+			},
+			"tops": {
+				"title": "Підбірка топів:",
+				"viewed": "Топ по переглядам:",
+				"ordered": "Топ по замовленням:",
+				"reviewed": "Топ по відгукам:",
+				"wishlisted": "Топ по обраному:",
+				"countViewed": "{count} переглядів",
+				"countOrdered": "{count} замовлень",
+				"countReviewed": "{count} відгуків",
+				"countWishlisted": "{count} в обраному",
+				"unknownProduct": "Товар",
+				"noData": "Даних поки немає"
+			},
+			"activity": {
+				"title": "Остання активність",
+				"searchPlaceholder": "Пошук",
+				"employee": "Співробітник",
+				"action": "Дія",
+				"view": "Переглянути >",
+				"showMore": "Показати ще",
+				"noData": "Активності поки немає",
+				"detailsTitle": "Деталі активності",
+				"close": "Закрити",
+				"openRecord": "Відкрити запис",
+				"historyUnavailable": "Для цього запису немає доступної історії змін",
+				"historyLoadError": "Не вдалося завантажити історію змін",
+				"noHistory": "Історії змін поки немає",
+				"before": "Було",
+				"after": "Стало",
+				"noChanges": "Відмінностей у збережених даних не знайдено",
+				"revert": "Повернути цю версію",
+				"reverting": "Відновлення.",
+				"revertUnavailable": "Не можна відкотити створення",
+				"revertSuccess": "Версію успішно відновлено",
+				"revertError": "Не вдалося відновити версію",
+				"auditActions": {
+					"create": "Створення",
+					"update": "Оновлення",
+					"delete": "Видалення"
+				}
+			},
+			"roles": {
+				"owner": "Керівник",
+				"admin": "Адміністратор",
+				"moderator": "Модератор",
+				"user": "Користувач"
 			}
 		}
 	},

@@ -39,6 +39,7 @@ const BreadcrumbsContext = createContext<BreadcrumbsContextValue | null>(null)
 
 const SEGMENT_LABEL_KEYS = {
 	admin: 'admin',
+	dashboard: 'dashboard',
 	administrators: 'administrators',
 	bonuses: 'bonuses',
 	catalog: 'catalog',
