@@ -5,6 +5,8 @@ import { CartEntity } from './cart.entity';
 import { AddToCartDto } from './cart.dto';
 import { CART_I18N, CartLangType } from './cart.i18n';
 import { ProductsEntity } from '../products/products.entity';
+import { RecommendationsService } from '../recommendations/recommendations.service';
+import { ActivityAction } from '../recommendations/user-activity.entity';
 
 @Injectable()
 export class CartService {
@@ -13,6 +15,7 @@ export class CartService {
     private readonly cartRepo: Repository<CartEntity>,
     @InjectRepository(ProductsEntity)
     private readonly productRepo: Repository<ProductsEntity>,
+    private readonly recommendationsService: RecommendationsService,
   ) {}
 
   async getMyCart(userId: string) {
@@ -50,7 +53,10 @@ export class CartService {
   async addToCart(userId: string, dto: AddToCartDto, lang: CartLangType = 'ua') {
     const t = CART_I18N[lang];
 
-    const product = await this.productRepo.findOne({ where: { id: dto.productId } });
+    const product = await this.productRepo.findOne({
+      where: { id: dto.productId },
+      relations: ['category'],
+    });
     if (!product) throw new NotFoundException('Product not found');
 
     let item = await this.cartRepo.findOne({
@@ -66,6 +72,19 @@ export class CartService {
 
     // Перевірка наявності на складі
     if (newQty > product.stock) throw new BadRequestException(t.outOfStock);
+
+    if (product.category) {
+      await this.recommendationsService.logActivity(
+        userId,
+        product.category.id,
+        ActivityAction.ADD_TO_CART,
+        {
+          productId: product.id,
+          quantity: requestedQty,
+          metadata: { source: 'cart' },
+        },
+      );
+    }
 
     if (item) {
       item.quantity = newQty;

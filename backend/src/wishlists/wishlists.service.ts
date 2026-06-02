@@ -73,6 +73,10 @@ export class WishlistService {
       userId,
       product.category.id,
       ActivityAction.WISHLIST,
+      {
+        productId: product.id,
+        metadata: { source: 'wishlist' },
+      },
     );
 
     //Перевіряємо сам список бажаного

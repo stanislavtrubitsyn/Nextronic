@@ -130,6 +130,7 @@ type ProductReviewsProps = {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+const PRODUCT_REVIEW_SYNC_EVENT = 'product:review-sync'
 
 const emptyForm: ReviewFormState = {
 	rating: 5,
@@ -769,6 +770,15 @@ export function ProductReviews({
 			}
 
 			await refetchReviews()
+
+			if (typeof window !== 'undefined') {
+				window.dispatchEvent(
+					new CustomEvent(PRODUCT_REVIEW_SYNC_EVENT, {
+						detail: { productId: product.id },
+					}),
+				)
+			}
+
 			closeForm()
 		} catch (error) {
 			console.error('Review action failed:', error)

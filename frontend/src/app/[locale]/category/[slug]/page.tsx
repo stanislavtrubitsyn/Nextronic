@@ -829,6 +829,9 @@ function CategoryPageContent() {
 
 				const response = await fetch(
 					`${apiUrl}/products/category/${encodeURIComponent(slug)}?${query.toString()}`,
+					{
+						headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+					},
 				)
 
 				if (!response.ok) {
@@ -858,7 +861,7 @@ function CategoryPageContent() {
 				}
 			}
 		},
-		[requestQueryString, slug],
+		[requestQueryString, slug, token],
 	)
 
 	useEffect(() => {

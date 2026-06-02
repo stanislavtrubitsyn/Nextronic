@@ -87,6 +87,7 @@ type ProductSyncEventDetail = {
 
 const PRODUCT_FAVORITE_SYNC_EVENT = 'product:favorite-sync'
 const PRODUCT_COMPARE_SYNC_EVENT = 'product:compare-sync'
+const PRODUCT_VIEW_SYNC_EVENT = 'product:view-sync'
 
 const getArrayFromUnknown = <T,>(value: unknown): T[] => {
 	return Array.isArray(value) ? value : []
@@ -1169,6 +1170,8 @@ function ProductPageContent() {
 						headers: { Authorization: `Bearer ${token}` },
 					},
 				)
+
+				dispatchProductSyncEvent(PRODUCT_VIEW_SYNC_EVENT, { productId })
 			} catch (error) {
 				console.error('Product view tracking error:', error)
 			}

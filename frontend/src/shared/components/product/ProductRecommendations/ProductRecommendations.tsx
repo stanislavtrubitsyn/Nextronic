@@ -41,6 +41,13 @@ const DEFAULT_MAX_VISIBLE_ITEMS = 6
 const MIN_COMFORTABLE_CARD_WIDTH = 235
 const EMPTY_PRODUCTS: ProductCardData[] = []
 const EMPTY_IDS: string[] = []
+const PRODUCT_RECOMMENDATION_REFRESH_EVENTS = [
+	'product:favorite-sync',
+	'product:compare-sync',
+	'product:cart-sync',
+	'product:review-sync',
+	'product:view-sync',
+] as const
 
 const getVisibleCardsCount = (
 	containerWidth: number,
@@ -157,6 +164,7 @@ export function ProductRecommendations({
 	const [viewportWidth, setViewportWidth] = useState(0)
 	const [activeIndex, setActiveIndex] = useState(0)
 	const [loadedProducts, setLoadedProducts] = useState<ProductCardData[]>([])
+	const [refreshKey, setRefreshKey] = useState(0)
 	const { token } = useAuthStore()
 
 	const normalizedExcludeIds = Array.from(
@@ -169,6 +177,24 @@ export function ProductRecommendations({
 	)
 	const normalizedExcludeIdsKey = normalizedExcludeIds.join(',')
 	const shouldFetch = source !== 'manual'
+
+	useEffect(() => {
+		if (source !== 'personal') return
+
+		const refreshPersonalRecommendations = () => {
+			setRefreshKey(value => value + 1)
+		}
+
+		PRODUCT_RECOMMENDATION_REFRESH_EVENTS.forEach(eventName => {
+			window.addEventListener(eventName, refreshPersonalRecommendations)
+		})
+
+		return () => {
+			PRODUCT_RECOMMENDATION_REFRESH_EVENTS.forEach(eventName => {
+				window.removeEventListener(eventName, refreshPersonalRecommendations)
+			})
+		}
+	}, [source])
 
 	useEffect(() => {
 		if (!shouldFetch) {
@@ -238,6 +264,7 @@ export function ProductRecommendations({
 		shouldFetch,
 		source,
 		token,
+		refreshKey,
 	])
 
 	const sourceProducts = shouldFetch ? loadedProducts : products

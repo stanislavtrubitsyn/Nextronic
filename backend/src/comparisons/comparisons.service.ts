@@ -32,6 +32,10 @@ export class ComparisonService {
       userId,
       product.category.id,
       ActivityAction.COMPARE,
+      {
+        productId: product.id,
+        metadata: { source: 'comparison' },
+      },
     );
 
     const category = product.category;

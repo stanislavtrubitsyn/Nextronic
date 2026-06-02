@@ -411,11 +411,11 @@ export class ProductsService {
     categorySlug?: string;
     categoryId?: string;
     filters?: Record<string, unknown>;
-    userId?: string;
     minPrice?: number;
     maxPrice?: number;
     inStock?: boolean;
     sort?: string;
+    userId?: string;
   }) {
     const {
       query,
@@ -434,14 +434,6 @@ export class ProductsService {
     if (!activityCategoryId && categorySlug) {
       const category = await this.categoryRepo.findOne({ where: { slug: categorySlug } });
       activityCategoryId = category?.id;
-    }
-
-    if (userId && activityCategoryId) {
-      await this.recommendationsService.logActivity(
-        userId,
-        activityCategoryId,
-        ActivityAction.SEARCH,
-      );
     }
 
     const qb = this.productRepo
@@ -525,7 +517,31 @@ export class ProductsService {
         break;
     }
 
-    return await qb.getMany();
+    const products = await qb.getMany();
+    const finalActivityCategoryId = activityCategoryId || this.pickBestSearchCategoryId(products);
+
+    if (userId && finalActivityCategoryId && (query?.trim() || Object.keys(filters || {}).length)) {
+      await this.recommendationsService.logActivity(
+        userId,
+        finalActivityCategoryId,
+        ActivityAction.SEARCH,
+        {
+          metadata: {
+            source: 'products_search',
+            query: query?.trim() || null,
+            filters: filters || {},
+            catalogSlug: catalogSlug || null,
+            categorySlug: categorySlug || null,
+            minPrice: minPrice ?? null,
+            maxPrice: maxPrice ?? null,
+            inStock: Boolean(inStock),
+            sort: sort || null,
+          },
+        },
+      );
+    }
+
+    return products;
   }
 
   async resolveSearchNavigation(params: { query?: string; lang?: ProductLangType }) {
@@ -617,6 +633,7 @@ export class ProductsService {
     page?: number;
     limit?: number;
     lang?: 'ua' | 'en';
+    userId?: string;
   }) {
     const {
       categorySlug,
@@ -628,6 +645,7 @@ export class ProductsService {
       page = 1,
       limit = 20,
       lang = 'ua',
+      userId,
     } = params;
 
     const category = await this.categoryRepo.findOne({
@@ -685,6 +703,34 @@ export class ProductsService {
       .skip((safePage - 1) * safeLimit)
       .take(safeLimit)
       .getMany();
+
+    if (userId) {
+      const hasSearchIntent = Boolean(
+        query?.trim() ||
+        Object.keys(filters || {}).length ||
+        minPrice !== undefined ||
+        maxPrice !== undefined ||
+        sort,
+      );
+
+      await this.recommendationsService.logActivity(
+        userId,
+        category.id,
+        hasSearchIntent ? ActivityAction.SEARCH : ActivityAction.CATEGORY_VIEW,
+        {
+          metadata: {
+            source: 'category_page',
+            categorySlug,
+            query: query?.trim() || null,
+            filters: filters || {},
+            minPrice: minPrice ?? null,
+            maxPrice: maxPrice ?? null,
+            sort: sort || null,
+            page: safePage,
+          },
+        },
+      );
+    }
 
     const totalPages = Math.max(1, Math.ceil(total / safeLimit));
 

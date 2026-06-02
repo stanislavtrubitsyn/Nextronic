@@ -16,6 +16,7 @@ import { ViewedProductsService } from './viewed-products.service';
 import { ProductsEntity } from './products.entity';
 import { CreateProductDto, DuplicateProductDto, UpdateProductDto } from './products.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/users.entity';
@@ -53,6 +54,7 @@ export class ProductsController {
   }
 
   @Get('search')
+  @UseGuards(OptionalJwtAuthGuard)
   async search(
     @Query('q') query?: string,
     @Query('catalog') catalogSlug?: string,
@@ -101,6 +103,7 @@ export class ProductsController {
   }
 
   @Get('category/:slug')
+  @UseGuards(OptionalJwtAuthGuard)
   async getCategoryProducts(
     @Param('slug') categorySlug: string,
     @Query('q') query?: string,
@@ -111,6 +114,7 @@ export class ProductsController {
     @Query('limit') limit?: string,
     @Query('lang') lang?: 'ua' | 'en',
     @Query() allQueryParams?: Record<string, unknown>,
+    @Req() req?: RequestWithUser,
   ) {
     const filters: Record<string, unknown> = {};
     const systemKeys = [
@@ -142,6 +146,7 @@ export class ProductsController {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       lang: lang || 'ua',
+      userId: req?.user?.userId,
     });
   }
 
@@ -246,6 +251,10 @@ export class ProductsController {
       req.user!.userId,
       product.category.id,
       ActivityAction.VIEW,
+      {
+        productId: product.id,
+        metadata: { source: 'product_page' },
+      },
     );
     return await this.viewedProductsService.addView(req.user!.userId, productId);
   }

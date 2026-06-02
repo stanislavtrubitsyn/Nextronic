@@ -61,7 +61,7 @@ export class ReviewsService {
     const parentReview = dto.parentId
       ? await this.reviewRepo.findOne({
           where: { id: dto.parentId },
-          relations: ['user', 'product'],
+          relations: ['user', 'product', 'product.category'],
         })
       : null;
 
@@ -127,11 +127,24 @@ export class ReviewsService {
     }
 
     if (product.category) {
-      await this.recommendationsService.logActivity(
-        userId,
-        product.category.id,
-        ActivityAction.REVIEW,
-      );
+      const activityAction =
+        type === ReviewType.QUESTION
+          ? ActivityAction.QUESTION
+          : type === ReviewType.REPLY
+            ? ActivityAction.REPLY
+            : ActivityAction.REVIEW;
+
+      await this.recommendationsService.logActivity(userId, product.category.id, activityAction, {
+        productId: product.id,
+        rating: type === ReviewType.REVIEW ? dto.rating : null,
+        metadata: {
+          source: 'reviews',
+          reviewId: savedReview.id,
+          reviewType: type,
+          parentId: parentReview?.id || null,
+          verifiedPurchase: isVerifiedPurchase,
+        },
+      });
     }
 
     return savedReview;

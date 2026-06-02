@@ -200,6 +200,15 @@ export class OrdersService {
             userId,
             productWithCategory.category.id,
             ActivityAction.ORDER,
+            {
+              productId: productWithCategory.id,
+              quantity: item.quantity,
+              metadata: {
+                source: 'order',
+                quantity: item.quantity,
+                priceAtPurchase: Number(item.product.price || 0),
+              },
+            },
           );
         }
       }
@@ -424,6 +433,15 @@ export class OrdersService {
             userId,
             productWithCategory.category.id,
             ActivityAction.ORDER,
+            {
+              productId: productWithCategory.id,
+              quantity: item.quantity,
+              metadata: {
+                source: 'order',
+                quantity: item.quantity,
+                priceAtPurchase: Number(item.product.price || 0),
+              },
+            },
           );
         }
       }
